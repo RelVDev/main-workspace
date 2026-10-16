@@ -1,7 +1,7 @@
 # PROGRESS
 
 ## Status saat ini
-Phase aktif: P01 — Setup Repo, Tooling, dan Vercel (menunggu konfirmasi sebelum P02)
+Phase aktif: P03 selesai — menunggu konfirmasi sebelum P04/P02
 Terakhir diperbarui: 2026-10-16 (WIB)
 
 ## Ringkasan phase
@@ -10,7 +10,7 @@ Terakhir diperbarui: 2026-10-16 (WIB)
 | P00 | done | Ringkasan dan asumsi di `docs/ASSUMPTIONS.md`. Aset & jawaban §12 masih kosong (lihat Blocker). | 2026-10-16 |
 | P01 | blocked | Kode, scripts, struktur, dan verifikasi lokal selesai. Push ke GitHub selesai. Hubungan Vercel belum: butuh akses akun Vercel. | |
 | P02 | todo | | |
-| P03 | todo | Butuh project Supabase (P03.1). | |
+| P03 | done | Migrasi 0001–0006 + seed + tes RPC (15/15) + konkurensi (20 paralel) lulus di Supabase remote (Postgres 17.11). RLS & grant terverifikasi. P03.1 (env ke Vercel) menunggu P01.6. | 2026-10-16 |
 | P04–P16 | todo | | |
 
 ## Log task
@@ -23,6 +23,10 @@ Terakhir diperbarui: 2026-10-16 (WIB)
 - [x] P01.4 Struktur folder §8, `.env.example`, `.gitignore` (`.env*`, `/data/`)
 - [x] P01.5 `robots` (`noindex, nofollow`) di layout + `app/robots.ts` disallow `/`
 - [ ] P01.6 Hubungkan ke Vercel (preview aktif) — BLOCKED: butuh akun/akses Vercel
+- [x] P03.1 Project Supabase `beoumgkolvusnscovhab` (region ap-southeast-2 via pooler); kredensial di `.env.local` (gitignored)
+- [x] P03.2–P03.8 Migrasi 0001–0006, `supabase/seed.sql` (31 tamu dev)
+- [x] P03.9 Tes SQL: `supabase/tests/rpc_scenarios.sql` 15/15 + konkurensi 10×2 paralel (1 ok)
+- [x] P03.10 `lib/supabase/types.ts` digenerate dari skema
 - [x] P01.7 Halaman `/` placeholder "RE:SNAPS — Sistem Absensi"
 
 ## Keputusan & asumsi baru
@@ -32,6 +36,9 @@ Terakhir diperbarui: 2026-10-16 (WIB)
 - 2026-10-16 — Next.js 16 membawa `AGENTS.md` dari template; dibaca dan diikuti.
 
 ## Blocker / butuh input manusia
+- Rotasi kredensial: password DB, `sb_secret_…`, dan service_role JWT lama sudah tampil di chat. Rotasi lalu perbarui `.env.local`.
+- Warning migrasi `no privileges could be revoked` untuk fungsi ekstensi pg_trgm/unaccent di schema public — tidak menggagalkan, belum dirapikan.
+- Tes committee-allowed di remote belum dijalankan (butuh user auth nyata); sudah lulus di Postgres lokal dengan stub auth.
 - P01.6: akses akun Vercel dan izin menghubungkan repo `RelVDev/main-workspace` (subfolder `form-resnaps/`, root directory perlu diset di Vercel).
 - P00.3 / §12: logo SVG RE:SNAPS, spreadsheet tamu, tanggal/jam/venue, email panitia, kredensial Supabase, jumlah layar QR & perangkat, dan jawaban §12 lainnya.
 
