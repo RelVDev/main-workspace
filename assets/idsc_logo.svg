@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" width="160" height="40">
+  <defs>
+    <linearGradient id="unairGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#002B66"/>
+      <stop offset="100%" stop-color="#FFCC00"/>
+    </linearGradient>
+  </defs>
+  <!-- IDSC Globe & Ribbon Symbol -->
+  <g transform="translate(10, 10)">
+    <circle cx="30" cy="30" r="26" fill="#002B66"/>
+    <circle cx="30" cy="30" r="22" fill="none" stroke="#FFCC00" stroke-width="2.5"/>
+    <!-- Meridian and equator lines -->
+    <ellipse cx="30" cy="30" rx="12" ry="22" fill="none" stroke="#FFCC00" stroke-width="1.5"/>
+    <line x1="8" y1="30" x2="52" y2="30" stroke="#FFCC00" stroke-width="1.5"/>
+    <!-- 15th Edition Badge -->
+    <circle cx="44" cy="16" r="10" fill="#E4002B"/>
+    <text x="44" y="20" font-family="'Times New Roman', serif" font-size="8" font-weight="bold" fill="#FFFFFF" text-anchor="middle">15th</text>
+  </g>
+  <!-- IDSC Typography -->
+  <text x="75" y="38" font-family="'Times New Roman', serif" font-size="24" font-weight="bold" fill="#002B66" letter-spacing="1">IDSC 2026</text>
+  <text x="75" y="52" font-family="'Times New Roman', serif" font-size="8" font-weight="bold" fill="#FFB800" letter-spacing="0.5">FEB UNIVERSITAS AIRLANGGA</text>
+  <text x="75" y="62" font-family="'Times New Roman', serif" font-size="7" font-weight="normal" fill="#666666">International Business Case Competition</text>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" width="160" height="40">
+  <defs>
+    <linearGradient id="tselGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E4002B"/>
+      <stop offset="100%" stop-color="#800014"/>
+    </linearGradient>
+  </defs>
+  <!-- Telkomsel stylized portal icon -->
+  <g transform="translate(10, 10)">
+    <circle cx="30" cy="30" r="28" fill="url(#tselGrad)"/>
+    <path d="M 20 18 Q 38 18 42 30 Q 38 42 20 42 Z" fill="#001A3F"/>
+    <circle cx="28" cy="30" r="7" fill="#FFFFFF"/>
+  </g>
+  <!-- Telkomsel typography -->
+  <text x="75" y="44" font-family="'Times New Roman', serif" font-size="28" font-weight="bold" fill="#E4002B" letter-spacing="-0.5">Telkomsel</text>
+  <text x="76" y="58" font-family="'Times New Roman', serif" font-size="9" font-weight="normal" fill="#555555" letter-spacing="0.5">by Telkom Indonesia</text>
+</svg>
