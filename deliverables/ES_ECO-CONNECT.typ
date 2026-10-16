@@ -26,7 +26,7 @@
 
 #align(center)[
   #text(weight: "bold", size: 13pt)[ECO-CONNECT: Turning GraPARI Visits into Digital Value for Telkomsel] \
-  #text(size: 11pt, style: "italic")[Team Doa Ibu · Team leader: [name] · Members: [name], [name], [name]]
+  #text(size: 11pt, style: "italic")[Team Doa Ibu · Team leader: Farel Putra Firmansyah · Members: [name], [name]]
 ]
 
 #h[1. Problem: Traffic is growing, revenue per user is not]
