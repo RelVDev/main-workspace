@@ -19,7 +19,11 @@ Terakhir diperbarui: 2026-10-16 (WIB)
 | P09 | done | Halaman absen pulang `/keluar`, filter otomatis tamu di dalam, handling `not_checked_in`, visual cue terpadu, Playwright verified. | 2026-10-16 |
 | P10 | done | Dashboard panitia (`/panitia`), metrik kehadiran, progress bar, grafik interval 15 menit (`AttendanceChart.tsx`), aktivitas terbaru, kartu QR kompak, TV mode (`?tv=1`), Supabase Realtime channel + polling 10s. | 2026-10-16 |
 | P11 | done | Fitur operasional: absensi manual (`/api/panitia/manual`), batalkan absen (`/api/panitia/undo`), tambah tamu on-the-spot (`/api/panitia/tambah-tamu`), ekspor CSV dengan proteksi formula injection & UTF-8 BOM (`/api/export`), log aktivitas & audit (`/panitia/log`), pengaturan QR & cabut sesi darurat (`/panitia/pengaturan`). | 2026-10-16 |
-| P12–P16 | todo | Belum dikerjakan. | |
+| P12 | done | Hardening: security headers (CSP, no-referrer, X-Frame-Options, nosniff), audit RLS, audit bundle (0 secret leak), 404 & error page, `docs/SECURITY-CHECKLIST.md`. | 2026-10-16 |
+| P13 | done | Pengujian otomatis: 30 Vitest unit tests (100% pass), uji konkurensi (20 paralel), uji visual Playwright 360px & 1280px, CI GitHub Actions (`.github/workflows/ci.yml`), `docs/TEST-REPORT.md`. | 2026-10-16 |
+| P14 | blocked | Deploy production Vercel & Supabase prod (menunggu akun Vercel & jadwal H-3). | |
+| P15 | todo | UAT & Gladi resik panitia (jadwal H-2/H-1). | |
+| P16 | todo | Hari H & Pasca event (jadwal Hari H). | |
 
 ## Log task
 - [x] P02.1–P02.7 (tokens, Tailwind map, font, Logo/BrandHeader, komponen UI, /_design, docs/CONTRAST.md) — commit 875fa1e

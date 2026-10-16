@@ -1,42 +1,21 @@
-# Checklist Keamanan & Hardening (P12)
+# SECURITY CHECKLIST — RE:SNAPS Sistem Absensi (P12)
 
-Audit kepatuhan dan mitigasi risiko keamanan pada sistem absensi RE:SNAPS.
+Laporan verifikasi dan bukti keamanan sistem absensi Closing Party CHRYSALIS.
 
-## 1. Header Keamanan HTTP (P12.1)
-- [x] `X-Frame-Options: DENY` — Mencegah clickjacking pada seluruh halaman panitia dan absensi.
-- [x] `X-Content-Type-Options: nosniff` — Mencegah MIME type sniffing.
-- [x] `Referrer-Policy: no-referrer` — Mencegah kebocoran parameter token QR (`?t=...`) melalui header HTTP Referer saat tamu menavigasi ke luar.
-- [x] `Permissions-Policy: camera=*, microphone=(), geolocation=()` — Membatasi akses sensor perangkat.
+---
 
-## 2. Akses Kontrol Database & RLS (P12.2)
-- [x] RLS aktif pada seluruh 7 tabel: `guests`, `scan_sessions`, `attendance_logs`, `event_settings`, `committee_members`, `audit_logs`, `rate_limits`.
-- [x] Hak akses `anon` ditolak 100% pada seluruh tabel dan seluruh RPC function.
-- [x] Hak akses `authenticated` hanya diizinkan membaca jika user terdaftar di tabel `committee_members`.
-- [x] Tabel `scan_sessions` tidak memiliki policy untuk role client; hanya dapat diakses melalui service role server.
+## 1. Matriks Pemeriksaan Keamanan
 
-## 3. Isolasi Rahasia & Kebocoran Bundle (P12.3)
-- [x] `SUPABASE_SERVICE_ROLE_KEY`, `QR_SIGNING_SECRET`, dan `SESSION_COOKIE_SECRET` dipagari dengan `import "server-only"`.
-- [x] Hasil pemindaian bundel client (`.next/static`): 0 kunci rahasia terdeteksi.
-- [x] Berkas kredensial `.env.local` ter-ignore Git (tidak ter-commit).
-
-## 4. Keamanan Sesi Scan & Cookie (P12.4)
-- [x] Cookie `rs_session` berflag `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`, `Max-Age=600s`.
-- [x] Nilai cookie ditandatangani HMAC-SHA256 dengan perbandingan `timingSafeEqual`.
-- [x] Cookie dibersihkan seketika setelah absensi sukses; pemakaian ulang ditolak sebagai `session_used`.
-
-## 5. Perlindungan Privasi Data Tamu (P12.5 & P12.11)
-- [x] Kolom `contact` dan `notes` tidak pernah dikirim ke klien publik (`/api/guests/search` hanya mengembalikan `id, name, category`).
-- [x] Pencarian dibatasi minimal 2 huruf dan maksimal 8 hasil untuk mencegah enumerasi daftar tamu.
-- [x] Header `Cache-Control: no-store` dipasang pada seluruh respons API publik.
-- [x] Alamat IP tamu tidak disimpan secara mentah, melainkan di-hash dengan salt (`createHash("sha256").update(salt + ip)`).
-
-## 6. Simulasi Penyalahgunaan (P12.6)
-| Skenario | Hasil Uji | Status |
-|---|---|---|
-| Tangkapan layar QR dipakai > 60 detik kemudian | Ditolak: `token_expired` | LULUS |
-| Manipulasi 1 karakter tanda tangan QR | Ditolak: `token_invalid` | LULUS |
-| Token jendela masa depan | Ditolak: `token_invalid` | LULUS |
-| Satu sesi dipakai untuk absen 2 tamu | Percobaan ke-2 ditolak: `session_used` | LULUS |
-| Pergantian mode lewat URL manual | Sesi terkunci pada mode token QR; otomatis dialihkan | LULUS |
-| Absensi ganda bersamaan untuk 1 tamu | Tepat 1 berhasil, lainnya `already_in` | LULUS |
-| Formula injection pada ekspor CSV | Sel diawali tanda `'` | LULUS |
+| # | Item Pemeriksaan | Status | Bukti / Implementasi |
+|---|---|---|---|
+| **P12.1** | **Security Headers** | ✅ Terverifikasi | Diimplementasikan di `next.config.ts`: `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer` (mencegah bocornya `?t=` token QR ke situs pihak ketiga), `X-Content-Type-Options: nosniff`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`, `Strict-Transport-Security`. |
+| **P12.2** | **Audit RLS Database** | ✅ Terverifikasi | RLS aktif di seluruh 7 tabel & view. Role `anon` ditolak total dari membaca/menulis `guests`, `scan_sessions`, `attendance_logs`, `event_settings`, `audit_logs`, `rate_limits`. Role `authenticated` hanya membaca jika terdaftar di `committee_members`. Seluruh eksekusi tulis tamu melalui RPC `SECURITY DEFINER` service role. |
+| **P12.3** | **Audit Secret & Bundle Client** | ✅ Terverifikasi | Pemindaian `.next/static` membuktikan **0 byte** keberadaan `QR_SIGNING_SECRET`, `SESSION_COOKIE_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, maupun password PostgreSQL. Modul `admin.ts` dan `session.ts` diproteksi dengan `import 'server-only'`. |
+| **P12.4** | **Audit Cookie Sesi (`rs_session`)** | ✅ Terverifikasi | Cookie diset dengan atribut `HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=600`. Ditandatangani HMAC-SHA256 constant-time. Dihapus secara otomatis setelah absensi berhasil dicatat (`clearSessionCookie()`). |
+| **P12.5** | **Cache-Control & Perlindungan PII** | ✅ Terverifikasi | Seluruh respons API publik menyertakan header `Cache-Control: no-store`. Kolom `contact` dan `notes` tidak pernah dikembalikan ke endpoint tamu `/api/guests/search`. Pencarian dibatasi minimal 2 huruf dan maksimal 8 hasil. |
+| **P12.6** | **Simulasi Penyalahgunaan** | ✅ Terverifikasi | (a) Token kedaluwarsa (> 2 jendela) ditolak `token_expired`.<br>(b) Token dimanipulasi ditolak `token_invalid`.<br>(c) Sesi dipakai berulang ditolak `session_used` (409).<br>(d) Absen ganda tamu ditolak `already_in` (409).<br>(e) Akses tanpa sesi ditolak `session_invalid` (401). |
+| **P12.7** | **Ketahanan Jaringan** | ✅ Terverifikasi | Layar QR memiliki antrean *prefetch* 4 token ke depan sehingga tetap berjalan saat koneksi tersendat. Komponen tamu memiliki tombol "Coba Lagi" dan state machine fail-closed tanpa status menggantung. |
+| **P12.8** | **Performa & Ukuran Bundle** | ✅ Terverifikasi | Halaman tamu (`/masuk`, `/keluar`) tidak memuat pustaka berat seperti Recharts atau QRCode (hanya dimuat di bundle panitia). CSS memanfaatkan utilitas Tailwind v4 terkonsolidasi. |
+| **P12.9** | **Aksesibilitas (WCAG 2.2 AA)** | ✅ Terverifikasi | Kontras warna seluruh komponen diuji di `docs/CONTRAST.md`. Seluruh target sentuh tombol dan opsi $\ge 48$ px. Seluruh status menggunakan kombinasi Ikon + Label Teks tegas (tidak bergantung pada warna saja). Font input $\ge 16$ px mencegah zoom otomatis Safari iOS. |
+| **P12.10** | **Halaman 404 & Error** | ✅ Terverifikasi | Dibuat di `app/not-found.tsx` dan `app/error.tsx` menggunakan token warna dan tipografi RE:SNAPS. Seluruh aplikasi menyertakan meta tag `noindex, nofollow` dan `app/robots.ts` memblokir seluruh web crawler. |
+| **P12.11** | **Kebijakan Retensi Data** | ✅ Terverifikasi | Prosedur pasca-acara terdokumentasi di `docs/RUNBOOK.md`: pembersihan sesi aktif via `revoke_all_sessions`, ekspor final terenkripsi, serta penghapusan data kontak tamu setelah periode retensi. |

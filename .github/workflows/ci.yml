@@ -1,0 +1,51 @@
+name: RE:SNAPS CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Lint, Typecheck, Test & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.3.4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "pnpm"
+          cache-dependency-path: form-resnaps/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: form-resnaps
+        run: pnpm install --frozen-lockfile
+
+      - name: Run ESLint
+        working-directory: form-resnaps
+        run: pnpm lint
+
+      - name: Run TypeScript typecheck
+        working-directory: form-resnaps
+        run: pnpm typecheck
+
+      - name: Run Unit Tests (Vitest)
+        working-directory: form-resnaps
+        run: pnpm test
+
+      - name: Run Production Build
+        working-directory: form-resnaps
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: "https://beoumgkolvusnscovhab.supabase.co"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "dummy-anon-key-for-build"
+        run: pnpm build
