@@ -1,4 +1,4 @@
-// P07: Komponen Layar QR Dinamis dengan Live Preview Notifikasi Pemindaian & Desain RE:SNAPS.
+// P07: Layar QR Dinamis Closing Party CHRYSALIS — Gerbang Pencatatan Kehadiran Guest.
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -19,9 +19,10 @@ import {
   AlertCircle,
   Zap,
   Sparkles,
-  CheckCircle2,
   Volume2,
   VolumeX,
+  PartyPopper,
+  Ticket,
 } from "lucide-react";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Button } from "@/components/ui/Button";
@@ -60,7 +61,7 @@ type LiveNotification = {
 };
 
 export function QrDisplay({ compact = false }: { compact?: boolean }) {
-  // Mode: Masuk | Pulang (inisialisasi lazy dari localStorage, default: in)
+  // Mode: Masuk (Check-in) | Pulang (Check-out) (default: in)
   const [mode, setMode] = useState<Mode>(() => {
     if (typeof window === "undefined") return "in";
     try {
@@ -80,11 +81,11 @@ export function QrDisplay({ compact = false }: { compact?: boolean }) {
   const [isLocked, setIsLocked] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const [counter, setCounter] = useState<CounterData | null>(null);
   const [isTogglingOpen, setIsTogglingOpen] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  
-  // Live Toast Notification untuk User yang Scan / Absen
+
+  // Live Toast Notification saat Tamu Scan / Berhasil Check-in
   const [liveToast, setLiveToast] = useState<LiveNotification | null>(null);
   const lastKnownAttIdRef = useRef<string | null>(null);
   const lastKnownScanIdRef = useRef<string | null>(null);
@@ -109,7 +110,7 @@ export function QrDisplay({ compact = false }: { compact?: boolean }) {
     setQrDataUrl("");
   }
 
-  // 1. Mengambil token dari server panitia
+  // 1. Mengambil token QR dari server
   const fetchToken = useCallback(async (targetMode: Mode) => {
     try {
       const res = await fetch(`/api/panitia/qr-token?mode=${targetMode}&ahead=4`);
@@ -157,7 +158,7 @@ export function QrDisplay({ compact = false }: { compact?: boolean }) {
     }
   }, []);
 
-  // 2. Polling hitungan counter kehadiran
+  // 2. Polling hitungan kehadiran tamu
   const fetchCounter = useCallback(async () => {
     try {
       const res = await fetch("/api/panitia/counter");
@@ -170,7 +171,7 @@ export function QrDisplay({ compact = false }: { compact?: boolean }) {
     }
   }, []);
 
-  // 3. Polling live preview aktivitas scan & absensi
+  // 3. Polling live preview aktivitas scan & kehadiran tamu
   const checkLiveActivity = useCallback(async () => {
     try {
       const res = await fetch("/api/panitia/live-activity");
@@ -178,17 +179,20 @@ export function QrDisplay({ compact = false }: { compact?: boolean }) {
       const d = await res.json();
       if (!d.ok) return;
 
-      // Cek apakah ada absensi terbaru (< 12 detik lalu)
       const latestAtt = d.latestAttendance?.[0];
       if (latestAtt && latestAtt.isVeryRecent && latestAtt.id !== lastKnownAttIdRef.current) {
         lastKnownAttIdRef.current = latestAtt.id;
         if (soundEnabled) {
-          try { playSuccessChime(); } catch {}
+          try {
+            playSuccessChime();
+          } catch {
+            // Audio diblokir
+          }
         }
         setLiveToast({
           id: latestAtt.id,
           type: "attendance",
-          title: `${latestAtt.guestName} berhasil absen ${latestAtt.type === "in" ? "MASUK" : "PULANG"}!`,
+          title: `${latestAtt.guestName} berhasil check-in!`,
           subtitle: `${latestAtt.category ? latestAtt.category + " · " : ""}Pukul ${latestAtt.scannedAtWib}`,
           mode: latestAtt.type,
           at: Date.now(),
@@ -196,18 +200,21 @@ export function QrDisplay({ compact = false }: { compact?: boolean }) {
         return;
       }
 
-      // Cek apakah ada tamu yang baru saja scan QR (< 8 detik lalu)
       const scan = d.latestScanInfo;
       if (scan && scan.isVeryRecent && !scan.isConsumed && scan.id !== lastKnownScanIdRef.current) {
         lastKnownScanIdRef.current = scan.id;
         if (soundEnabled) {
-          try { playScanBlip(); } catch {}
+          try {
+            playScanBlip();
+          } catch {
+            // Audio diblokir
+          }
         }
         setLiveToast({
           id: scan.id,
           type: "scan",
-          title: "Seseorang baru saja scan QR!",
-          subtitle: `Sedang memilih nama pada mode ${scan.mode === "in" ? "Masuk" : "Pulang"}...`,
+          title: "Guest sedang memindai QR...",
+          subtitle: `Menghubungkan ke gerbang ${scan.mode === "in" ? "Masuk" : "Pulang"}`,
           mode: scan.mode,
           at: Date.now(),
         });
@@ -217,7 +224,7 @@ export function QrDisplay({ compact = false }: { compact?: boolean }) {
     }
   }, [soundEnabled]);
 
-  // 4. Timer rotasi, hitung mundur, dan polling live
+  // 4. Timer rotasi token dan polling live stream
   useEffect(() => {
     let mounted = true;
 
@@ -265,11 +272,11 @@ export function QrDisplay({ compact = false }: { compact?: boolean }) {
     };
   }, [mode, windowSec, isPaused, fetchToken, fetchCounter, checkLiveActivity, currentUrl]);
 
-  // 5. Supabase Realtime channel untuk memicu live toast instan saat ada absensi
+  // 5. Supabase Realtime channel
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase
-      .channel("qr-display-live-attendance")
+      .channel("qr-closing-party-live")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "attendance_logs" },
@@ -285,16 +292,16 @@ export function QrDisplay({ compact = false }: { compact?: boolean }) {
     };
   }, [checkLiveActivity, fetchCounter]);
 
-  // Auto-dismiss live toast setelah 6 detik
+  // Auto-dismiss live toast setelah 5 detik
   useEffect(() => {
     if (!liveToast) return;
     const timer = setTimeout(() => {
       setLiveToast(null);
-    }, 6000);
+    }, 5000);
     return () => clearTimeout(timer);
   }, [liveToast]);
 
-  // 6. Render QR Code (PNG Data URL beresolusi tinggi, tajam & tahan CSS reset)
+  // 6. Render QR Code (PNG Data URL beresolusi tinggi, hitam di putih tajam)
   useEffect(() => {
     let active = true;
     if (currentUrl) {
@@ -348,12 +355,12 @@ export function QrDisplay({ compact = false }: { compact?: boolean }) {
     }
   }
 
-  // 9. Buka / Tutup Absen
+  // 9. Buka / Tutup Gerbang Kehadiran
   async function handleToggleOpen() {
     if (isLocked) return;
     const confirmMsg = isOpen
-      ? `Tutup absen ${mode === "in" ? "MASUK" : "PULANG"}? Tamu tidak akan dapat absen lagi.`
-      : `Buka kembali absen ${mode === "in" ? "MASUK" : "PULANG"}?`;
+      ? `Tutup gerbang check-in ${mode === "in" ? "KEDATANGAN" : "KEPULANGAN"}? Tamu tidak akan dapat memindai lagi.`
+      : `Buka kembali gerbang check-in ${mode === "in" ? "KEDATANGAN" : "KEPULANGAN"}?`;
 
     if (!window.confirm(confirmMsg)) return;
 
@@ -375,7 +382,7 @@ export function QrDisplay({ compact = false }: { compact?: boolean }) {
     }
   }
 
-  // 10. Kunci Kontrol (tahan 1 detik)
+  // 10. Kunci Kontrol (tahan 1 detik untuk buka kunci)
   function handleUnlockPressStart() {
     if (!isLocked) return;
     setUnlockProgress(0);
@@ -397,68 +404,70 @@ export function QrDisplay({ compact = false }: { compact?: boolean }) {
     setUnlockProgress(0);
   }
 
+  const isMasuk = mode === "in";
+
   return (
     <div
       ref={containerRef}
-      className={`relative flex flex-col items-center justify-between gap-5 rounded-2xl border border-line bg-surface p-6 shadow-xl transition-all ${
+      className={`relative flex flex-col items-center justify-between gap-5 rounded-3xl border border-white/70 bg-gradient-to-b from-white/95 via-surface/90 to-surface-soft/90 p-6 shadow-2xl backdrop-blur-2xl transition-all sm:p-7 ${
         compact ? "w-full max-w-md" : "w-full max-w-2xl"
       }`}
     >
-      {/* Toast Notifikasi Live Preview (P10 & P07 Live Feedback) */}
+      {/* Toast Notifikasi Live Preview Mengambang */}
       {liveToast ? (
         <div
           role="status"
           aria-live="polite"
-          className="absolute -top-4 z-40 flex w-[90%] max-w-md animate-in fade-in slide-in-from-top-4 duration-300"
+          className="absolute -top-5 z-40 flex w-[92%] max-w-md animate-in fade-in slide-in-from-top-4 duration-300"
         >
           <div
-            className={`flex w-full items-center gap-3 rounded-xl border p-3.5 shadow-2xl backdrop-blur-md ${
+            className={`flex w-full items-center gap-3.5 rounded-2xl border p-4 shadow-2xl backdrop-blur-xl ${
               liveToast.type === "attendance"
-                ? "border-success/40 bg-surface/95 text-ink ring-2 ring-success/30"
-                : "border-brand-blue/40 bg-surface/95 text-ink ring-2 ring-brand-blue/30"
+                ? "border-success/50 bg-white/95 text-ink ring-4 ring-success/20"
+                : "border-brand-blue/50 bg-white/95 text-ink ring-4 ring-brand-blue/20"
             }`}
           >
             <div
-              className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
+              className={`flex size-10 shrink-0 items-center justify-center rounded-xl shadow-xs ${
                 liveToast.type === "attendance"
-                  ? "bg-success text-white"
-                  : "bg-brand-blue text-white"
+                  ? "bg-gradient-to-br from-success to-emerald-600 text-white"
+                  : "bg-gradient-to-br from-brand-blue to-brand-purple text-white"
               }`}
             >
               {liveToast.type === "attendance" ? (
-                <CheckCircle2 className="size-5" />
+                <PartyPopper className="size-5 animate-bounce" />
               ) : (
-                <Zap className="size-5 animate-pulse" />
+                <Zap className="size-5 animate-pulse text-brand-gold" />
               )}
             </div>
             <div className="flex flex-col truncate">
-              <span className="text-xs font-black uppercase tracking-wider text-brand-blue">
-                {liveToast.type === "attendance" ? "Absensi Berhasil!" : "Scan Terdeteksi"}
+              <span className="text-[10px] font-black uppercase tracking-wider text-brand-blue">
+                {liveToast.type === "attendance" ? "Check-in Berhasil!" : "Kamera Terhubung"}
               </span>
-              <span className="truncate text-sm font-bold text-ink">{liveToast.title}</span>
-              <span className="text-[11px] font-semibold text-ink-muted">{liveToast.subtitle}</span>
+              <span className="truncate text-sm font-black text-ink">{liveToast.title}</span>
+              <span className="text-xs font-semibold text-ink-muted">{liveToast.subtitle}</span>
             </div>
           </div>
         </div>
       ) : null}
 
-      {/* Baris Atas: Logo Resmi, Pemilih Mode & Status Koneksi */}
-      <div className="flex w-full flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
-        <div className="flex items-center gap-2.5">
-          <div className="relative size-8 overflow-hidden rounded-lg shadow-xs">
+      {/* Baris Atas: Logo Resmi & Pemilih Mode Kedatangan / Kepulangan */}
+      <div className="flex w-full flex-wrap items-center justify-between gap-3 border-b border-line/70 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="relative size-10 overflow-hidden rounded-xl shadow-xs ring-1 ring-black/5">
             <Image
               src="/brand/logo.png"
               alt="RE:SNAPS"
-              width={64}
-              height={64}
+              width={80}
+              height={80}
               className="size-full object-cover"
               priority
             />
           </div>
-          <div className="w-52">
+          <div className="w-56">
             <SegmentedControl<Mode>
               name="qr_mode"
-              ariaLabel="Pilih mode absen layar"
+              ariaLabel="Pilih mode check-in"
               value={mode}
               onChange={handleModeChange}
               options={[
@@ -474,139 +483,155 @@ export function QrDisplay({ compact = false }: { compact?: boolean }) {
             tone={isConnected ? "success" : "error"}
             icon={isConnected ? Wifi : WifiOff}
           >
-            {isConnected ? "Terhubung" : "Koneksi Terputus"}
+            {isConnected ? "Live Gate" : "Offline"}
           </Badge>
           <Badge tone={isOpen ? "brand" : "error"} icon={isOpen ? Radio : AlertCircle}>
-            {isOpen ? "DIBUKA" : "DITUTUP"}
+            {isOpen ? "PINTU BUKA" : "DITUTUP"}
           </Badge>
         </div>
       </div>
 
-      {/* Judul Besar Sesuai Mode */}
-      <div className="text-center">
-        <div className="flex items-center justify-center gap-1.5 text-xs font-bold uppercase tracking-widest text-brand-blue">
-          <Sparkles className="size-3.5" />
-          <span>Sistem Absensi Otomatis</span>
+      {/* Judul Besar Closing Party & Penegasan Kehadiran Tamu */}
+      <div className="flex flex-col items-center text-center">
+        {/* Lencana Identitas Closing Party (Bukan absensi kantor/sekolah) */}
+        <div className="inline-flex items-center gap-1.5 rounded-full border border-brand-purple/20 bg-gradient-to-r from-brand-blue/10 via-brand-purple/10 to-brand-gold/10 px-4 py-1 text-xs font-black uppercase tracking-wider text-brand-purple shadow-2xs">
+          <Sparkles className="size-3.5 text-brand-gold" />
+          <span>CHECK-IN GUEST · CLOSING PARTY CHRYSALIS</span>
         </div>
-        <h2 className="mt-0.5 text-2xl font-black uppercase tracking-tight text-ink sm:text-3xl">
-          {mode === "in" ? "SCAN UNTUK ABSEN MASUK" : "SCAN UNTUK ABSEN PULANG"}
-        </h2>
-        <p className="mt-1 text-xs font-semibold text-ink-muted">
-          Arahkan kamera ponsel Anda ke kode QR dinamis di bawah ini
+
+        <h1 className="mt-2 text-2xl font-black uppercase tracking-tight text-ink sm:text-3xl">
+          {isMasuk ? "SCAN UNTUK CHECK-IN TAMU" : "SCAN UNTUK CHECK-OUT TAMU"}
+        </h1>
+        <p className="mt-1 text-xs font-bold text-ink-muted">
+          {isMasuk
+            ? "Arahkan kamera ponsel Anda ke kode QR untuk mengambil Tiket Masuk"
+            : "Arahkan kamera ponsel Anda sebelum meninggalkan venue"}
         </p>
       </div>
 
-      {/* Area Tampilan QR (Hitam di putih polos, tanpa logo/gradien di dalam) */}
+      {/* Area Tampilan QR dengan Frame Gradien Perayaan & Kontras Hitam-Putih Maksimal */}
       <div className="relative flex flex-col items-center justify-center">
+        {/* Efek Pendaran Halus di Belakang QR (Closing Party Glow) */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -inset-3 rounded-full bg-gradient-brand opacity-25 blur-2xl"
+        />
+
         {!isOpen ? (
-          <div className="flex size-72 flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-error bg-surface-soft p-6 text-center sm:size-84">
-            <AlertCircle className="size-12 text-error" />
-            <p className="font-bold text-ink">
-              Absen {mode === "in" ? "Masuk" : "Pulang"} Sedang Ditutup
-            </p>
-            <p className="text-xs text-ink-muted">
-              QR disembunyikan. Tekan tombol di bawah untuk membuka kembali.
-            </p>
+          <div className="relative z-10 flex size-72 flex-col items-center justify-center gap-4 rounded-3xl border-2 border-dashed border-error bg-surface-soft/90 p-6 text-center shadow-lg sm:size-84">
+            <AlertCircle className="size-12 text-error animate-pulse" />
+            <div className="flex flex-col gap-1">
+              <p className="text-base font-black text-ink">
+                Gerbang {isMasuk ? "Check-in Masuk" : "Check-out Pulang"} Ditutup
+              </p>
+              <p className="text-xs text-ink-muted">
+                Kode QR disembunyikan. Tekan tombol di bawah untuk membuka kembali.
+              </p>
+            </div>
             <Button
               onClick={handleToggleOpen}
               disabled={isLocked || isTogglingOpen}
-              className="mt-2 text-sm font-bold"
+              className="mt-1 text-xs font-extrabold"
             >
-              Buka Absen {mode === "in" ? "Masuk" : "Pulang"}
+              Buka Gerbang {isMasuk ? "Masuk" : "Pulang"}
             </Button>
           </div>
         ) : isPaused ? (
-          <div className="flex size-72 flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-line bg-surface-soft p-6 text-center sm:size-84">
+          <div className="relative z-10 flex size-72 flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-line bg-surface-soft/90 p-6 text-center shadow-lg sm:size-84">
             <Pause className="size-12 text-ink-muted" />
             <p className="font-bold text-ink">Layar QR Dijeda</p>
-            <p className="text-xs text-ink-muted">
-              QR disembunyikan sementara pada layar ini.
-            </p>
+            <p className="text-xs text-ink-muted">Kode QR disembunyikan sementara.</p>
             <Button
               onClick={() => setIsPaused(false)}
               disabled={isLocked}
               variant="secondary"
-              className="mt-2 text-sm font-semibold"
+              className="mt-2 text-xs font-semibold"
             >
-              Lanjutkan Layar
+              Lanjutkan Tampilan
             </Button>
           </div>
         ) : !isConnected && !currentUrl ? (
-          <div className="flex size-72 flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-error bg-surface-soft p-6 text-center sm:size-84">
-            <WifiOff className="size-12 text-error" />
+          <div className="relative z-10 flex size-72 flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-error bg-surface-soft/90 p-6 text-center sm:size-84">
+            <WifiOff className="size-12 text-error animate-bounce" />
             <p className="font-bold text-ink">Koneksi Terputus</p>
-            <p className="text-xs text-ink-muted">Mencoba menghubungkan kembali ke server...</p>
+            <p className="text-xs text-ink-muted">Menghubungkan kembali ke server acara...</p>
           </div>
         ) : (
-          <div className="flex flex-col items-center">
-            {/* Wadah Putih Bersih Khusus QR */}
-            <div className="flex size-72 items-center justify-center overflow-hidden rounded-2xl border-2 border-line bg-white p-2 shadow-inner sm:size-84">
-              {qrDataUrl ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={qrDataUrl}
-                  alt="Kode QR Absensi RE:SNAPS"
-                  className="size-full object-contain"
-                />
-              ) : (
-                <div className="flex size-full items-center justify-center text-xs font-semibold text-ink-muted">
-                  Memuat QR...
-                </div>
-              )}
+          <div className="relative z-10 flex flex-col items-center">
+            {/* Bingkai Mewah Gradien RE:SNAPS yang Membungkus QR Box */}
+            <div className="rounded-3xl bg-gradient-brand p-1.5 shadow-2xl ring-4 ring-brand-blue/10">
+              {/* Wadah Putih Bersih Khusus Modul QR */}
+              <div className="flex size-72 items-center justify-center overflow-hidden rounded-[22px] bg-white p-2.5 shadow-inner sm:size-84">
+                {qrDataUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={qrDataUrl}
+                    alt="Kode QR Check-in RE:SNAPS"
+                    className="size-full object-contain"
+                  />
+                ) : (
+                  <div className="flex size-full items-center justify-center text-xs font-bold text-ink-muted">
+                    Memuat Kode QR...
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Hitung Mundur Sisa Waktu Jendela */}
-            <div className="mt-4 flex items-center gap-2.5 text-sm font-semibold text-ink">
-              <div className="h-2 w-32 overflow-hidden rounded-full bg-surface-soft">
+            <div className="mt-4 flex items-center gap-2.5 text-xs font-bold text-ink">
+              <div className="h-2 w-32 overflow-hidden rounded-full bg-surface-soft p-0.5 shadow-inner">
                 <div
-                  className="h-full bg-brand-blue transition-all duration-1000 ease-linear"
+                  className="h-full rounded-full bg-gradient-to-r from-brand-blue via-brand-purple to-brand-coral transition-all duration-1000 ease-linear"
                   style={{ width: `${(secondsLeft / windowSec) * 100}%` }}
                 />
               </div>
-              <span className="tabular-nums font-bold">Berganti dalam {secondsLeft} dtk</span>
+              <span className="tabular-nums">Berganti dalam {secondsLeft} detik</span>
             </div>
           </div>
         )}
       </div>
 
-      {/* 3 Langkah Instruksi Singkat di Bawah QR */}
-      <div className="grid w-full grid-cols-3 gap-2 border-y border-line py-3 text-center text-xs text-ink-muted">
-        <div>
-          <span className="font-extrabold text-brand-blue">1.</span> Buka kamera HP
+      {/* 3 Langkah Petunjuk Tamu Bergaya Festival */}
+      <div className="grid w-full grid-cols-3 gap-2 border-y border-line/70 py-3 text-center text-xs text-ink-muted">
+        <div className="flex flex-col items-center gap-0.5">
+          <span className="font-black text-brand-blue">1. Buka Kamera HP</span>
+          <span className="text-[10px]">Arahkan ke kode QR</span>
         </div>
-        <div>
-          <span className="font-extrabold text-brand-blue">2.</span> Cari namamu
+        <div className="flex flex-col items-center gap-0.5 border-x border-line/70 px-1">
+          <span className="font-black text-brand-purple">2. Cari Namamu</span>
+          <span className="text-[10px]">Pilih dari daftar tamu</span>
         </div>
-        <div>
-          <span className="font-extrabold text-brand-blue">3.</span> Konfirmasi absen
+        <div className="flex flex-col items-center gap-0.5">
+          <span className="font-black text-success">3. Ambil Gala Pass</span>
+          <span className="text-[10px]">Nikmati acaranya!</span>
         </div>
       </div>
 
       {/* Counter Ringkas di Bawah QR */}
       {counter ? (
-        <div className="flex w-full items-center justify-center gap-4 rounded-xl bg-surface-soft px-4 py-2.5 text-center text-sm font-semibold text-ink">
-          {mode === "in" ? (
+        <div className="flex w-full items-center justify-center gap-3 rounded-2xl bg-surface-soft/80 px-4 py-2.5 text-center text-xs font-bold text-ink shadow-inner">
+          <Ticket className="size-4 text-brand-blue shrink-0" />
+          {isMasuk ? (
             <span>
-              Sudah masuk <strong className="text-brand-blue">{counter.checkedIn}</strong> / {counter.total} tamu
+              Tamu Hadir: <strong className="text-brand-blue">{counter.checkedIn}</strong> / {counter.total} Orang · Di Dalam Venue: <strong className="text-success">{counter.inside}</strong>
             </span>
           ) : (
             <span>
-              Sudah pulang <strong className="text-brand-purple">{counter.checkedOut}</strong> · Di dalam{" "}
-              <strong className="text-success">{counter.inside}</strong>
+              Tamu Pulang: <strong className="text-brand-purple">{counter.checkedOut}</strong> · Masih di Venue: <strong className="text-success">{counter.inside}</strong>
             </span>
           )}
         </div>
       ) : null}
 
-      {/* Kontrol Layar & Kunci Tombol */}
-      <div className="flex w-full flex-wrap items-center justify-between gap-3 pt-1">
+      {/* Kontrol Layar & Fitur Panitia */}
+      <div className="flex w-full flex-wrap items-center justify-between gap-2.5 pt-1">
         <div className="flex items-center gap-2">
           {isOpen ? (
             <button
               type="button"
               onClick={() => setIsPaused(!isPaused)}
               disabled={isLocked}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-2 text-xs font-semibold text-ink hover:bg-surface-soft disabled:opacity-40"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-surface px-3 py-2 text-xs font-bold text-ink hover:bg-surface-soft disabled:opacity-40"
             >
               {isPaused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />}
               {isPaused ? "Lanjutkan" : "Jeda"}
@@ -617,39 +642,44 @@ export function QrDisplay({ compact = false }: { compact?: boolean }) {
             type="button"
             onClick={handleToggleOpen}
             disabled={isLocked || isTogglingOpen}
-            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-40 ${
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold disabled:opacity-40 ${
               isOpen
                 ? "border-error text-error hover:bg-error/10"
                 : "border-success text-success hover:bg-success/10"
             }`}
           >
-            {isOpen ? "Tutup Absen" : "Buka Absen"}
+            {isOpen ? "Tutup Pintu" : "Buka Pintu"}
           </button>
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Tombol Suara Panitia */}
           <button
             type="button"
             onClick={() => setSoundEnabled(!soundEnabled)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-2 text-xs font-semibold text-ink hover:bg-surface-soft"
-            title={soundEnabled ? "Matikan suara notifikasi" : "Nyalakan suara notifikasi"}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-surface px-3 py-2 text-xs font-bold text-ink hover:bg-surface-soft"
+            title={soundEnabled ? "Matikan suara notifikasi lonceng" : "Nyalakan suara notifikasi"}
           >
-            {soundEnabled ? <Volume2 className="size-3.5 text-brand-blue" /> : <VolumeX className="size-3.5 text-ink-muted" />}
-            {soundEnabled ? "Suara Aktif" : "Bisu"}
+            {soundEnabled ? (
+              <Volume2 className="size-3.5 text-brand-blue" />
+            ) : (
+              <VolumeX className="size-3.5 text-ink-muted" />
+            )}
+            <span className="hidden sm:inline">{soundEnabled ? "Suara On" : "Bisu"}</span>
           </button>
 
           {!compact ? (
             <button
               type="button"
               onClick={toggleFullscreen}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-2 text-xs font-semibold text-ink hover:bg-surface-soft"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-surface px-3 py-2 text-xs font-bold text-ink hover:bg-surface-soft"
             >
               {isFullscreen ? <Minimize className="size-3.5" /> : <Maximize className="size-3.5" />}
-              {isFullscreen ? "Kecilkan" : "Layar Penuh"}
+              <span className="hidden sm:inline">{isFullscreen ? "Kecilkan" : "Layar Penuh"}</span>
             </button>
           ) : null}
 
-          {/* Tombol Kunci Kontrol */}
+          {/* Tombol Kunci Kontrol (tahan 1 detik untuk buka) */}
           {isLocked ? (
             <button
               type="button"
@@ -657,7 +687,7 @@ export function QrDisplay({ compact = false }: { compact?: boolean }) {
               onMouseUp={handleUnlockPressEnd}
               onTouchStart={handleUnlockPressStart}
               onTouchEnd={handleUnlockPressEnd}
-              className="relative inline-flex items-center gap-1.5 overflow-hidden rounded-lg border border-warning bg-surface px-3 py-2 text-xs font-bold text-warning"
+              className="relative inline-flex items-center gap-1.5 overflow-hidden rounded-xl border border-warning bg-surface px-3 py-2 text-xs font-black text-warning"
               title="Tahan 1 detik untuk membuka kunci kontrol"
             >
               <div
@@ -665,17 +695,17 @@ export function QrDisplay({ compact = false }: { compact?: boolean }) {
                 style={{ width: `${unlockProgress}%` }}
               />
               <Lock className="relative z-10 size-3.5" />
-              <span className="relative z-10">Tahan untuk Buka Kunci</span>
+              <span className="relative z-10">Tahan untuk Buka</span>
             </button>
           ) : (
             <button
               type="button"
               onClick={() => setIsLocked(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-2 text-xs font-semibold text-ink hover:bg-surface-soft"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-surface px-3 py-2 text-xs font-bold text-ink hover:bg-surface-soft"
               title="Kunci kontrol agar tidak sengaja terpencet"
             >
               <Unlock className="size-3.5" />
-              Kunci Kontrol
+              Kunci
             </button>
           )}
         </div>
