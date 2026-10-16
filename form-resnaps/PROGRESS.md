@@ -1,7 +1,7 @@
 # PROGRESS
 
 ## Status saat ini
-Phase aktif: P03 selesai — menunggu konfirmasi sebelum P04/P02
+Phase aktif: tidak ada. Ditunda atas permintaan user ("lanjutkan nanti"). Berikutnya: P05.
 Terakhir diperbarui: 2026-10-16 (WIB)
 
 ## Ringkasan phase
@@ -9,11 +9,14 @@ Terakhir diperbarui: 2026-10-16 (WIB)
 |---|---|---|---|
 | P00 | done | Ringkasan dan asumsi di `docs/ASSUMPTIONS.md`. Aset & jawaban §12 masih kosong (lihat Blocker). | 2026-10-16 |
 | P01 | blocked | Kode, scripts, struktur, dan verifikasi lokal selesai. Push ke GitHub selesai. Hubungan Vercel belum: butuh akses akun Vercel. | |
-| P02 | todo | | |
+| P02 | done | Design system, token Lampiran A, komponen UI, katalog `/_design` (dev only). Kontras di `docs/CONTRAST.md`. Verifikasi 360 px & 1280 px. | 2026-10-16 |
 | P03 | done | Migrasi 0001–0006 + seed + tes RPC (15/15) + konkurensi (20 paralel) lulus di Supabase remote (Postgres 17.11). RLS & grant terverifikasi. P03.1 (env ke Vercel) menunggu P01.6. | 2026-10-16 |
-| P04–P16 | todo | | |
+| P04 | blocked | Belum dikerjakan. Menunggu spreadsheet tamu dan instruksi user. | |
+| P05 | blocked | Belum dikerjakan. Berikutnya saat dilanjutkan. | |
+| P06–P16 | todo | Belum dikerjakan. Bergantung P05. | |
 
 ## Log task
+- [x] P02.1–P02.7 (tokens, Tailwind map, font, Logo/BrandHeader, komponen UI, /_design, docs/CONTRAST.md) — commit 875fa1e
 - [x] P00.1 Baca PLANNING.md penuh — `docs/ASSUMPTIONS.md`
 - [x] P00.2 Buat PROGRESS.md
 - [x] P00.5 `docs/DATA-TEMPLATE.md` (Lampiran B)
@@ -30,6 +33,8 @@ Terakhir diperbarui: 2026-10-16 (WIB)
 - [x] P01.7 Halaman `/` placeholder "RE:SNAPS — Sistem Absensi"
 
 ## Keputusan & asumsi baru
+- 2026-10-16 — Folder `app/_design` diberi nama `%5Fdesign` karena folder `_` diabaikan App Router; URL tetap `/_design`.
+- 2026-10-16 — `todo` tool otomatis memulai phase berikutnya saat yang aktif diblokir. Status di repo hanya mencatat yang benar-benar dikerjakan.
 - 2026-10-16 — Kode aplikasi ditaruh di `form-resnaps/` (bukan root repo) — root berisi `.git`, `.github`, `.claude`, `.omp`; `form-resnaps/` juga satu folder dengan dokumen plan.
 - 2026-10-16 — `pnpm-workspace.yaml` template: `esbuild: true` (postinstall esbuild wajib), `sharp`/`unrs-resolver` tetap `false`.
 - 2026-10-16 — `.gitignore`: `.env*` diikuti `!.env.example` agar template env ter-commit.
