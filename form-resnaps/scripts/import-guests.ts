@@ -14,15 +14,8 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "../lib/supabase/types";
 
 // Fungsi normalisasi JS yang identik dengan normalize_name() di PostgreSQL.
-export function normalizeNameJs(raw: string): string {
-  return raw
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[\x00-\x1F\x7F]/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-}
+import { normalizeNameJs } from "../lib/normalize";
+export { normalizeNameJs };
 
 export function cleanField(val: unknown): string {
   if (val === null || val === undefined) return "";

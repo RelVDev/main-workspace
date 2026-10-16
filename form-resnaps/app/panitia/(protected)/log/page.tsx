@@ -1,9 +1,6 @@
-// P06.3 / P11.6: Log Aktivitas & Audit Panitia.
+// P11.6: Halaman Log Aktivitas & Audit Panitia.
+import { LogsClient } from "@/components/dashboard/LogsClient";
+
 export default function PanitiaLogPage() {
-  return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-bold text-ink">Log Aktivitas & Audit</h1>
-      <p className="text-sm text-ink-muted">Riwayat pencatatan absensi dan tindakan operasional panitia.</p>
-    </div>
-  );
+  return <LogsClient />;
 }

@@ -1,7 +1,7 @@
 # PROGRESS
 
 ## Status saat ini
-Phase aktif: P08 & P09 selesai. Berikutnya: P10 Dashboard Panitia.
+Phase aktif: P10 & P11 selesai. Berikutnya: P12 Hardening, Keamanan, Aksesibilitas.
 Terakhir diperbarui: 2026-10-16 (WIB)
 
 ## Ringkasan phase
@@ -17,7 +17,9 @@ Terakhir diperbarui: 2026-10-16 (WIB)
 | P07 | done | Layar QR dinamis (`QrDisplay.tsx`), `/panitia/qr`, route `/api/panitia/qr-token`, `/api/panitia/toggle-open`, `/api/panitia/counter`. Fail-closed, hitung mundur 30s, prefetch token, fullscreen & wake lock, kunci kontrol. | 2026-10-16 |
 | P08 | done | Halaman absen masuk `/masuk`, `AttendanceFlow.tsx`, debounce pencarian 250ms, navigasi keyboard listbox, modal konfirmasi, banner sisa waktu <2 menit, Playwright mobile 360px & desktop 1280px verified. | 2026-10-16 |
 | P09 | done | Halaman absen pulang `/keluar`, filter otomatis tamu di dalam, handling `not_checked_in`, visual cue terpadu, Playwright verified. | 2026-10-16 |
-| P10–P16 | todo | Belum dikerjakan. | |
+| P10 | done | Dashboard panitia (`/panitia`), metrik kehadiran, progress bar, grafik interval 15 menit (`AttendanceChart.tsx`), aktivitas terbaru, kartu QR kompak, TV mode (`?tv=1`), Supabase Realtime channel + polling 10s. | 2026-10-16 |
+| P11 | done | Fitur operasional: absensi manual (`/api/panitia/manual`), batalkan absen (`/api/panitia/undo`), tambah tamu on-the-spot (`/api/panitia/tambah-tamu`), ekspor CSV dengan proteksi formula injection & UTF-8 BOM (`/api/export`), log aktivitas & audit (`/panitia/log`), pengaturan QR & cabut sesi darurat (`/panitia/pengaturan`). | 2026-10-16 |
+| P12–P16 | todo | Belum dikerjakan. | |
 
 ## Log task
 - [x] P02.1–P02.7 (tokens, Tailwind map, font, Logo/BrandHeader, komponen UI, /_design, docs/CONTRAST.md) — commit 875fa1e

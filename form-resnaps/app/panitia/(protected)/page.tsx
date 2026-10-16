@@ -1,15 +1,24 @@
-// P06.3 / P10: Dashboard Panitia.
-import { getCommitteeAuth } from "@/lib/supabase/server";
+// P10: Halaman Dashboard Panitia terproteksi (mendukung mode normal dan mode TV ?tv=1).
+import { Suspense } from "react";
+import { DashboardClient } from "@/components/dashboard/DashboardClient";
 
-export default async function PanitiaDashboardPage() {
-  const auth = await getCommitteeAuth();
+export default async function PanitiaDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tv?: string }>;
+}) {
+  const params = await searchParams;
+  const isTv = params.tv === "1";
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-bold text-ink">Dashboard Panitia</h1>
-      <p className="text-sm text-ink-muted">
-        Selamat datang, <span className="font-semibold text-ink">{auth?.email}</span>. Pantau kehadiran tamu secara real-time.
-      </p>
-    </div>
+    <Suspense
+      fallback={
+        <div className="flex flex-1 items-center justify-center p-12 text-center text-sm font-semibold text-ink-muted">
+          Memuat data dashboard...
+        </div>
+      }
+    >
+      <DashboardClient isTvMode={isTv} />
+    </Suspense>
   );
 }
