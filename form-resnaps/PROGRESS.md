@@ -1,7 +1,7 @@
 # PROGRESS
 
 ## Status saat ini
-Phase aktif: P04 & P05 selesai; Skills, MCP, & Environment dikonfigurasi. Berikutnya: P06 Autentikasi Panitia.
+Phase aktif: P06 selesai. Berikutnya: P07 Layar QR Dinamis.
 Terakhir diperbarui: 2026-10-16 (WIB)
 
 ## Ringkasan phase
@@ -13,7 +13,8 @@ Terakhir diperbarui: 2026-10-16 (WIB)
 | P03 | done | Migrasi 0001–0006 + seed + tes RPC (15/15) + konkurensi (20 paralel) lulus di Supabase remote (Postgres 17.11). RLS & grant terverifikasi. P03.1 (env ke Vercel) menunggu P01.6. | 2026-10-16 |
 | P04 | done | Pipeline `scripts/import-guests.ts`, idempoten, deteksi duplikat intra-CSV & DB, validasi, normalisasi unaccent, audit log, `docs/RUNBOOK.md`. | 2026-10-16 |
 | P05 | done | Mesin token QR, sesi cookie, route API search/submit/me, zod, unit test 16/16, e2e remote pass, rate limit DB-backed (`0007_rate_limit.sql` & `lib/rate-limit.ts`). | 2026-10-16 |
-| P06–P16 | todo | Belum dikerjakan. Bergantung P05. | |
+| P06 | done | Autentikasi panitia Supabase SSR (`client.ts`, `server.ts`), Next.js 16 `proxy.ts`, `/panitia/login` (Suspense), role matrix (`admin` vs `committee`), logout, `scripts/add-committee.ts`. | 2026-10-16 |
+| P07–P16 | todo | Belum dikerjakan. | |
 
 ## Log task
 - [x] P02.1–P02.7 (tokens, Tailwind map, font, Logo/BrandHeader, komponen UI, /_design, docs/CONTRAST.md) — commit 875fa1e
