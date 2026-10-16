@@ -5,6 +5,7 @@ import { lookupSession } from "@/lib/scan-session";
 import { clearSessionCookie } from "@/lib/session";
 import { guestId } from "@/lib/validation/schemas";
 import { fail, ok } from "@/lib/api";
+import { allow, ipKey, LIMITS } from "@/lib/rate-limit";
 
 
 export async function POST(req: NextRequest) {
@@ -12,8 +13,11 @@ export async function POST(req: NextRequest) {
   const parsed = guestId.safeParse(body);
   if (!parsed.success) return fail("invalid_input");
 
+  if (!(await allow(ipKey(req), LIMITS.ipPerMinute))) return fail("rate_limited");
+
   const s = await lookupSession();
   if (!s.ok) return fail(s.code);
+  if (!(await allow(`s:${s.session.id}`, LIMITS.submitPerSession))) return fail("rate_limited");
 
   const db = createAdminClient();
   const ua = req.headers.get("user-agent")?.slice(0, 300) ?? "";

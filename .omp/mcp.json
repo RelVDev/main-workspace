@@ -5,6 +5,19 @@
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "/workspaces/main-workspace"]
+    },
+    "postgres": {
+      "type": "stdio",
+      "command": "bash",
+      "args": [
+        "-c",
+        "set -a; [ -f form-resnaps/.env.local ] && . form-resnaps/.env.local; exec npx -y @modelcontextprotocol/server-postgres \"$SUPABASE_DB_URL\""
+      ]
+    },
+    "puppeteer": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-puppeteer"]
     }
   }
 }

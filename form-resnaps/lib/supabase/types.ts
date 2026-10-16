@@ -174,6 +174,25 @@ export type Database = {
         };
         Relationships: [];
       };
+      rate_limits: {
+        Row: {
+          hits: number;
+          key: string;
+          window_start: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          hits?: number;
+          key: string;
+          window_start: string;
+        };
+        Update: {
+          hits?: number;
+          key?: string;
+          window_start?: string;
+        };
+        Relationships: [];
+      };
       scan_sessions: {
         Row: {
           consumed_at: string | null;
@@ -258,6 +277,10 @@ export type Database = {
         Returns: Json;
       };
       normalize_name: { Args: { p: string }; Returns: string };
+      rate_limit_hit: {
+        Args: { p_key: string; p_limit: number; p_window_seconds: number };
+        Returns: boolean;
+      };
       revoke_all_sessions: { Args: { p_actor: string }; Returns: Json };
       search_guests: {
         Args: {

@@ -1,22 +1,17 @@
 // P05.5: tukar token QR → sesi scan (set cookie). Token hanya dipakai di sini.
 import { NextRequest } from "next/server";
-import { createHash } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyToken, type Mode } from "@/lib/qr-token";
 import { setSessionCookie } from "@/lib/session";
 import { tokenInput } from "@/lib/validation/schemas";
 import { fail, ok } from "@/lib/api";
 import { loadQrConfig } from "@/lib/settings";
+import { allow, ipKey, LIMITS } from "@/lib/rate-limit";
 
-
-const IP_SALT = process.env.SESSION_COOKIE_SECRET ?? "";
-
-function ipHash(req: NextRequest): string {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  return createHash("sha256").update(`${IP_SALT}|${ip}`).digest("hex");
-}
 
 export async function POST(req: NextRequest) {
+  if (!(await allow(ipKey(req), LIMITS.ipPerMinute))) return fail("rate_limited");
+
   const body = await req.json().catch(() => null);
   const parsed = tokenInput.safeParse(body);
   if (!parsed.success) return fail("invalid_input");
@@ -36,7 +31,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await db.rpc("start_scan_session", {
     p_mode: mode,
     p_key_version: cfg.value.keyVersion,
-    p_ip_hash: ipHash(req),
+    p_ip_hash: ipKey(req),
     p_ua: req.headers.get("user-agent")?.slice(0, 300) ?? "",
   });
   if (error || !data) return fail("internal");

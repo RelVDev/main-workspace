@@ -1,7 +1,7 @@
 # PROGRESS
 
 ## Status saat ini
-Phase aktif: tidak ada. Ditunda atas permintaan user ("lanjutkan nanti"). Berikutnya: P05.
+Phase aktif: P04 & P05 selesai; Skills, MCP, & Environment dikonfigurasi. Berikutnya: P06 Autentikasi Panitia.
 Terakhir diperbarui: 2026-10-16 (WIB)
 
 ## Ringkasan phase
@@ -11,8 +11,8 @@ Terakhir diperbarui: 2026-10-16 (WIB)
 | P01 | blocked | Kode, scripts, struktur, dan verifikasi lokal selesai. Push ke GitHub selesai. Hubungan Vercel belum: butuh akses akun Vercel. | |
 | P02 | done | Design system, token Lampiran A, komponen UI, katalog `/_design` (dev only). Kontras di `docs/CONTRAST.md`. Verifikasi 360 px & 1280 px. | 2026-10-16 |
 | P03 | done | Migrasi 0001–0006 + seed + tes RPC (15/15) + konkurensi (20 paralel) lulus di Supabase remote (Postgres 17.11). RLS & grant terverifikasi. P03.1 (env ke Vercel) menunggu P01.6. | 2026-10-16 |
-| P04 | blocked | Belum dikerjakan. Menunggu spreadsheet tamu dan instruksi user. | |
-| P05 | doing | Token QR, sesi, route search/submit/me, zod, admin client, unit test 16/16, e2e terhadap Supabase remote lulus. **Belum:** P05.9 rate limit (lihat A14). | |
+| P04 | done | Pipeline `scripts/import-guests.ts`, idempoten, deteksi duplikat intra-CSV & DB, validasi, normalisasi unaccent, audit log, `docs/RUNBOOK.md`. | 2026-10-16 |
+| P05 | done | Mesin token QR, sesi cookie, route API search/submit/me, zod, unit test 16/16, e2e remote pass, rate limit DB-backed (`0007_rate_limit.sql` & `lib/rate-limit.ts`). | 2026-10-16 |
 | P06–P16 | todo | Belum dikerjakan. Bergantung P05. | |
 
 ## Log task
