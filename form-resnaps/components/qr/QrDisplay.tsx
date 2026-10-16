@@ -20,11 +20,14 @@ import {
   Zap,
   Sparkles,
   CheckCircle2,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { createClient } from "@/lib/supabase/client";
+import { playSuccessChime, playScanBlip } from "@/lib/sound";
 import type { Mode } from "@/lib/qr-token";
 
 type QrApiResponse = {
@@ -79,7 +82,8 @@ export function QrDisplay({ compact = false }: { compact?: boolean }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [counter, setCounter] = useState<CounterData | null>(null);
   const [isTogglingOpen, setIsTogglingOpen] = useState(false);
-
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  
   // Live Toast Notification untuk User yang Scan / Absen
   const [liveToast, setLiveToast] = useState<LiveNotification | null>(null);
   const lastKnownAttIdRef = useRef<string | null>(null);
@@ -178,6 +182,9 @@ export function QrDisplay({ compact = false }: { compact?: boolean }) {
       const latestAtt = d.latestAttendance?.[0];
       if (latestAtt && latestAtt.isVeryRecent && latestAtt.id !== lastKnownAttIdRef.current) {
         lastKnownAttIdRef.current = latestAtt.id;
+        if (soundEnabled) {
+          try { playSuccessChime(); } catch {}
+        }
         setLiveToast({
           id: latestAtt.id,
           type: "attendance",
@@ -193,6 +200,9 @@ export function QrDisplay({ compact = false }: { compact?: boolean }) {
       const scan = d.latestScanInfo;
       if (scan && scan.isVeryRecent && !scan.isConsumed && scan.id !== lastKnownScanIdRef.current) {
         lastKnownScanIdRef.current = scan.id;
+        if (soundEnabled) {
+          try { playScanBlip(); } catch {}
+        }
         setLiveToast({
           id: scan.id,
           type: "scan",
@@ -205,7 +215,7 @@ export function QrDisplay({ compact = false }: { compact?: boolean }) {
     } catch {
       // Abaikan
     }
-  }, []);
+  }, [soundEnabled]);
 
   // 4. Timer rotasi, hitung mundur, dan polling live
   useEffect(() => {
@@ -618,6 +628,16 @@ export function QrDisplay({ compact = false }: { compact?: boolean }) {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-2 text-xs font-semibold text-ink hover:bg-surface-soft"
+            title={soundEnabled ? "Matikan suara notifikasi" : "Nyalakan suara notifikasi"}
+          >
+            {soundEnabled ? <Volume2 className="size-3.5 text-brand-blue" /> : <VolumeX className="size-3.5 text-ink-muted" />}
+            {soundEnabled ? "Suara Aktif" : "Bisu"}
+          </button>
+
           {!compact ? (
             <button
               type="button"

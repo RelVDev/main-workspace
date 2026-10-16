@@ -1,10 +1,9 @@
-// P08 / P09: Komponen terpadu alur absensi tamu (Masuk / Pulang).
+// P08 / P09: Alur absensi tamu disempurnakan dengan animasi scanner, glassmorphism, dan tiket digital perayaan.
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  CheckCircle2,
   Search,
   QrCode,
   RotateCcw,
@@ -14,6 +13,8 @@ import {
   LogOut,
   ArrowRight,
   X,
+  Sparkles,
+  ShieldCheck,
 } from "lucide-react";
 import { BrandHeader } from "@/components/brand/BrandHeader";
 import { Button } from "@/components/ui/Button";
@@ -22,7 +23,9 @@ import { Input } from "@/components/ui/Input";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusBanner } from "@/components/ui/StatusBanner";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { formatWib } from "@/lib/time";
+import { ScanningOverlay } from "./ScanningOverlay";
+import { DigitalTicket } from "./DigitalTicket";
+import { playWarningTone } from "@/lib/sound";
 import type { Mode } from "@/lib/qr-token";
 
 type GuestItem = {
@@ -54,7 +57,6 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
   const [searchResults, setSearchResults] = useState<GuestItem[]>([]);
   const [selectedGuest, setSelectedGuest] = useState<GuestItem | null>(null);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
-  const displayedResults = query.trim().length >= 2 ? searchResults : [];
 
   // Hasil submit
   const [successData, setSuccessData] = useState<{
@@ -68,6 +70,8 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
   const isMasuk = expectedMode === "in";
   const title = isMasuk ? "Absen Masuk" : "Absen Pulang";
   const subtitle = "Closing Party CHRYSALIS · RE:SNAPS";
+
+  const displayedResults = query.trim().length >= 2 ? searchResults : [];
 
   // 1. Inisialisasi: tukar token `?t=` atau cek cookie sesi yang sudah ada
   useEffect(() => {
@@ -88,16 +92,20 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
 
           if (!res.ok || !data.ok) {
             if (mounted) {
+              try {
+                playWarningTone();
+              } catch {
+                // Abaikan
+              }
               setErrorMessage(data.message || "QR tidak valid. Silakan scan ulang di layar panitia.");
               setStage("error");
             }
             return;
           }
 
-          // Bersihkan URL dari token (?t=) agar riwayat peramban bersih (D4 / P08.2)
+          // Bersihkan URL dari token (?t=)
           window.history.replaceState({}, "", window.location.pathname);
 
-          // Jika mode token berbeda dengan halaman saat ini, arahkan otomatis (P08.2 / P09.2)
           if (data.mode !== expectedMode) {
             router.replace(data.mode === "in" ? "/masuk" : "/keluar");
             return;
@@ -115,7 +123,6 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
           }
         }
       } else {
-        // Tanpa token: periksa apakah sudah punya cookie sesi aktif
         try {
           const res = await fetch("/api/session/me");
           if (!res.ok) {
@@ -148,7 +155,7 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
     };
   }, [expectedMode, router]);
 
-  // 2. Countdown sisa waktu sesi scan (P08.9: tampilkan saat < 2 menit)
+  // 2. Countdown sisa waktu sesi scan
   useEffect(() => {
     if (!sessionExpiresAt || stage === "success") return;
 
@@ -157,6 +164,11 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
       setSecondsRemaining(remainingSec);
 
       if (remainingSec <= 0) {
+        try {
+          playWarningTone();
+        } catch {
+          // Abaikan
+        }
         setStage("error");
         setErrorMessage("Sesi berakhir. Scan ulang QR terbaru di layar panitia.");
       }
@@ -167,7 +179,7 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
     };
   }, [sessionExpiresAt, stage]);
 
-  // 3. Pencarian tamu dengan debounce 250ms dan AbortController (P08.3)
+  // 3. Pencarian tamu dengan debounce 250ms dan AbortController
   useEffect(() => {
     const trimmed = query.trim();
     if (trimmed.length < 2) return;
@@ -189,6 +201,11 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
           setSearchResults(data.items || []);
           setHighlightedIndex(0);
         } else if (data.code === "session_expired" || data.code === "session_invalid") {
+          try {
+            playWarningTone();
+          } catch {
+            // Abaikan
+          }
           setStage("error");
           setErrorMessage(data.message || "Sesi berakhir. Scan ulang QR di layar panitia.");
         }
@@ -207,7 +224,7 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
     };
   }, [query]);
 
-  // 4. Submit Absensi (P08.7)
+  // 4. Submit Absensi
   async function handleSubmitAttendance() {
     if (!selectedGuest) return;
 
@@ -228,7 +245,6 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
         });
         setStage("success");
 
-        // Simpan tanda UX ringan di localStorage (P08.10)
         try {
           localStorage.setItem(
             "resnaps_last_attended",
@@ -239,19 +255,29 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
             })
           );
         } catch {
-          // Abaikan bila tidak dapat menulis ke localStorage
+          // Abaikan
         }
       } else {
+        try {
+          playWarningTone();
+        } catch {
+          // Abaikan
+        }
         setStage("error");
         setErrorMessage(data.message || "Gagal mencatat absensi. Silakan coba lagi.");
       }
     } catch {
+      try {
+        playWarningTone();
+      } catch {
+        // Abaikan
+      }
       setStage("error");
       setErrorMessage("Terjadi kendala jaringan saat mengirim absen. Silakan coba lagi.");
     }
   }
 
-  // Navigasi Keyboard pada daftar tamu (P08.4)
+  // Navigasi Keyboard
   function handleKeyDown(e: React.KeyboardEvent) {
     if (displayedResults.length === 0) return;
     if (e.key === "ArrowDown") {
@@ -268,13 +294,27 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
   }
 
   return (
-    <main className="flex min-h-screen flex-1 flex-col bg-canvas pb-12">
+    <main className="relative flex min-h-screen flex-1 flex-col overflow-hidden bg-canvas pb-16">
+      {/* Efek Ambient Glow / Blobs Gradien di Latar Belakang (Glassmorphism) */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-24 -left-24 size-72 rounded-full bg-brand-blue/15 blur-3xl"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute top-1/3 -right-24 size-80 rounded-full bg-brand-purple/15 blur-3xl"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -bottom-24 left-1/4 size-72 rounded-full bg-brand-coral/15 blur-3xl"
+      />
+
       <BrandHeader title={title} subtitle={subtitle} />
 
-      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 pt-4">
-        {/* Banner Sisa Waktu Sesi (hanya muncul saat sisa < 2 menit, P08.9) */}
+      <div className="relative z-10 mx-auto flex w-full max-w-lg flex-1 flex-col px-4 pt-5">
+        {/* Banner Sisa Waktu Sesi */}
         {secondsRemaining !== null && secondsRemaining > 0 && secondsRemaining < 120 && stage === "active" ? (
-          <div className="mb-4">
+          <div className="mb-4 animate-in fade-in slide-in-from-top-2">
             <StatusBanner
               kind="warning"
               title={`Sesi berakhir dalam ${Math.floor(secondsRemaining / 60)}:${(secondsRemaining % 60)
@@ -286,33 +326,30 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
           </div>
         ) : null}
 
-        {/* STAGE 1: Memuat Awal */}
+        {/* STAGE 1: Animasi Pemindai Kaca (Scanning Overlay) */}
         {stage === "initializing" ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 py-16 text-center">
-            <Loader2 className="size-8 animate-spin text-brand-blue" />
-            <p className="text-sm font-semibold text-ink">Menyiapkan sesi absen...</p>
-          </div>
+          <ScanningOverlay mode={expectedMode} />
         ) : null}
 
-        {/* STAGE 2: Tanpa Sesi / Belum Scan QR (P08.2 point 3) */}
+        {/* STAGE 2: Tanpa Sesi / Belum Scan QR */}
         {stage === "no_session" ? (
-          <Card className="flex flex-col items-center gap-4 py-12 text-center">
-            <div className="flex size-16 items-center justify-center rounded-full bg-surface-soft text-brand-blue">
-              <QrCode className="size-8" />
+          <div className="flex flex-col items-center gap-5 rounded-3xl border border-white/70 bg-surface/80 p-8 text-center shadow-xl backdrop-blur-xl">
+            <div className="flex size-18 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-blue/15 to-brand-purple/15 text-brand-blue shadow-inner">
+              <QrCode className="size-9" />
             </div>
-            <div className="flex flex-col gap-1">
-              <h2 className="text-xl font-bold text-ink">Scan QR Terlebih Dahulu</h2>
-              <p className="max-w-sm text-sm text-ink-muted">
+            <div className="flex flex-col gap-1.5">
+              <h2 className="text-2xl font-black text-ink">Scan QR Terlebih Dahulu</h2>
+              <p className="max-w-sm text-xs leading-relaxed text-ink-muted">
                 Untuk mulai absen {isMasuk ? "masuk" : "pulang"}, silakan arahkan kamera ponsel Anda ke
-                layar QR yang ditampilkan oleh panitia di gerbang.
+                layar QR dinamis yang ditampilkan panitia di gerbang.
               </p>
             </div>
-          </Card>
+          </div>
         ) : null}
 
         {/* STAGE 3: Error Token / Sesi Habis / Absen Ditutup */}
         {stage === "error" ? (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 animate-in fade-in">
             <StatusBanner kind="error" title="Tidak Dapat Melanjutkan">
               {errorMessage}
             </StatusBanner>
@@ -322,6 +359,7 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
                 setErrorMessage("");
               }}
               variant="secondary"
+              className="h-12"
             >
               <RotateCcw className="size-4" />
               Coba Lagi
@@ -329,13 +367,20 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
           </div>
         ) : null}
 
-        {/* STAGE 4: Aktif - Pencarian Nama Tamu (P08.3 & P08.4) */}
+        {/* STAGE 4: Aktif - Pencarian Nama Tamu (Glassmorphism Input & Card) */}
         {stage === "active" || stage === "confirming" || stage === "submitting" ? (
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="search-input" className="text-sm font-bold text-ink">
-                Cari Namamu
-              </label>
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-2 rounded-2xl border border-white/70 bg-surface/80 p-4 shadow-sm backdrop-blur-lg">
+              <div className="flex items-center justify-between">
+                <label htmlFor="search-input" className="text-xs font-black uppercase tracking-wider text-ink">
+                  Cari Namamu
+                </label>
+                <span className="flex items-center gap-1 text-[11px] font-bold text-brand-blue">
+                  <Sparkles className="size-3" />
+                  Ketik min. 2 huruf
+                </span>
+              </div>
+
               <div className="relative">
                 <Input
                   id="search-input"
@@ -343,13 +388,13 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
                   inputMode="search"
                   autoComplete="off"
                   autoFocus
-                  placeholder="Ketik minimal 2 huruf namamu..."
+                  placeholder="Ketik namamu di sini..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  className="pr-10"
+                  className="h-13 rounded-xl border-line/80 bg-white/95 pr-11 text-base font-semibold shadow-inner focus:border-brand-blue focus:ring-4 focus:ring-brand-blue/15"
                 />
-                <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-ink-muted">
+                <div className="pointer-events-none absolute inset-y-0 right-3.5 flex items-center text-ink-muted">
                   {isSearching ? (
                     <Loader2 className="size-5 animate-spin text-brand-blue" />
                   ) : (
@@ -357,17 +402,14 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
                   )}
                 </div>
               </div>
-              <p className="text-xs text-ink-muted">
-                Hanya tamu terdaftar yang {isMasuk ? "belum masuk" : "sudah masuk dan belum pulang"} yang ditampilkan.
-              </p>
             </div>
 
             {/* Loading Skeleton */}
             {isSearching ? (
-              <div className="flex flex-col gap-2 pt-2">
-                <Skeleton className="h-14 w-full" />
-                <Skeleton className="h-14 w-full" />
-                <Skeleton className="h-14 w-full" />
+              <div className="flex flex-col gap-2.5 pt-1">
+                <Skeleton className="h-16 w-full rounded-2xl" />
+                <Skeleton className="h-16 w-full rounded-2xl" />
+                <Skeleton className="h-16 w-full rounded-2xl" />
               </div>
             ) : null}
 
@@ -377,7 +419,7 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
                 <div
                   role="listbox"
                   aria-label="Daftar nama tamu"
-                  className="flex flex-col gap-2 pt-2"
+                  className="flex flex-col gap-2.5 pt-1"
                 >
                   {displayedResults.map((guest, idx) => {
                     const isHighlighted = idx === highlightedIndex;
@@ -391,27 +433,30 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
                           setSelectedGuest(guest);
                           setStage("confirming");
                         }}
-                        className={`flex min-h-12 w-full items-center justify-between gap-3 rounded-control border px-4 py-3 text-left transition ${
+                        className={`flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border p-4 text-left transition-all ${
                           isHighlighted
-                            ? "border-brand-blue bg-surface-soft ring-2 ring-brand-blue/30"
-                            : "border-line bg-surface hover:bg-surface-soft"
+                            ? "border-brand-blue bg-white shadow-md ring-2 ring-brand-blue/30 scale-[1.01]"
+                            : "border-white/70 bg-surface/85 shadow-xs backdrop-blur-md hover:bg-white hover:shadow-md"
                         }`}
                       >
                         <div className="flex flex-col">
-                          <span className="text-base font-bold text-ink">{guest.name}</span>
+                          <span className="text-base font-black text-ink">{guest.name}</span>
                           {guest.category ? (
-                            <span className="text-xs font-semibold text-ink-muted">
+                            <span className="mt-0.5 inline-flex items-center gap-1 text-xs font-bold text-brand-blue">
+                              <ShieldCheck className="size-3" />
                               {guest.category}
                             </span>
                           ) : null}
                         </div>
-                        <ArrowRight className="size-4 shrink-0 text-brand-blue" />
+                        <div className="flex size-8 items-center justify-center rounded-xl bg-brand-blue/10 text-brand-blue">
+                          <ArrowRight className="size-4" />
+                        </div>
                       </button>
                     );
                   })}
                 </div>
               ) : (
-                /* Empty state pencarian (P08.5 / §4.4) */
+                /* Empty state pencarian */
                 <EmptyState icon={Users} title="Nama tidak ditemukan">
                   Mungkin kamu sudah absen, atau namamu belum terdaftar. Hubungi panitia di meja
                   registrasi.
@@ -421,13 +466,13 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
           </div>
         ) : null}
 
-        {/* Modal / Lembar Konfirmasi Pilihan Nama (P08.6) */}
+        {/* Modal / Lembar Konfirmasi Pilihan Nama (Glassmorphism Dialog) */}
         {(stage === "confirming" || stage === "submitting") && selectedGuest ? (
-          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 backdrop-blur-xs sm:items-center">
-            <Card className="flex w-full max-w-md flex-col gap-6 animate-in fade-in-50 zoom-in-95">
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm sm:items-center">
+            <Card className="flex w-full max-w-md flex-col gap-6 rounded-3xl border border-white/80 bg-surface/95 p-6 shadow-2xl backdrop-blur-2xl animate-in fade-in-50 zoom-in-95">
               <div className="flex items-center justify-between border-b border-line pb-3">
-                <span className="text-xs font-bold uppercase tracking-wider text-ink-muted">
-                  Konfirmasi Kehadiran
+                <span className="text-xs font-black uppercase tracking-wider text-brand-blue">
+                  Konfirmasi Identitas
                 </span>
                 <button
                   type="button"
@@ -439,32 +484,34 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
                 </button>
               </div>
 
-              <div className="flex flex-col items-center gap-2 py-2 text-center">
-                <div className="flex size-14 items-center justify-center rounded-full bg-surface-soft text-brand-blue">
-                  {isMasuk ? <LogIn className="size-7" /> : <LogOut className="size-7" />}
+              <div className="flex flex-col items-center gap-2.5 py-2 text-center">
+                <div className="flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-blue/15 to-brand-purple/15 text-brand-blue shadow-inner">
+                  {isMasuk ? <LogIn className="size-8" /> : <LogOut className="size-8" />}
                 </div>
-                <p className="text-sm text-ink-muted">Apakah benar kamu adalah:</p>
-                <p className="text-2xl font-extrabold text-ink">{selectedGuest.name}</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-ink-muted">
+                  Apakah benar ini namamu?
+                </p>
+                <p className="text-2xl font-black text-ink">{selectedGuest.name}</p>
                 {selectedGuest.category ? (
-                  <span className="rounded-full bg-surface-soft px-3 py-1 text-xs font-bold text-ink-muted">
+                  <span className="rounded-full bg-brand-blue/10 px-3.5 py-1 text-xs font-bold text-brand-blue ring-1 ring-brand-blue/20">
                     {selectedGuest.category}
                   </span>
                 ) : null}
               </div>
 
-              <div className="flex flex-col gap-2 pt-2">
+              <div className="flex flex-col gap-2.5 pt-1">
                 <Button
                   onClick={handleSubmitAttendance}
                   disabled={stage === "submitting"}
-                  className="font-bold"
+                  className="h-13 rounded-xl text-base font-black shadow-md"
                 >
                   {stage === "submitting" ? (
                     <>
                       <Loader2 className="size-5 animate-spin" />
-                      Mencatat Kehadiran...
+                      Mencatat Absensi...
                     </>
                   ) : (
-                    `Ya, Absen ${isMasuk ? "Masuk" : "Pulang"}`
+                    `Ya, Saya Ingin Absen ${isMasuk ? "Masuk" : "Pulang"}`
                   )}
                 </Button>
 
@@ -472,44 +519,28 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
                   variant="secondary"
                   onClick={() => setStage("active")}
                   disabled={stage === "submitting"}
+                  className="h-12 rounded-xl text-sm"
                 >
-                  Bukan Saya
+                  Bukan Saya (Cari Ulang)
                 </Button>
               </div>
             </Card>
           </div>
         ) : null}
 
-        {/* STAGE 5: Sukses (P08.8 / P09.5) */}
+        {/* STAGE 5: Tiket Digital Perayaan (Digital Pass & Confetti) */}
         {stage === "success" && successData ? (
-          <Card className="flex flex-col items-center gap-6 py-8 text-center animate-in fade-in-50">
-            <div className="flex size-20 items-center justify-center rounded-full bg-success/10 text-success">
-              <CheckCircle2 className="size-12" />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <span className="text-xs font-bold uppercase tracking-wider text-success">
-                Absen {isMasuk ? "Masuk" : "Pulang"} Berhasil
-              </span>
-              <h2 className="text-2xl font-extrabold text-ink">{successData.name}</h2>
-              {successData.category ? (
-                <span className="text-sm font-semibold text-ink-muted">
-                  {successData.category}
-                </span>
-              ) : null}
-              <p className="mt-2 text-base font-semibold text-ink">
-                Pukul {formatWib(successData.scannedAt)}
-              </p>
-            </div>
-
-            <div className="w-full">
-              <StatusBanner kind="info">
-                {isMasuk
-                  ? "Selamat datang di acara! Untuk absen orang lain, scan ulang QR di layar panitia."
-                  : "Terima kasih atas kehadiranmu! Hati-hati di perjalanan pulang."}
-              </StatusBanner>
-            </div>
-          </Card>
+          <DigitalTicket
+            mode={expectedMode}
+            guestName={successData.name}
+            category={successData.category}
+            scannedAt={successData.scannedAt}
+            onFinish={() => {
+              setStage("no_session");
+              setSuccessData(null);
+              setQuery("");
+            }}
+          />
         ) : null}
       </div>
     </main>

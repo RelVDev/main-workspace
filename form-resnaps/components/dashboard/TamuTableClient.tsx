@@ -90,6 +90,18 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
     }
   }, [query, statusFilter, categoryFilter, page]);
 
+  // Shortcut keyboard: tombol '/' atau 'Ctrl+K' langsung memfokuskan pencarian
+  useEffect(() => {
+    function handleGlobalKey(e: KeyboardEvent) {
+      if ((e.key === "/" || (e.ctrlKey && e.key === "k")) && document.activeElement?.tagName !== "INPUT") {
+        e.preventDefault();
+        document.getElementById("tamu-search-input")?.focus();
+      }
+    }
+    window.addEventListener("keydown", handleGlobalKey);
+    return () => window.removeEventListener("keydown", handleGlobalKey);
+  }, []);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       void fetchGuests();
@@ -237,7 +249,8 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
       <Card className="flex flex-wrap items-center gap-3 p-4">
         <div className="relative min-w-56 flex-1">
           <Input
-            placeholder="Cari nama tamu..."
+            id="tamu-search-input"
+            placeholder="Cari nama tamu... (Tekan / untuk fokus)"
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);

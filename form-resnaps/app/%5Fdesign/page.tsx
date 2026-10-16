@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/Input";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusBanner } from "@/components/ui/StatusBanner";
+import { DigitalTicket } from "@/components/attendance/DigitalTicket";
 import { DesignSegment } from "./DesignSegment";
 
 export default function DesignCatalog() {
@@ -52,6 +53,16 @@ export default function DesignCatalog() {
         <section className="flex flex-col gap-3">
           <h2 className="text-lg font-semibold">Mode (Masuk / Pulang)</h2>
           <DesignSegment />
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold">Tiket Digital Perayaan (POV Tamu)</h2>
+          <DigitalTicket
+            mode="in"
+            guestName="Anindya Putri Maharani"
+            category="Divisi Dokumentasi"
+            scannedAt={new Date().toISOString()}
+          />
         </section>
 
         <section className="flex flex-col gap-3">
