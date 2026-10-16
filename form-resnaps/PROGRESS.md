@@ -12,7 +12,7 @@ Terakhir diperbarui: 2026-10-16 (WIB)
 | P02 | done | Design system, token Lampiran A, komponen UI, katalog `/_design` (dev only). Kontras di `docs/CONTRAST.md`. Verifikasi 360 px & 1280 px. | 2026-10-16 |
 | P03 | done | Migrasi 0001–0006 + seed + tes RPC (15/15) + konkurensi (20 paralel) lulus di Supabase remote (Postgres 17.11). RLS & grant terverifikasi. P03.1 (env ke Vercel) menunggu P01.6. | 2026-10-16 |
 | P04 | blocked | Belum dikerjakan. Menunggu spreadsheet tamu dan instruksi user. | |
-| P05 | blocked | Belum dikerjakan. Berikutnya saat dilanjutkan. | |
+| P05 | doing | Token QR, sesi, route search/submit/me, zod, admin client, unit test 16/16, e2e terhadap Supabase remote lulus. **Belum:** P05.9 rate limit (lihat A14). | |
 | P06–P16 | todo | Belum dikerjakan. Bergantung P05. | |
 
 ## Log task
@@ -25,6 +25,8 @@ Terakhir diperbarui: 2026-10-16 (WIB)
 - [x] P01.3 Scripts: dev, build, start, lint, typecheck, test, test:e2e, format, import:guests
 - [x] P01.4 Struktur folder §8, `.env.example`, `.gitignore` (`.env*`, `/data/`)
 - [x] P01.5 `robots` (`noindex, nofollow`) di layout + `app/robots.ts` disallow `/`
+- [~] P05.1–P05.8, P05.10–P05.12 — lihat `docs/ASSUMPTIONS.md` (A8–A14)
+- [ ] P05.9 Rate limit — BELUM (perlu keputusan Upstash vs Vercel Firewall)
 - [ ] P01.6 Hubungkan ke Vercel (preview aktif) — BLOCKED: butuh akun/akses Vercel
 - [x] P03.1 Project Supabase `beoumgkolvusnscovhab` (region ap-southeast-2 via pooler); kredensial di `.env.local` (gitignored)
 - [x] P03.2–P03.8 Migrasi 0001–0006, `supabase/seed.sql` (31 tamu dev)
