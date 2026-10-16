@@ -14,25 +14,22 @@ export default async function PanitiaQrPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
-      {/* Strip tipis gradien di tepi atas (P07.11 / §7) */}
+      {/* Strip tipis gradien di tepi atas */}
       <div className="h-2 w-full bg-gradient-brand" aria-hidden="true" />
 
       {/* Bar navigasi minimal untuk panitia */}
-      <header className="flex items-center justify-between border-b border-line bg-surface/80 px-4 py-2.5 backdrop-blur-sm">
+      <header className="flex items-center justify-between border-b border-line bg-surface/90 px-4 py-2.5 backdrop-blur-md">
         <Link
           href="/panitia"
-          className="inline-flex items-center gap-1.5 rounded-control px-2.5 py-1.5 text-xs font-semibold text-ink hover:bg-surface-soft"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-surface px-3 py-1.5 text-xs font-bold text-ink shadow-2xs hover:bg-surface-soft"
         >
           <ArrowLeft className="size-3.5" />
           Dashboard
         </Link>
 
-        <div className="flex items-center gap-2">
-          <Logo className="h-6 w-auto" />
-          <span className="text-xs font-bold uppercase tracking-wider text-ink">Layar QR</span>
-        </div>
+        <Logo className="size-7" />
 
-        <span className="text-xs text-ink-muted">{auth.email}</span>
+        <span className="hidden text-xs font-semibold text-ink-muted sm:inline">{auth.email}</span>
       </header>
 
       {/* Area Tengah: Layar QR Responsif */}
