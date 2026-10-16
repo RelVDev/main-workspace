@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 240" width="100%" height="100%">
+  <defs>
+    <filter id="shadow2" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <rect width="900" height="240" fill="#FFFFFF" rx="8"/>
+
+  <!-- Top Title -->
+  <text x="30" y="24" font-family="'Times New Roman', serif" font-size="14" font-weight="bold" fill="#001A3F">Customer Journey Transformation: Routine Walk-in vs. ECO-CONNECT</text>
+
+  <!-- Flow A: Legacy GraPARI Walk-in -->
+  <g transform="translate(30, 40)">
+    <rect width="840" height="85" rx="6" fill="#FFF5F5" stroke="#E4002B" stroke-width="1" filter="url(#shadow2)"/>
+    <rect width="110" height="85" rx="6" fill="#E4002B"/>
+    <text x="55" y="38" font-family="'Times New Roman', serif" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle">AS-IS</text>
+    <text x="55" y="54" font-family="'Times New Roman', serif" font-size="9" fill="#FFFFFF" text-anchor="middle">GraPARI Walk-in</text>
+    <text x="55" y="68" font-family="'Times New Roman', serif" font-size="8.5" fill="#FFE5E5" text-anchor="middle">~60 Mins Total</text>
+
+    <!-- Step 1 -->
+    <rect x="125" y="15" width="125" height="55" rx="4" fill="#FFFFFF" stroke="#E4002B" stroke-width="0.8"/>
+    <text x="187" y="35" font-family="'Times New Roman', serif" font-size="9.5" font-weight="bold" fill="#C53030" text-anchor="middle">1. Travel to Branch</text>
+    <text x="187" y="50" font-family="'Times New Roman', serif" font-size="8" fill="#555555" text-anchor="middle">10–15 km round trip</text>
+    <text x="187" y="62" font-family="'Times New Roman', serif" font-size="7.5" fill="#E4002B" text-anchor="middle">+2.25 kg CO2e</text>
+
+    <!-- Arrow -->
+    <text x="262" y="47" font-size="16" fill="#C53030" text-anchor="middle">→</text>
+
+    <!-- Step 2 -->
+    <rect x="275" y="15" width="125" height="55" rx="4" fill="#FFFFFF" stroke="#E4002B" stroke-width="0.8"/>
+    <text x="337" y="35" font-family="'Times New Roman', serif" font-size="9.5" font-weight="bold" fill="#C53030" text-anchor="middle">2. Physical Queue</text>
+    <text x="337" y="50" font-family="'Times New Roman', serif" font-size="8" fill="#555555" text-anchor="middle">20–45 min waiting</text>
+    <text x="337" y="62" font-family="'Times New Roman', serif" font-size="7.5" fill="#555555" text-anchor="middle">Thermal paper ticket</text>
+
+    <!-- Arrow -->
+    <text x="412" y="47" font-size="16" fill="#C53030" text-anchor="middle">→</text>
+
+    <!-- Step 3 -->
+    <rect x="425" y="15" width="135" height="55" rx="4" fill="#FFFFFF" stroke="#E4002B" stroke-width="0.8"/>
+    <text x="492" y="35" font-family="'Times New Roman', serif" font-size="9.5" font-weight="bold" fill="#C53030" text-anchor="middle">3. Manual Counter Form</text>
+    <text x="492" y="50" font-family="'Times New Roman', serif" font-size="8" fill="#555555" text-anchor="middle">Physical KTP photocopies</text>
+    <text x="492" y="62" font-family="'Times New Roman', serif" font-size="7.5" fill="#555555" text-anchor="middle">Staff data re-entry</text>
+
+    <!-- Arrow -->
+    <text x="572" y="47" font-size="16" fill="#C53030" text-anchor="middle">→</text>
+
+    <!-- Step 4 Outcome -->
+    <rect x="585" y="15" width="240" height="55" rx="4" fill="#FFF0F0" stroke="#E4002B" stroke-width="1.2"/>
+    <text x="705" y="33" font-family="'Times New Roman', serif" font-size="10" font-weight="bold" fill="#E4002B" text-anchor="middle">Outcome: High Friction &amp; Carbon Drain</text>
+    <text x="705" y="48" font-family="'Times New Roman', serif" font-size="8.5" fill="#333333" text-anchor="middle">Cost-to-serve: ~Rp25,000 | Emissions: ~2.5 kg CO2e</text>
+    <text x="705" y="60" font-family="'Times New Roman', serif" font-size="8" fill="#777777" text-anchor="middle">Frustrated user, congested outlet floor</text>
+  </g>
+
+  <!-- Flow B: TO-BE ECO-CONNECT -->
+  <g transform="translate(30, 135)">
+    <rect width="840" height="85" rx="6" fill="#F0FFF4" stroke="#28A745" stroke-width="1" filter="url(#shadow2)"/>
+    <rect width="110" height="85" rx="6" fill="#1E7E34"/>
+    <text x="55" y="38" font-family="'Times New Roman', serif" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle">TO-BE</text>
+    <text x="55" y="54" font-family="'Times New Roman', serif" font-size="9" fill="#FFFFFF" text-anchor="middle">ECO-CONNECT</text>
+    <text x="55" y="68" font-family="'Times New Roman', serif" font-size="8.5" fill="#D4EDDA" text-anchor="middle">&lt; 3 Mins Total</text>
+
+    <!-- Step 1 -->
+    <rect x="125" y="15" width="125" height="55" rx="4" fill="#FFFFFF" stroke="#28A745" stroke-width="0.8"/>
+    <text x="187" y="33" font-family="'Times New Roman', serif" font-size="9.5" font-weight="bold" fill="#1E7E34" text-anchor="middle">1. Voice / WhatsApp</text>
+    <text x="187" y="48" font-family="'Times New Roman', serif" font-size="8" fill="#555555" text-anchor="middle">Agentic Veronika 2.0</text>
+    <text x="187" y="60" font-family="'Times New Roman', serif" font-size="7.5" fill="#1E7E34" text-anchor="middle">Local dialects supported</text>
+
+    <!-- Arrow -->
+    <text x="262" y="47" font-size="16" fill="#1E7E34" text-anchor="middle">→</text>
+
+    <!-- Step 2 -->
+    <rect x="275" y="15" width="125" height="55" rx="4" fill="#FFFFFF" stroke="#28A745" stroke-width="0.8"/>
+    <text x="337" y="33" font-family="'Times New Roman', serif" font-size="9.5" font-weight="bold" fill="#1E7E34" text-anchor="middle">2. Biometric e-KYC</text>
+    <text x="337" y="48" font-family="'Times New Roman', serif" font-size="8" fill="#555555" text-anchor="middle">Dukcapil Liveness API</text>
+    <text x="337" y="60" font-family="'Times New Roman', serif" font-size="7.5" fill="#1E7E34" text-anchor="middle">Instant verification (30s)</text>
+
+    <!-- Arrow -->
+    <text x="412" y="47" font-size="16" fill="#1E7E34" text-anchor="middle">→</text>
+
+    <!-- Step 3 -->
+    <rect x="425" y="15" width="135" height="55" rx="4" fill="#FFFFFF" stroke="#28A745" stroke-width="0.8"/>
+    <text x="492" y="33" font-family="'Times New Roman', serif" font-size="9.5" font-weight="bold" fill="#1E7E34" text-anchor="middle">3. Instant Provisioning</text>
+    <text x="492" y="48" font-family="'Times New Roman', serif" font-size="8" fill="#555555" text-anchor="middle">eSIM QR code or courier</text>
+    <text x="492" y="60" font-family="'Times New Roman', serif" font-size="7.5" fill="#1E7E34" text-anchor="middle">Zero paper slips</text>
+
+    <!-- Arrow -->
+    <text x="572" y="47" font-size="16" fill="#1E7E34" text-anchor="middle">→</text>
+
+    <!-- Step 4 Outcome -->
+    <rect x="585" y="15" width="240" height="55" rx="4" fill="#E8F8EE" stroke="#28A745" stroke-width="1.2"/>
+    <text x="705" y="33" font-family="'Times New Roman', serif" font-size="10" font-weight="bold" fill="#1E7E34" text-anchor="middle">Outcome: Frictionless &amp; Decarbonized</text>
+    <text x="705" y="48" font-family="'Times New Roman', serif" font-size="8.5" fill="#333333" text-anchor="middle">Cost: ~Rp2,000 (92% savings) | Avoided: 2.47 kg CO2e</text>
+    <text x="705" y="60" font-family="'Times New Roman', serif" font-size="8" fill="#1E7E34" text-anchor="middle">Earns Telkomsel Eco-Poin | 24/7 Delight</text>
+  </g>
+</svg>
