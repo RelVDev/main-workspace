@@ -38,10 +38,14 @@ export async function proxy(request: NextRequest) {
     },
   });
 
+  // Ambil token dari header Authorization bila ada (misal dari API client / tools)
+  const authHeader = request.headers.get("authorization");
+  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined;
+
   // Ambil user dan refresh sesi auth bila mendekati kedaluwarsa (P06.7)
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = bearerToken ? await supabase.auth.getUser(bearerToken) : await supabase.auth.getUser();
 
   if (!user) {
     if (isPanitiaApi) {

@@ -36,14 +36,16 @@ export type CommitteeAuth = {
 
 /**
  * Memvalidasi sesi user Supabase Auth dan memastikan user terdaftar
- * di tabel `committee_members`.
+ * di tabel `committee_members`. Mendukung sesi cookie dan Bearer token.
  */
-export async function getCommitteeAuth(): Promise<CommitteeAuth | null> {
+export async function getCommitteeAuth(bearerToken?: string): Promise<CommitteeAuth | null> {
   const supabase = await createClient();
   const {
     data: { user },
     error: authErr,
-  } = await supabase.auth.getUser();
+  } = bearerToken
+    ? await supabase.auth.getUser(bearerToken)
+    : await supabase.auth.getUser();
 
   if (authErr || !user) return null;
 
