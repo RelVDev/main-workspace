@@ -1,0 +1,44 @@
+/* RE:SNAPS brand tokens — sumber: PLANNING Lampiran A (palet usulan).
+ * Prefix --brand-* dipakai agar tidak bentrok dengan namespace --color-* milik Tailwind
+ * (lihat app/globals.css). Ubah NILAI di sini saja bila panduan merek resmi tersedia. */
+:root {
+  /* Brand */
+  --brand-blue: #1677B8;
+  --brand-purple: #6035A8;
+  --brand-magenta: #B313A5;
+  --brand-coral: #E66B72;
+  --brand-orange: #F28B43;
+  --brand-gold: #F2B92E;
+
+  /* Surfaces and text */
+  --surface-canvas: #FFF9F4;
+  --surface-card: #FFFFFF;
+  --surface-soft: #FFF0E7;
+  --ink: #252339;
+  --ink-muted: #666476;
+  --line: #E9E2E4;
+  --white: #FFFFFF;
+
+  /* Status */
+  --status-success: #267A57;
+  --status-warning: #9A5A00;
+  --status-error: #B8323A;
+  --status-info: #236A9A;
+
+  /* Gradients (satu fokus visual per layar, §7) */
+  --gradient-brand: linear-gradient(
+    110deg,
+    #1677B8 0%,
+    #6035A8 28%,
+    #B313A5 49%,
+    #E66B72 69%,
+    #F28B43 84%,
+    #F2B92E 100%
+  );
+  --gradient-cool: linear-gradient(110deg, #1677B8, #6035A8 55%, #B313A5);
+  --gradient-warm: linear-gradient(110deg, #F2B92E, #F28B43 48%, #E66B72);
+
+  /* Bentuk (§7 default sementara) */
+  --radius-card-px: 16px;
+  --radius-control-px: 12px;
+}
