@@ -45,6 +45,7 @@ export async function GET(req: NextRequest) {
   const header = [
     "Nama",
     "Kategori",
+    "Alergi Makanan",
     "Status HTM",
     "Status Kehadiran",
     "Kode Voucher",
@@ -67,6 +68,7 @@ export async function GET(req: NextRequest) {
             : "Belum Hadir";
 
     const htmLabel = g.payment_status === "belum_lunas" ? "Belum Lunas" : "Lunas";
+    const allergyLabel = g.allergies && g.allergies.trim().length > 0 ? g.allergies : "Tidak Ada";
     const inWib = g.checked_in_at ? formatWib(g.checked_in_at) : "-";
     const outWib = g.checked_out_at ? formatWib(g.checked_out_at) : "-";
     const duration = calculateDuration(g.checked_in_at, g.checked_out_at);
@@ -79,6 +81,7 @@ export async function GET(req: NextRequest) {
       [
         escapeCsvCell(g.full_name),
         escapeCsvCell(g.category || "-"),
+        escapeCsvCell(allergyLabel),
         escapeCsvCell(htmLabel),
         escapeCsvCell(statusLabel),
         escapeCsvCell(g.voucher_code),

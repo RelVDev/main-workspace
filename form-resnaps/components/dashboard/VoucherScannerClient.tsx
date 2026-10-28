@@ -49,6 +49,7 @@ type EligibleGuestItem = {
   id: string;
   name: string;
   category: string | null;
+  allergies: string | null;
   voucherCode: string;
   mealRedeemedAtWib: string | null;
   photoboothRedeemedAtWib: string | null;
@@ -63,6 +64,7 @@ type ScanResultState = {
     id: string;
     name: string;
     category: string | null;
+    allergies?: string | null;
     voucherCode: string;
     redeemedAtWib?: string;
     mealRedeemedAtWib?: string | null;
@@ -451,6 +453,12 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
                           {scanResult.guest.category} · {scanResult.guest.voucherCode}
                         </span>
                       ) : null}
+                      {scanResult.guest?.allergies ? (
+                        <span className="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-warning px-2.5 py-0.5 text-[11px] font-black text-white shadow-2xs">
+                          <AlertTriangle className="size-3" />
+                          ALERGI MAKANAN: {scanResult.guest.allergies}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -615,6 +623,11 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
                             {g.category || "Tamu"} ·{" "}
                             <span className="font-mono text-brand-purple">{g.voucherCode}</span>
                           </span>
+                          {g.allergies ? (
+                            <span className="mt-0.5 inline-flex w-fit items-center gap-1 rounded-md bg-warning/15 px-1.5 py-0.5 text-[10px] font-black text-warning">
+                              Alergi: {g.allergies}
+                            </span>
+                          ) : null}
                         </div>
 
                         {isUsed ? (

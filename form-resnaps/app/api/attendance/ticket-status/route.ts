@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
       guestId: guest.guest_id,
       guestName: guest.full_name,
       category: guest.category,
+      allergies: guest.allergies,
       status: guest.status, // "belum_hadir" | "ditahan" | "di_dalam" | "sudah_pulang"
       paymentStatus: guest.payment_status, // "lunas" | "belum_lunas"
       holdAt: guest.hold_at,

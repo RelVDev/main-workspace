@@ -17,11 +17,31 @@ export async function POST(req: NextRequest) {
   const parsed = htmActionInput.safeParse(body);
   if (!parsed.success) return fail("invalid_input");
 
-  const { guest_id, action, payment_status } = parsed.data;
+  const { guest_id, action, payment_status, allergies } = parsed.data;
   const db = createAdminClient();
 
   const existing = await findEnrichedGuest(db, guest_id);
   if (!existing) return fail("not_found");
+
+  if (action === "set_allergies") {
+    const cleanAllergies = allergies?.trim() || null;
+    await updateGuestExtra(db, guest_id, {
+      allergies: cleanAllergies,
+      voucherCode: existing.voucher_code,
+    });
+    return ok({
+      action: "set_allergies",
+      guest: {
+        id: existing.guest_id,
+        name: existing.full_name,
+        category: existing.category,
+        allergies: cleanAllergies,
+        paymentStatus: existing.payment_status,
+        status: existing.status,
+        voucherCode: existing.voucher_code,
+      },
+    });
+  }
 
   // 1. Lunasi HTM & Izinkan Masuk (melepas Hold dan mencatat absen masuk)
   if (action === "approve_checkin" || (action === "set_payment" && payment_status === "lunas" && existing.status === "ditahan")) {

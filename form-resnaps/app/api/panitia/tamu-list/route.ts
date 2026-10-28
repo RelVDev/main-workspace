@@ -32,7 +32,8 @@ export async function GET(req: NextRequest) {
     if (q) {
       const matchName = g.full_name.toLowerCase().includes(q);
       const matchVoucher = g.voucher_code.toLowerCase().includes(q);
-      if (!matchName && !matchVoucher) return false;
+      const matchAllergy = g.allergies ? g.allergies.toLowerCase().includes(q) : false;
+      if (!matchName && !matchVoucher && !matchAllergy) return false;
     }
     if (statusFilter && g.status !== statusFilter) return false;
     if (categoryFilter && g.category !== categoryFilter) return false;
@@ -54,6 +55,7 @@ export async function GET(req: NextRequest) {
     id: g.guest_id,
     name: g.full_name,
     category: g.category,
+    allergies: g.allergies,
     status: g.status,
     paymentStatus: g.payment_status,
     holdAt: g.hold_at,

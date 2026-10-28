@@ -78,6 +78,7 @@ export async function GET(req: NextRequest) {
       id: g.guest_id,
       name: g.full_name,
       category: g.category,
+      allergies: g.allergies,
       voucherCode: g.voucher_code,
       mealRedeemedAtWib: g.meal_redeemed_at ? formatWib(g.meal_redeemed_at) : null,
       photoboothRedeemedAtWib: g.photobooth_redeemed_at
@@ -155,6 +156,7 @@ export async function POST(req: NextRequest) {
           id: guest.guest_id,
           name: guest.full_name,
           category: guest.category,
+          allergies: guest.allergies,
           voucherCode: guest.voucher_code,
           redeemedAt: alreadyAt,
           redeemedAtWib: usedWib,
@@ -204,6 +206,7 @@ export async function POST(req: NextRequest) {
       id: guest.guest_id,
       name: guest.full_name,
       category: guest.category,
+      allergies: guest.allergies,
       voucherCode: guest.voucher_code,
       redeemedAt: nowIso,
       redeemedAtWib: nowWib,

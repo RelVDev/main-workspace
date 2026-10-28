@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
         id: enriched.guest_id,
         name: enriched.full_name,
         category: enriched.category,
+        allergies: enriched.allergies,
         paymentStatus: "belum_lunas",
       },
     });
@@ -85,6 +86,7 @@ export async function POST(req: NextRequest) {
         id: enriched.guest_id,
         name: enriched.full_name,
         category: enriched.category,
+        allergies: enriched.allergies,
         paymentStatus: "belum_lunas",
       },
     });
@@ -104,12 +106,14 @@ export async function POST(req: NextRequest) {
     mode: s.session.mode,
     scannedAt: payload.scanned_at,
     voucherCode: payload.voucher_code || voucherCode,
+    allergies: enriched.allergies,
     mealRedeemedAt: enriched.meal_redeemed_at,
     photoboothRedeemedAt: enriched.photobooth_redeemed_at,
     guest: {
       id: enriched.guest_id,
       name: enriched.full_name,
       category: enriched.category,
+      allergies: enriched.allergies,
       paymentStatus: enriched.payment_status,
     },
   });

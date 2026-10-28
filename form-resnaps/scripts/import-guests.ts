@@ -30,6 +30,8 @@ type RawRow = {
   kategori?: string;
   kontak?: string;
   catatan?: string;
+  alergi?: string;
+  alergi_makanan?: string;
   htm?: string;
   status_htm?: string;
 };
@@ -40,6 +42,7 @@ type ValidGuest = {
   name_search: string;
   category: string | null;
   contact: string | null;
+  allergies: string | null;
   notes: string | null;
   payment_status: "lunas" | "belum_lunas";
 };
@@ -95,7 +98,13 @@ async function main() {
     const name = cleanField(row.nama);
     const category = cleanField(row.kategori) || null;
     const contact = cleanField(row.kontak) || null;
-    const notes = cleanField(row.catatan) || null;
+    const allergies = cleanField(row.alergi_makanan || row.alergi) || null;
+    const rawNotes = cleanField(row.catatan) || null;
+    const notes = allergies
+      ? rawNotes
+        ? `${rawNotes} | Alergi Makanan: ${allergies}`
+        : `Alergi Makanan: ${allergies}`
+      : rawNotes;
     const htmRaw = cleanField(row.status_htm || row.htm).toLowerCase();
     const paymentStatus: "lunas" | "belum_lunas" =
       htmRaw.includes("belum") || htmRaw === "unpaid" || htmRaw === "hold"
@@ -134,6 +143,7 @@ async function main() {
       name_search: nameSearch,
       category,
       contact,
+      allergies,
       notes,
       payment_status: paymentStatus,
     });

@@ -4,6 +4,7 @@
 alter table guests
   add column if not exists payment_status text not null default 'lunas'
     check (payment_status in ('lunas', 'belum_lunas')),
+  add column if not exists allergies text,
   add column if not exists hold_at timestamptz,
   add column if not exists voucher_code text unique,
   add column if not exists meal_redeemed_at timestamptz,
@@ -42,6 +43,7 @@ select
   g.id                     as guest_id,
   g.full_name,
   g.category,
+  g.allergies,
   g.payment_status,
   g.hold_at,
   g.voucher_code,

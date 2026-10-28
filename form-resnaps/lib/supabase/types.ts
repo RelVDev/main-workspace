@@ -142,6 +142,7 @@ export type Database = {
       };
       guests: {
         Row: {
+          allergies: string | null;
           category: string | null;
           contact: string | null;
           created_at: string;
@@ -160,6 +161,7 @@ export type Database = {
         };
         ComputedFields: never;
         Insert: {
+          allergies?: string | null;
           category?: string | null;
           contact?: string | null;
           created_at?: string;
@@ -177,6 +179,7 @@ export type Database = {
           voucher_code?: string | null;
         };
         Update: {
+          allergies?: string | null;
           category?: string | null;
           contact?: string | null;
           created_at?: string;
@@ -270,6 +273,7 @@ export type Database = {
     Views: {
       guest_status: {
         Row: {
+          allergies: string | null;
           category: string | null;
           checked_in_at: string | null;
           checked_out_at: string | null;

@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
   let inside = 0;
   let onHoldCount = 0;
   let unpaidCount = 0;
+  let allergyCount = 0;
   let mealRedeemedCount = 0;
   let photoboothRedeemedCount = 0;
 
@@ -38,6 +39,9 @@ export async function GET(req: NextRequest) {
 
     if (r.payment_status === "belum_lunas") {
       unpaidCount++;
+    }
+    if (r.allergies && r.allergies.trim().length > 0) {
+      allergyCount++;
     }
     if (r.meal_redeemed_at) {
       mealRedeemedCount++;
@@ -62,11 +66,27 @@ export async function GET(req: NextRequest) {
       id: r.guest_id,
       name: r.full_name,
       category: r.category,
+      allergies: r.allergies,
       status: r.status,
       paymentStatus: r.payment_status,
       holdAt: r.hold_at,
       holdAtWib: r.hold_at ? formatWib(r.hold_at) : null,
       voucherCode: r.voucher_code,
+    }));
+
+  // Daftar Tamu yang memiliki alergi makanan untuk koordinasi konsumsi panitia
+  const allergyGuests = rows
+    .filter((r) => Boolean(r.allergies && r.allergies.trim().length > 0))
+    .sort((a, b) => a.full_name.localeCompare(b.full_name))
+    .map((r) => ({
+      id: r.guest_id,
+      name: r.full_name,
+      category: r.category,
+      allergies: r.allergies as string,
+      status: r.status,
+      voucherCode: r.voucher_code,
+      mealRedeemedAt: r.meal_redeemed_at,
+      mealRedeemedAtWib: r.meal_redeemed_at ? formatWib(r.meal_redeemed_at) : null,
     }));
 
   // 2. Aktivitas 20 absensi terbaru (P10.4)
@@ -139,10 +159,12 @@ export async function GET(req: NextRequest) {
       onHoldCount,
       unpaidCount,
       paidCount: Math.max(0, total - unpaidCount),
+      allergyCount,
       mealRedeemedCount,
       photoboothRedeemedCount,
     },
     unpaidGuests,
+    allergyGuests,
     activities,
     chartData,
     settings: {

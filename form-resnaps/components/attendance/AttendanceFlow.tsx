@@ -89,6 +89,7 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
     guestId: string;
     name: string;
     category: string | null;
+    allergies?: string | null;
     scannedAt: string;
     voucherCode?: string;
     mealRedeemedAt?: string | null;
@@ -135,6 +136,7 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
         guestId: stored.guestId,
         name: stored.guestName,
         category: stored.category,
+        allergies: stored.allergies ?? null,
         scannedAt: stored.scannedAt,
         voucherCode: stored.voucherCode,
         mealRedeemedAt: stored.mealRedeemedAt,
@@ -289,6 +291,7 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
             guestId: t.guestId,
             name: t.guestName,
             category: t.category,
+            allergies: t.allergies ?? null,
             scannedAt,
             voucherCode: t.voucherCode,
             mealRedeemedAt: t.mealRedeemedAt,
@@ -417,6 +420,7 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
           guestId: selectedGuest.id,
           name: selectedGuest.name,
           category: selectedGuest.category,
+          allergies: data.allergies ?? null,
           scannedAt,
           voucherCode: data.voucherCode,
           mealRedeemedAt: data.mealRedeemedAt ?? null,
@@ -820,6 +824,7 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
             guestId={successData.guestId}
             guestName={successData.name}
             category={successData.category}
+            allergies={successData.allergies}
             scannedAt={successData.scannedAt}
             voucherCode={successData.voucherCode}
             initialMealRedeemedAt={successData.mealRedeemedAt}

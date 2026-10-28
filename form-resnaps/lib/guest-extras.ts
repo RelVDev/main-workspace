@@ -1,13 +1,15 @@
 // Layer pengelolaan data tambahan tamu: Status Pembayaran HTM (lunas/belum_lunas),
-// Status Hold Absensi (hold_at), serta Voucher Makan & Photobooth (1x pakai).
+// Data Alergi Makanan (allergies), Status Hold Absensi (hold_at), serta Voucher Makan & Photobooth (1x pakai).
 // Mendukung kolom tabel `guests` (migrasi 0008) SEKALIGUS fallback otomatis ke `event_settings`
 // ("guest_extras_v1") bila migrasi 0008 belum dijalankan di database remote.
 import "server-only";
 import { createAdminClient } from "./supabase/admin";
-import { generateVoucherCode, normalizeVoucherInput, type PaymentStatus, type VoucherKind } from "./voucher";
+import type { Json, TablesUpdate } from "./supabase/types";
+import { generateVoucherCode, normalizeVoucherInput, type PaymentStatus } from "./voucher";
 
 export type GuestExtraState = {
   paymentStatus: PaymentStatus;
+  allergies: string | null;
   holdAt: string | null;
   voucherCode: string;
   mealRedeemedAt: string | null;
@@ -20,6 +22,7 @@ export type EnrichedGuestRow = {
   guest_id: string;
   full_name: string;
   category: string | null;
+  allergies: string | null;
   status: "belum_hadir" | "ditahan" | "di_dalam" | "sudah_pulang";
   checked_in_at: string | null;
   checked_out_at: string | null;
@@ -33,7 +36,7 @@ export type EnrichedGuestRow = {
 const EXTRAS_SETTING_KEY = "guest_extras_v1";
 
 // Daftar nama Kating/Tamu pada seed data yang secara default memiliki status HTM 'belum_lunas'
-const DEFAULT_UNPAID_NAMES = new Set([
+export const DEFAULT_UNPAID_NAMES = new Set([
   "citra lestari",
   "eko prasetyo",
   "joko susilo",
@@ -44,8 +47,25 @@ const DEFAULT_UNPAID_NAMES = new Set([
   "dimas aditya",
 ]);
 
-type StoredExtraRecord = {
+// Data alergi makanan default untuk tamu/kating pada database
+export const DEFAULT_ALLERGY_MAP: Record<string, string> = {
+  "anindya putri maharani": "Seafood (Udang & Kepiting)",
+  "citra lestari": "Kacang Tanah & Kacang Mede",
+  "dewi anggraini": "Susu Sapi / Olahan Dairy (Intoleransi Laktosa)",
+  "eko prasetyo": "Telur Ayam",
+  "gita ayu saraswati": "Seafood (Cumi & Kerang)",
+  "joko susilo": "Makanan Pedas / Cabai (Maag Kronis)",
+  "maya safitri": "Gluten / Tepung Terigu",
+  "nicolas chandra": "Seafood (Ikan Laut & Udang)",
+  "qonita azzahra": "Kacang-kacangan & Wijen",
+  "vincentius adi nugraha putra hadiwijaya": "Susu & Keju (Dairy)",
+  "zahra amelia": "Seafood (Udang)",
+  "dimas aditya": "Daging Kambing",
+};
+
+export type StoredExtraRecord = {
   paymentStatus?: PaymentStatus;
+  allergies?: string | null;
   holdAt?: string | null;
   voucherCode?: string;
   mealRedeemedAt?: string | null;
@@ -78,7 +98,7 @@ export async function writeExtrasStore(
   await db.from("event_settings").upsert(
     {
       key: EXTRAS_SETTING_KEY,
-      value: store,
+      value: store as unknown as Json,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "key" },
@@ -87,7 +107,7 @@ export async function writeExtrasStore(
 
 /**
  * Mengambil seluruh baris status tamu yang sudah diperkaya dengan `payment_status`,
- * `hold_at`, `voucher_code`, `meal_redeemed_at`, dan `photobooth_redeemed_at`.
+ * `allergies`, `hold_at`, `voucher_code`, `meal_redeemed_at`, dan `photobooth_redeemed_at`.
  */
 export async function fetchEnrichedGuests(
   db: ReturnType<typeof createAdminClient>,
@@ -98,7 +118,7 @@ export async function fetchEnrichedGuests(
   const fullRes = await db
     .from("guest_status")
     .select(
-      "guest_id, full_name, category, status, checked_in_at, checked_out_at, payment_status, hold_at, voucher_code, meal_redeemed_at, photobooth_redeemed_at",
+      "guest_id, full_name, category, allergies, status, checked_in_at, checked_out_at, payment_status, hold_at, voucher_code, meal_redeemed_at, photobooth_redeemed_at",
     )
     .order("full_name", { ascending: true });
 
@@ -110,10 +130,13 @@ export async function fetchEnrichedGuests(
       const defaultPayment: PaymentStatus = DEFAULT_UNPAID_NAMES.has(nameLower)
         ? "belum_lunas"
         : "lunas";
+      const defaultAllergy = DEFAULT_ALLERGY_MAP[nameLower] ?? null;
 
       const paymentStatus: PaymentStatus =
         over?.paymentStatus ??
         (r.payment_status === "belum_lunas" ? "belum_lunas" : defaultPayment);
+      const allergies =
+        over?.allergies !== undefined ? over.allergies : (r.allergies ?? defaultAllergy);
       const holdAt = over?.holdAt !== undefined ? over.holdAt : (r.hold_at ?? null);
       const voucherCode = over?.voucherCode || r.voucher_code || generateVoucherCode(id);
       const mealRedeemedAt =
@@ -136,6 +159,7 @@ export async function fetchEnrichedGuests(
         guest_id: id,
         full_name: r.full_name ?? "Tamu",
         category: r.category ?? null,
+        allergies: allergies || null,
         status: computedStatus,
         checked_in_at: r.checked_in_at ?? null,
         checked_out_at: r.checked_out_at ?? null,
@@ -162,8 +186,10 @@ export async function fetchEnrichedGuests(
     const defaultPayment: PaymentStatus = DEFAULT_UNPAID_NAMES.has(nameLower)
       ? "belum_lunas"
       : "lunas";
+    const defaultAllergy = DEFAULT_ALLERGY_MAP[nameLower] ?? null;
 
     const paymentStatus: PaymentStatus = over?.paymentStatus ?? defaultPayment;
+    const allergies = over?.allergies !== undefined ? over.allergies : defaultAllergy;
     const holdAt = over?.holdAt ?? null;
     const voucherCode = over?.voucherCode || generateVoucherCode(id);
     const mealRedeemedAt = over?.mealRedeemedAt ?? null;
@@ -182,6 +208,7 @@ export async function fetchEnrichedGuests(
       guest_id: id,
       full_name: r.full_name ?? "Tamu",
       category: r.category ?? null,
+      allergies: allergies || null,
       status: computedStatus,
       checked_in_at: r.checked_in_at ?? null,
       checked_out_at: r.checked_out_at ?? null,
@@ -231,8 +258,9 @@ export async function updateGuestExtra(
   await writeExtrasStore(db, store);
 
   // Upayakan update langsung ke kolom tabel guests bila migrasi 0008 sudah aktif
-  const dbPatch: Record<string, unknown> = {};
+  const dbPatch: TablesUpdate<"guests"> = {};
   if (patch.paymentStatus !== undefined) dbPatch.payment_status = patch.paymentStatus;
+  if (patch.allergies !== undefined) dbPatch.allergies = patch.allergies;
   if (patch.holdAt !== undefined) dbPatch.hold_at = patch.holdAt;
   if (patch.voucherCode !== undefined) dbPatch.voucher_code = patch.voucherCode;
   if (patch.mealRedeemedAt !== undefined) dbPatch.meal_redeemed_at = patch.mealRedeemedAt;

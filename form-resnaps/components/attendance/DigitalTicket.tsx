@@ -21,6 +21,7 @@ import {
   BookmarkCheck,
   RefreshCw,
   QrCode,
+  AlertTriangle,
 } from "lucide-react";
 import { ConfettiCanvas } from "@/components/ui/ConfettiCanvas";
 import { Barcode128 } from "./Barcode128";
@@ -34,6 +35,7 @@ export type SavedGuestTicket = {
   guestId: string;
   guestName: string;
   category: string | null;
+  allergies?: string | null;
   mode: Mode;
   status: "on_hold" | "active" | "checked_out";
   paymentStatus: "lunas" | "belum_lunas";
@@ -49,6 +51,7 @@ type DigitalTicketProps = {
   guestId?: string;
   guestName: string;
   category: string | null;
+  allergies?: string | null;
   scannedAt: string;
   voucherCode?: string;
   initialMealRedeemedAt?: string | null;
@@ -61,6 +64,7 @@ export function DigitalTicket({
   guestId,
   guestName,
   category,
+  allergies: initialAllergies = null,
   scannedAt,
   voucherCode: propVoucherCode,
   initialMealRedeemedAt = null,
@@ -71,6 +75,7 @@ export function DigitalTicket({
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
   const [showZoomModal, setShowZoomModal] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [allergies, setAllergies] = useState<string | null>(initialAllergies);
   const [mealRedeemedAt, setMealRedeemedAt] = useState<string | null>(initialMealRedeemedAt);
   const [photoboothRedeemedAt, setPhotoboothRedeemedAt] = useState<string | null>(
     initialPhotoboothRedeemedAt,
@@ -125,12 +130,18 @@ export function DigitalTicket({
 
   // Simpan tiket & barcode di localStorage browser tamu agar tidak hilang walau tab ditutup
   const persistTicketToStorage = useCallback(
-    (nextVoucher: string, nextMealAt: string | null, nextPhotoAt: string | null) => {
+    (
+      nextVoucher: string,
+      nextMealAt: string | null,
+      nextPhotoAt: string | null,
+      nextAllergies: string | null,
+    ) => {
       try {
         const payload: SavedGuestTicket = {
           guestId: guestId || "",
           guestName,
           category,
+          allergies: nextAllergies,
           mode,
           status: isMasuk ? "active" : "checked_out",
           paymentStatus: "lunas",
@@ -157,8 +168,8 @@ export function DigitalTicket({
   );
 
   useEffect(() => {
-    persistTicketToStorage(voucherCode, mealRedeemedAt, photoboothRedeemedAt);
-  }, [voucherCode, mealRedeemedAt, photoboothRedeemedAt, persistTicketToStorage]);
+    persistTicketToStorage(voucherCode, mealRedeemedAt, photoboothRedeemedAt, allergies);
+  }, [voucherCode, mealRedeemedAt, photoboothRedeemedAt, allergies, persistTicketToStorage]);
 
   // Sinkronisasi status pemakaian Voucher Makan & Photobooth secara berkala dari server
   const syncVoucherStatus = useCallback(async () => {
@@ -174,12 +185,15 @@ export function DigitalTicket({
       const d = await res.json();
       if (d.ok && d.ticket) {
         if (d.ticket.voucherCode) setVoucherCode(d.ticket.voucherCode);
+        const syncedAllergies = d.ticket.allergies ?? allergies ?? null;
+        setAllergies(syncedAllergies);
         setMealRedeemedAt(d.ticket.mealRedeemedAt ?? null);
         setPhotoboothRedeemedAt(d.ticket.photoboothRedeemedAt ?? null);
         persistTicketToStorage(
           d.ticket.voucherCode || voucherCode,
           d.ticket.mealRedeemedAt ?? null,
           d.ticket.photoboothRedeemedAt ?? null,
+          syncedAllergies,
         );
       }
     } catch {
@@ -187,7 +201,7 @@ export function DigitalTicket({
     } finally {
       setIsSyncing(false);
     }
-  }, [guestId, voucherCode, persistTicketToStorage]);
+  }, [guestId, voucherCode, allergies, persistTicketToStorage]);
 
   useEffect(() => {
     void syncVoucherStatus();
@@ -309,6 +323,17 @@ export function DigitalTicket({
                   <CheckCircle2 className="size-3" />
                   HTM LUNAS
                 </span>
+                {allergies ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-warning/15 px-3 py-1 text-xs font-extrabold text-warning ring-1 ring-warning/35">
+                    <AlertTriangle className="size-3.5" />
+                    Alergi Makanan: {allergies}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-surface-soft px-3 py-1 text-xs font-bold text-ink-muted ring-1 ring-line">
+                    <Utensils className="size-3" />
+                    Tidak Ada Alergi Makanan
+                  </span>
+                )}
               </div>
             </div>
 
@@ -548,6 +573,12 @@ export function DigitalTicket({
               <p className="text-lg font-black text-ink">{guestName}</p>
               {category ? (
                 <span className="text-xs font-bold text-brand-blue">{category}</span>
+              ) : null}
+              {allergies ? (
+                <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-warning/15 px-3 py-1 text-xs font-black text-warning ring-1 ring-warning/35">
+                  <AlertTriangle className="size-3.5" />
+                  Alergi: {allergies}
+                </span>
               ) : null}
             </div>
 

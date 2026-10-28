@@ -24,6 +24,7 @@ export const voucherScanInput = z.object({
 
 export const htmActionInput = z.object({
   guest_id: z.string().uuid(),
-  action: z.enum(["approve_checkin", "set_payment"]),
+  action: z.enum(["approve_checkin", "set_payment", "set_allergies"]),
   payment_status: paymentStatusSchema.optional(),
+  allergies: z.string().trim().max(200).nullable().optional(),
 });

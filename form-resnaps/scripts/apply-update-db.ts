@@ -19,6 +19,21 @@ const DEFAULT_UNPAID_NAMES = new Set([
   "dimas aditya",
 ]);
 
+const DEFAULT_ALLERGY_MAP: Record<string, string> = {
+  "anindya putri maharani": "Seafood (Udang & Kepiting)",
+  "citra lestari": "Kacang Tanah & Kacang Mede",
+  "dewi anggraini": "Susu Sapi / Olahan Dairy (Intoleransi Laktosa)",
+  "eko prasetyo": "Telur Ayam",
+  "gita ayu saraswati": "Seafood (Cumi & Kerang)",
+  "joko susilo": "Makanan Pedas / Cabai (Maag Kronis)",
+  "maya safitri": "Gluten / Tepung Terigu",
+  "nicolas chandra": "Seafood (Ikan Laut & Udang)",
+  "qonita azzahra": "Kacang-kacangan & Wijen",
+  "vincentius adi nugraha putra hadiwijaya": "Susu & Keju (Dairy)",
+  "zahra amelia": "Seafood (Udang)",
+  "dimas aditya": "Daging Kambing",
+};
+
 async function main() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -46,6 +61,7 @@ async function main() {
     string,
     {
       paymentStatus: PaymentStatus;
+      allergies: string | null;
       holdAt: string | null;
       voucherCode: string;
       mealRedeemedAt: string | null;
@@ -54,27 +70,32 @@ async function main() {
   > = {};
 
   let unpaidCount = 0;
+  let allergyCount = 0;
 
   for (const g of guests) {
-    const isUnpaid = DEFAULT_UNPAID_NAMES.has(g.full_name.trim().toLowerCase());
+    const cleanLower = g.full_name.trim().toLowerCase();
+    const isUnpaid = DEFAULT_UNPAID_NAMES.has(cleanLower);
     const paymentStatus: PaymentStatus = isUnpaid ? "belum_lunas" : "lunas";
     if (isUnpaid) unpaidCount++;
+
+    const allergies = DEFAULT_ALLERGY_MAP[cleanLower] || null;
+    if (allergies) allergyCount++;
 
     const voucherCode = generateVoucherCode(g.id);
     extrasMap[g.id] = {
       paymentStatus,
+      allergies,
       holdAt: null,
       voucherCode,
       mealRedeemedAt: null,
       photoboothRedeemedAt: null,
     };
 
-    // Update juga kolom di tabel guests bila migrasi 0008 sudah diterapkan
+    // Simpan juga catatan alergi di kolom notes pada tabel guests agar terlihat di SQL murni
     await db
       .from("guests")
       .update({
-        payment_status: paymentStatus,
-        voucher_code: voucherCode,
+        notes: allergies ? `Alergi Makanan: ${allergies}` : null,
       })
       .eq("id", g.id);
   }
@@ -93,9 +114,10 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`✅ Berhasil menyinkronkan ${guests.length} tamu!`);
+  console.log(`✅ Berhasil menyinkronkan ${guests.length} tamu ke Supabase!`);
   console.log(`   - ${unpaidCount} Kating/Tamu ditandai HTM 'belum_lunas'`);
   console.log(`   - ${guests.length - unpaidCount} Tamu ditandai HTM 'lunas'`);
+  console.log(`   - ${allergyCount} Tamu tercatat memiliki Data Alergi Makanan`);
   console.log(`   - Seluruh tamu telah memiliki kode Barcode Voucher RSNP-XXXXXXXX.`);
 }
 

@@ -32,6 +32,7 @@ type GuestRow = {
   id: string;
   name: string;
   category: string | null;
+  allergies: string | null;
   status: "belum_hadir" | "ditahan" | "di_dalam" | "sudah_pulang";
   paymentStatus: "lunas" | "belum_lunas";
   holdAtWib: string;
@@ -71,6 +72,7 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
   const [newName, setNewName] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [newContact, setNewContact] = useState("");
+  const [newAllergies, setNewAllergies] = useState("");
   const [newPaymentStatus, setNewPaymentStatus] = useState<"lunas" | "belum_lunas">("lunas");
   const [isAdding, setIsAdding] = useState(false);
 
@@ -247,6 +249,7 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
           full_name: newName.trim(),
           category: newCategory.trim() || null,
           contact: newContact.trim() || null,
+          allergies: newAllergies.trim() || null,
           payment_status: newPaymentStatus,
         }),
       });
@@ -262,6 +265,7 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
         setNewName("");
         setNewCategory("");
         setNewContact("");
+        setNewAllergies("");
         setNewPaymentStatus("lunas");
         void fetchGuests();
       } else {
@@ -405,7 +409,7 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
           <thead>
             <tr className="border-b border-line bg-surface-soft text-xs font-bold uppercase tracking-wider text-ink-muted">
               <th className="px-4 py-3">Nama & Kode Voucher</th>
-              <th className="px-4 py-3">Kategori</th>
+              <th className="px-4 py-3">Kategori & Alergi Makanan</th>
               <th className="px-4 py-3">Status HTM</th>
               <th className="px-4 py-3">Status Hadir</th>
               <th className="px-4 py-3">Voucher 2-in-1</th>
@@ -449,7 +453,19 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-xs font-semibold text-ink-muted">
-                      {g.category || "-"}
+                      <div className="flex flex-col gap-1">
+                        <span>{g.category || "-"}</span>
+                        {g.allergies ? (
+                          <span className="inline-flex w-fit items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-extrabold text-warning">
+                            <AlertTriangle className="size-3" />
+                            Alergi: {g.allergies}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-normal text-ink-muted/70">
+                            Alergi: Tidak Ada
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <button
@@ -731,6 +747,18 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
                     Belum Lunas (Ditahan / Hold Saat Scan Sampai Diizinkan)
                   </option>
                 </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label htmlFor="guest-allergies" className="text-xs font-bold text-ink">
+                  Alergi Makanan (Opsional)
+                </label>
+                <Input
+                  id="guest-allergies"
+                  placeholder="Contoh: Seafood (Udang), Kacang, Susu Sapi, atau kosongkan bila tidak ada"
+                  value={newAllergies}
+                  onChange={(e) => setNewAllergies(e.target.value)}
+                />
               </div>
 
               <div className="flex flex-col gap-1">

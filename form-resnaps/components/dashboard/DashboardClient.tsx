@@ -46,6 +46,7 @@ type DashboardMetrics = {
   onHoldCount: number;
   unpaidCount: number;
   paidCount: number;
+  allergyCount?: number;
   mealRedeemedCount: number;
   photoboothRedeemedCount: number;
 };
@@ -54,11 +55,23 @@ type UnpaidGuestItem = {
   id: string;
   name: string;
   category: string | null;
+  allergies?: string | null;
   status: "belum_hadir" | "ditahan" | "di_dalam" | "sudah_pulang";
   paymentStatus: "lunas" | "belum_lunas";
   holdAt: string | null;
   holdAtWib: string | null;
   voucherCode: string;
+};
+
+type AllergyGuestItem = {
+  id: string;
+  name: string;
+  category: string | null;
+  allergies: string;
+  status: "belum_hadir" | "ditahan" | "di_dalam" | "sudah_pulang";
+  voucherCode: string;
+  mealRedeemedAt: string | null;
+  mealRedeemedAtWib: string | null;
 };
 
 type ActivityItem = {
@@ -80,6 +93,7 @@ type IntervalChartItem = {
 type DashboardData = {
   metrics: DashboardMetrics;
   unpaidGuests: UnpaidGuestItem[];
+  allergyGuests?: AllergyGuestItem[];
   activities: ActivityItem[];
   chartData: IntervalChartItem[];
   settings: {
@@ -274,6 +288,7 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
   };
 
   const unpaidList = data?.unpaidGuests || [];
+  const allergyList = data?.allergyGuests || [];
   const heldGuests = unpaidList.filter((g) => g.status === "ditahan");
 
   // P10.8: Mode Layar Besar (TV Mode)
@@ -754,6 +769,71 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
                 </div>
               );
             })}
+          </div>
+        )}
+      </Card>
+
+      {/* Seksi Khusus: Data Alergi Makanan Tamu (Konsumsi) */}
+      <Card className="flex flex-col gap-4 rounded-3xl border-brand-orange/35 bg-gradient-to-b from-white to-brand-orange/5 p-5 shadow-md">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3.5">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 items-center justify-center rounded-2xl bg-brand-orange/15 text-brand-orange">
+              <Utensils className="size-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-black text-ink">
+                  Data Alergi Makanan Tamu (Konsumsi)
+                </h2>
+                <Badge tone="warning">{allergyList.length} Tamu Memiliki Alergi</Badge>
+              </div>
+              <p className="text-xs text-ink-muted">
+                Catatan alergi makanan tamu untuk persiapan paket konsumsi khusus & otomatis muncul saat scan voucher makan.
+              </p>
+            </div>
+          </div>
+
+          <Link
+            href="/panitia/scanner"
+            className="inline-flex items-center gap-1 text-xs font-extrabold text-brand-orange hover:underline"
+          >
+            Buka Scanner Konsumsi <ExternalLink className="size-3" />
+          </Link>
+        </div>
+
+        {allergyList.length === 0 ? (
+          <div className="py-4 text-center text-xs font-semibold text-ink-muted">
+            Belum ada catatan alergi makanan tamu.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+            {allergyList.map((g) => (
+              <div
+                key={g.id}
+                className="flex flex-col justify-between gap-2 rounded-2xl border border-brand-orange/30 bg-white p-3.5 shadow-2xs"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-black text-ink">{g.name}</span>
+                    <span className="text-[11px] font-bold text-brand-blue">
+                      {g.category || "Tamu"} · <span className="font-mono">{g.voucherCode}</span>
+                    </span>
+                  </div>
+                  {g.mealRedeemedAtWib ? (
+                    <Badge tone="neutral">Sudah Klaim ({g.mealRedeemedAtWib})</Badge>
+                  ) : g.status === "di_dalam" || g.status === "sudah_pulang" ? (
+                    <Badge tone="success">Hadir · Belum Klaim</Badge>
+                  ) : (
+                    <Badge tone="warning">Belum Tiba</Badge>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1.5 rounded-xl bg-warning/15 px-2.5 py-1.5 text-xs font-extrabold text-warning">
+                  <AlertTriangle className="size-3.5 shrink-0" />
+                  <span>Alergi: {g.allergies}</span>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </Card>

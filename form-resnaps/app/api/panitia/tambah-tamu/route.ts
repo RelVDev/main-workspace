@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
   const fullName = body?.full_name?.trim();
   const category = body?.category?.trim() || null;
   const contact = body?.contact?.trim() || null;
+  const allergies = body?.allergies?.trim() || null;
   const paymentStatus: PaymentStatus =
     body?.payment_status === "belum_lunas" ? "belum_lunas" : "lunas";
 
@@ -37,6 +38,7 @@ export async function POST(req: NextRequest) {
       name_search: nameSearch,
       category,
       contact,
+      notes: allergies ? `Alergi Makanan: ${allergies}` : null,
       import_batch: "on-the-spot",
     })
     .select("id, full_name, category")
@@ -49,6 +51,7 @@ export async function POST(req: NextRequest) {
   const voucherCode = generateVoucherCode(newGuest.id);
   await updateGuestExtra(db, newGuest.id, {
     paymentStatus,
+    allergies,
     holdAt: null,
     voucherCode,
   });
@@ -61,6 +64,7 @@ export async function POST(req: NextRequest) {
     meta: {
       full_name: fullName,
       category,
+      allergies,
       payment_status: paymentStatus,
       voucher_code: voucherCode,
       created_by: auth.email,
@@ -70,6 +74,7 @@ export async function POST(req: NextRequest) {
   return ok({
     guest: {
       ...newGuest,
+      allergies,
       payment_status: paymentStatus,
       voucher_code: voucherCode,
     },
