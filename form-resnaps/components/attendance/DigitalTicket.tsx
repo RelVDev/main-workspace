@@ -1,8 +1,10 @@
-// Tiket Digital / Boarding Pass Acara RE:SNAPS dengan efek Glassmorphism & Animasi Perayaan.
+// Tiket Digital VIP & Voucher Terpadu 2-in-1 (Kupon Makan + Kupon Photobooth) RE:SNAPS.
+// Tersimpan permanen di localStorage browser tamu dan menyinkronkan status 1x pakai secara real-time.
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
+import QRCode from "qrcode";
 import {
   CheckCircle2,
   Calendar,
@@ -12,29 +14,80 @@ import {
   PartyPopper,
   ArrowRight,
   ShieldCheck,
+  Utensils,
+  Camera,
+  Maximize2,
+  X,
+  BookmarkCheck,
+  RefreshCw,
+  QrCode,
 } from "lucide-react";
 import { ConfettiCanvas } from "@/components/ui/ConfettiCanvas";
+import { Barcode128 } from "./Barcode128";
 import { playSuccessChime } from "@/lib/sound";
 import { formatWib } from "@/lib/time";
 import type { Mode } from "@/lib/qr-token";
 
+export const SAVED_TICKET_STORAGE_KEY = "resnaps_guest_ticket_v1";
+
+export type SavedGuestTicket = {
+  guestId: string;
+  guestName: string;
+  category: string | null;
+  mode: Mode;
+  status: "on_hold" | "active" | "checked_out";
+  paymentStatus: "lunas" | "belum_lunas";
+  scannedAt: string;
+  holdAt?: string | null;
+  voucherCode: string;
+  mealRedeemedAt: string | null;
+  photoboothRedeemedAt: string | null;
+};
+
 type DigitalTicketProps = {
   mode: Mode;
+  guestId?: string;
   guestName: string;
   category: string | null;
   scannedAt: string;
+  voucherCode?: string;
+  initialMealRedeemedAt?: string | null;
+  initialPhotoboothRedeemedAt?: string | null;
   onFinish?: () => void;
 };
 
 export function DigitalTicket({
   mode,
+  guestId,
   guestName,
   category,
   scannedAt,
+  voucherCode: propVoucherCode,
+  initialMealRedeemedAt = null,
+  initialPhotoboothRedeemedAt = null,
   onFinish,
 }: DigitalTicketProps) {
   const [copied, setCopied] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string>("");
+  const [showZoomModal, setShowZoomModal] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [mealRedeemedAt, setMealRedeemedAt] = useState<string | null>(initialMealRedeemedAt);
+  const [photoboothRedeemedAt, setPhotoboothRedeemedAt] = useState<string | null>(
+    initialPhotoboothRedeemedAt,
+  );
+
   const isMasuk = mode === "in";
+
+  // Fallback kode voucher deterministik bila prop belum terisi
+  const computedFallbackCode = `RSNP-${Math.abs(
+    (guestId || guestName).split("").reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) | 0, 7),
+  )
+    .toString(16)
+    .toUpperCase()
+    .padStart(8, "0")
+    .slice(0, 8)}`;
+
+  const [voucherCode, setVoucherCode] = useState<string>(propVoucherCode || computedFallbackCode);
 
   // Bunyikan nada harmonik sukses saat tiket pertama kali muncul
   useEffect(() => {
@@ -45,25 +98,122 @@ export function DigitalTicket({
     }
   }, []);
 
-  const ticketSerial = `CRS-${isMasuk ? "IN" : "OUT"}-${Math.abs(
-    guestName.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) * 17
-  )
-    .toString(36)
-    .toUpperCase()
-    .slice(0, 6)}`;
+  // Generate QR Code ber-kontras tinggi untuk kode voucher
+  useEffect(() => {
+    let active = true;
+    if (voucherCode) {
+      QRCode.toDataURL(voucherCode, {
+        errorCorrectionLevel: "M",
+        margin: 2,
+        width: 320,
+        color: {
+          dark: "#000000",
+          light: "#FFFFFF",
+        },
+      })
+        .then((url) => {
+          if (active) setQrDataUrl(url);
+        })
+        .catch(() => {
+          if (active) setQrDataUrl("");
+        });
+    }
+    return () => {
+      active = false;
+    };
+  }, [voucherCode]);
+
+  // Simpan tiket & barcode di localStorage browser tamu agar tidak hilang walau tab ditutup
+  const persistTicketToStorage = useCallback(
+    (nextVoucher: string, nextMealAt: string | null, nextPhotoAt: string | null) => {
+      try {
+        const payload: SavedGuestTicket = {
+          guestId: guestId || "",
+          guestName,
+          category,
+          mode,
+          status: isMasuk ? "active" : "checked_out",
+          paymentStatus: "lunas",
+          scannedAt,
+          voucherCode: nextVoucher,
+          mealRedeemedAt: nextMealAt,
+          photoboothRedeemedAt: nextPhotoAt,
+        };
+        localStorage.setItem(SAVED_TICKET_STORAGE_KEY, JSON.stringify(payload));
+        localStorage.setItem(
+          "resnaps_last_attended",
+          JSON.stringify({
+            name: guestName,
+            mode,
+            at: scannedAt,
+            voucherCode: nextVoucher,
+          }),
+        );
+      } catch {
+        // Abaikan bila storage penuh / private mode
+      }
+    },
+    [guestId, guestName, category, mode, isMasuk, scannedAt],
+  );
+
+  useEffect(() => {
+    persistTicketToStorage(voucherCode, mealRedeemedAt, photoboothRedeemedAt);
+  }, [voucherCode, mealRedeemedAt, photoboothRedeemedAt, persistTicketToStorage]);
+
+  // Sinkronisasi status pemakaian Voucher Makan & Photobooth secara berkala dari server
+  const syncVoucherStatus = useCallback(async () => {
+    const key = guestId || voucherCode;
+    if (!key) return;
+    setIsSyncing(true);
+    try {
+      const param = guestId
+        ? `guest_id=${encodeURIComponent(guestId)}`
+        : `code=${encodeURIComponent(voucherCode)}`;
+      const res = await fetch(`/api/attendance/ticket-status?${param}`);
+      if (!res.ok) return;
+      const d = await res.json();
+      if (d.ok && d.ticket) {
+        if (d.ticket.voucherCode) setVoucherCode(d.ticket.voucherCode);
+        setMealRedeemedAt(d.ticket.mealRedeemedAt ?? null);
+        setPhotoboothRedeemedAt(d.ticket.photoboothRedeemedAt ?? null);
+        persistTicketToStorage(
+          d.ticket.voucherCode || voucherCode,
+          d.ticket.mealRedeemedAt ?? null,
+          d.ticket.photoboothRedeemedAt ?? null,
+        );
+      }
+    } catch {
+      // Abaikan gangguan jaringan sesaat
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [guestId, voucherCode, persistTicketToStorage]);
+
+  useEffect(() => {
+    void syncVoucherStatus();
+    const timer = setInterval(() => {
+      void syncVoucherStatus();
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [syncVoucherStatus]);
 
   async function handleShare() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `Tiket Absensi RE:SNAPS — ${guestName}`,
-          text: `Saya sudah absen ${isMasuk ? "Masuk" : "Pulang"} di Closing Party CHRYSALIS (Pukul ${formatWib(scannedAt)}).`,
-          url: window.location.href,
+          title: `VIP Gala Pass RE:SNAPS — ${guestName}`,
+          text: `Tiket & Voucher Makan/Photobooth Closing Party CHRYSALIS (${guestName} · Kode ${voucherCode}).`,
+          url: window.location.origin,
         });
       } catch {
         // Dibatalkan
       }
     } else {
+      try {
+        await navigator.clipboard.writeText(`${guestName} — Voucher RE:SNAPS: ${voucherCode}`);
+      } catch {
+        // Abaikan
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     }
@@ -71,138 +221,275 @@ export function DigitalTicket({
 
   return (
     <div className="relative flex w-full max-w-md flex-col items-center animate-in fade-in zoom-in-95 duration-500">
-      {/* Konfeti Berjatuhan */}
+      {/* Konfeti Perayaan */}
       <ConfettiCanvas />
 
-      {/* Banner Selamat Datang */}
-      <div className="mb-4 flex items-center gap-2 rounded-full border border-white/60 bg-surface/80 px-4 py-1.5 shadow-sm backdrop-blur-md">
-        <PartyPopper className="size-4 text-brand-gold animate-bounce" />
-        <span className="text-xs font-black uppercase tracking-wider text-brand-blue">
-          {isMasuk ? "Selamat Datang di Acara!" : "Sampai Jumpa Kembali!"}
-        </span>
-        <Sparkles className="size-3.5 text-brand-coral" />
+      {/* Lencana Atas: Status Penyimpanan Permanen di Browser */}
+      <div className="mb-3.5 flex flex-wrap items-center justify-center gap-2">
+        <div className="flex items-center gap-2 rounded-full border border-white/80 bg-white/90 px-4 py-1.5 shadow-md backdrop-blur-md">
+          <PartyPopper className="size-4 text-brand-gold animate-bounce" />
+          <span className="text-xs font-black uppercase tracking-wider text-gradient-brand">
+            {isMasuk ? "Gala Pass & Voucher Aktif!" : "Check-out Selesai · Sampai Jumpa!"}
+          </span>
+          <Sparkles className="size-3.5 text-brand-magenta" />
+        </div>
+
+        <div className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-3 py-1 text-[11px] font-extrabold text-success">
+          <BookmarkCheck className="size-3.5" />
+          <span>Tersimpan di Browser Ini</span>
+        </div>
       </div>
 
-      {/* Kartu Tiket Mewah (Glassmorphism & Perforated Stub) */}
-      <div className="relative w-full overflow-hidden rounded-3xl border border-white/80 bg-gradient-to-b from-white/95 via-surface/90 to-surface-soft/90 p-0 shadow-2xl backdrop-blur-2xl ring-1 ring-black/5">
-        {/* Strip Gradien Atas */}
-        <div className="h-2.5 w-full bg-gradient-brand" />
+      {/* Kartu Tiket VIP Holografik RE:SNAPS */}
+      <div className="relative w-full overflow-hidden rounded-[28px] bg-gradient-brand p-[2.5px] shadow-2xl animate-shimmer">
+        <div className="relative flex w-full flex-col overflow-hidden rounded-[26px] bg-gradient-to-b from-white via-surface to-surface-soft">
+          {/* Pendaran Dekoratif Palet RE:SNAPS di Sudut Tiket */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-16 -right-16 size-44 rounded-full bg-brand-magenta/12 blur-2xl"
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 -left-16 size-44 rounded-full bg-brand-blue/12 blur-2xl"
+          />
 
-        {/* Bagian Utama Tiket */}
-        <div className="flex flex-col p-6 sm:p-7">
-          {/* Header Tiket: Logo Resmi & Tipe Akses */}
-          <div className="flex items-center justify-between border-b border-line/60 pb-5">
-            <div className="flex items-center gap-3">
-              <div className="relative size-12 overflow-hidden rounded-2xl shadow-sm ring-1 ring-black/5">
-                <Image
-                  src="/brand/logo.png"
-                  alt="RE:SNAPS"
-                  width={96}
-                  height={96}
-                  className="size-full object-cover"
-                  priority
-                />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xs font-black uppercase tracking-widest text-brand-blue">
-                  OFFICIAL PASS
-                </span>
-                <span className="text-sm font-extrabold text-ink">CHRYSALIS 2026</span>
-              </div>
-            </div>
-
-            <span
-              className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wider ${
-                isMasuk
-                  ? "bg-success/15 text-success ring-1 ring-success/30"
-                  : "bg-brand-purple/15 text-brand-purple ring-1 ring-brand-purple/30"
-              }`}
-            >
-              <CheckCircle2 className="size-3.5" />
-              {isMasuk ? "ADMIT ONE" : "CHECK-OUT"}
-            </span>
-          </div>
-
-          {/* Nama Tamu & Kategori */}
-          <div className="flex flex-col py-6 text-center">
-            <span className="text-xs font-bold uppercase tracking-wider text-ink-muted">
-              Nama Tamu Undangan
-            </span>
-            <h1 className="mt-1 text-2xl font-black tracking-tight text-ink sm:text-3xl">
-              {guestName}
-            </h1>
-            {category ? (
-              <div className="mt-2.5 flex justify-center">
-                <span className="inline-flex items-center gap-1 rounded-full bg-brand-blue/10 px-3.5 py-1 text-xs font-extrabold text-brand-blue ring-1 ring-brand-blue/20">
-                  <ShieldCheck className="size-3" />
-                  {category}
-                </span>
-              </div>
-            ) : null}
-          </div>
-
-          {/* Rincian Waktu & Gerbang */}
-          <div className="grid grid-cols-2 gap-3 rounded-2xl border border-line/60 bg-surface/70 p-3.5 text-center text-xs backdrop-blur-sm">
-            <div className="flex flex-col items-center justify-center gap-0.5 border-r border-line/60 pr-2">
-              <span className="flex items-center gap-1 text-[11px] font-bold text-ink-muted">
-                <Clock className="size-3 text-brand-blue" />
-                Waktu Tercatat
-              </span>
-              <span className="text-sm font-black tabular-nums text-ink">
-                {formatWib(scannedAt)}
-              </span>
-            </div>
-
-            <div className="flex flex-col items-center justify-center gap-0.5 pl-2">
-              <span className="flex items-center gap-1 text-[11px] font-bold text-ink-muted">
-                <Calendar className="size-3 text-brand-purple" />
-                Status Gerbang
-              </span>
-              <span className="text-sm font-black uppercase tracking-wide text-success">
-                {isMasuk ? "Masuk Terkonfirmasi" : "Selesai Pulang"}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Garis Sobekan Tiket (Perforation with Circular Notches) */}
-        <div className="relative flex items-center justify-between px-2">
-          <div className="size-6 -translate-x-3 rounded-full bg-canvas shadow-inner" />
-          <div className="h-0 flex-1 border-b-2 border-dashed border-line/80" />
-          <div className="size-6 translate-x-3 rounded-full bg-canvas shadow-inner" />
-        </div>
-
-        {/* Bagian Bawah Tiket (Stub / Barcode Estetik) */}
-        <div className="flex flex-col gap-3.5 bg-surface-soft/60 p-6 pt-5 backdrop-blur-sm sm:px-7">
-          <div className="flex items-center justify-between text-xs text-ink-muted">
-            <span className="font-mono text-[11px] font-extrabold tracking-widest text-ink">
-              NO: #{ticketSerial}
-            </span>
-            <span className="text-[10px] uppercase font-bold tracking-wider">
-              Verifikasi Kriptografis QR
-            </span>
-          </div>
-
-          {/* Garis Barcode Dekoratif */}
-          <div className="flex h-10 w-full items-center justify-between rounded-lg bg-white/80 px-4 py-2 shadow-inner">
-            <div className="flex h-full w-full items-center justify-between gap-1 overflow-hidden opacity-85">
-              {[4, 2, 6, 3, 8, 2, 4, 3, 2, 7, 3, 5, 2, 8, 3, 2, 6, 4, 3, 7, 2, 5, 4, 8, 2].map(
-                (w, i) => (
-                  <div
-                    key={i}
-                    className="h-full bg-ink"
-                    style={{ width: `${w * 1.5}px` }}
+          {/* Bagian 1: Identitas Acara & Tamu */}
+          <div className="relative z-10 flex flex-col p-6 pb-5 sm:p-7 sm:pb-6">
+            {/* Header Tiket: Logo Resmi RE:SNAPS & Badge Pass */}
+            <div className="flex items-center justify-between border-b border-line/70 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="relative size-12 overflow-hidden rounded-2xl bg-white p-0.5 shadow-md ring-1 ring-brand-purple/20">
+                  <Image
+                    src="/brand/logo.png"
+                    alt="RE:SNAPS"
+                    width={96}
+                    height={96}
+                    className="size-full rounded-[14px] object-cover"
+                    priority
                   />
-                )
-              )}
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[11px] font-black uppercase tracking-widest text-gradient-brand">
+                    RE:SNAPS VIP PASS
+                  </span>
+                  <span className="text-sm font-black tracking-tight text-ink">
+                    CHRYSALIS CLOSING PARTY
+                  </span>
+                </div>
+              </div>
+
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wider shadow-2xs ${
+                  isMasuk
+                    ? "bg-success text-white"
+                    : "bg-brand-purple text-white"
+                }`}
+              >
+                <CheckCircle2 className="size-3.5" />
+                {isMasuk ? "VERIFIED IN" : "CHECKED OUT"}
+              </span>
+            </div>
+
+            {/* Nama Tamu & Kategori/Kating */}
+            <div className="flex flex-col py-5 text-center">
+              <span className="text-[11px] font-extrabold uppercase tracking-widest text-ink-muted">
+                Tamu Undangan Terdaftar
+              </span>
+              <h2 className="mt-1 text-2xl font-black tracking-tight text-ink sm:text-3xl">
+                {guestName}
+              </h2>
+              <div className="mt-2.5 flex flex-wrap items-center justify-center gap-2">
+                {category ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-brand-blue/10 px-3.5 py-1 text-xs font-extrabold text-brand-blue ring-1 ring-brand-blue/25">
+                    <ShieldCheck className="size-3.5" />
+                    {category}
+                  </span>
+                ) : null}
+                <span className="inline-flex items-center gap-1 rounded-full bg-success/12 px-3 py-1 text-xs font-extrabold text-success ring-1 ring-success/25">
+                  <CheckCircle2 className="size-3" />
+                  HTM LUNAS
+                </span>
+              </div>
+            </div>
+
+            {/* Rincian Waktu & Status Gerbang */}
+            <div className="grid grid-cols-2 gap-3 rounded-2xl border border-line/70 bg-white/85 p-3.5 text-center text-xs shadow-2xs">
+              <div className="flex flex-col items-center justify-center gap-0.5 border-r border-line/70 pr-2">
+                <span className="flex items-center gap-1 text-[11px] font-bold text-ink-muted">
+                  <Clock className="size-3 text-brand-blue" />
+                  Waktu Absen
+                </span>
+                <span className="text-sm font-black tabular-nums text-ink">
+                  {formatWib(scannedAt)}
+                </span>
+              </div>
+
+              <div className="flex flex-col items-center justify-center gap-0.5 pl-2">
+                <span className="flex items-center gap-1 text-[11px] font-bold text-ink-muted">
+                  <Calendar className="size-3 text-brand-magenta" />
+                  Kode Tiket
+                </span>
+                <span className="font-mono text-sm font-black tracking-wider text-brand-purple">
+                  {voucherCode}
+                </span>
+              </div>
             </div>
           </div>
 
-          <p className="text-center text-[11px] font-semibold text-ink-muted">
-            {isMasuk
-              ? "Tunjukkan tiket ini kepada panitia bila diperlukan saat berada di venue."
-              : "Terima kasih atas kehadiranmu di Closing Party CHRYSALIS!"}
-          </p>
+          {/* Garis Sobekan Tiket (Perforation Notch) */}
+          <div className="relative flex items-center justify-between px-2">
+            <div className="size-6 -translate-x-3.5 rounded-full bg-canvas shadow-inner ring-1 ring-black/5" />
+            <div className="h-0 flex-1 border-b-2 border-dashed border-brand-purple/25" />
+            <div className="size-6 translate-x-3.5 rounded-full bg-canvas shadow-inner ring-1 ring-black/5" />
+          </div>
+
+          {/* Bagian 2: VOUCHER TERPADU 2-IN-1 (MAKAN & PHOTOBOOTH) */}
+          <div className="relative z-10 flex flex-col gap-4 bg-gradient-to-b from-surface-soft/50 to-surface-soft/90 p-6 pt-5 sm:px-7">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-col">
+                <span className="text-[11px] font-black uppercase tracking-wider text-brand-purple">
+                  ALL-IN-ONE VOUCHER BARCODE
+                </span>
+                <span className="text-xs font-bold text-ink-muted">
+                  1 Barcode untuk Kupon Makan & Photobooth (Masing-Masing 1x Scan)
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => void syncVoucherStatus()}
+                className="inline-flex items-center gap-1 rounded-xl border border-line bg-white px-2.5 py-1.5 text-[11px] font-bold text-ink shadow-2xs hover:bg-surface-soft"
+                title="Segarkan status kupon"
+              >
+                <RefreshCw className={`size-3 ${isSyncing ? "animate-spin text-brand-blue" : ""}`} />
+                Sync
+              </button>
+            </div>
+
+            {/* Kotak Barcode 1D + QR Code yang Dapat Di-scan Panitia */}
+            <div className="flex flex-col items-center gap-3 rounded-2xl border border-brand-purple/20 bg-white p-4 shadow-md">
+              <div className="flex w-full flex-col items-center justify-between gap-3 sm:flex-row">
+                {/* QR Code Voucher */}
+                <div className="relative flex size-28 shrink-0 items-center justify-center rounded-2xl border border-line bg-white p-1.5 shadow-xs">
+                  {qrDataUrl ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={qrDataUrl}
+                      alt={`QR Voucher ${voucherCode}`}
+                      className="size-full object-contain"
+                    />
+                  ) : (
+                    <QrCode className="size-10 text-ink-muted animate-pulse" />
+                  )}
+                </div>
+
+                {/* 1D Barcode Code-128 + Tombol Perbesar */}
+                <div className="flex w-full flex-1 flex-col items-center justify-center gap-2">
+                  <Barcode128 value={voucherCode} height={52} className="w-full !p-1.5" />
+                  <button
+                    type="button"
+                    onClick={() => setShowZoomModal(true)}
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-brand-blue/10 via-brand-purple/10 to-brand-magenta/10 px-3 py-1.5 text-xs font-extrabold text-brand-purple ring-1 ring-brand-purple/20 transition hover:bg-brand-purple/15"
+                  >
+                    <Maximize2 className="size-3.5" />
+                    Perbesar Barcode / QR untuk Scan Panitia
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 2 Kartu Status Kupon: Makan (1x) & Photobooth (1x) */}
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              {/* Kartu 1: Kupon Makan */}
+              <div
+                className={`flex flex-col justify-between gap-2 rounded-2xl border p-3.5 transition ${
+                  mealRedeemedAt
+                    ? "border-line bg-white/60 opacity-85"
+                    : "border-brand-orange/40 bg-white shadow-sm ring-1 ring-brand-orange/15"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`flex size-8 items-center justify-center rounded-xl ${
+                        mealRedeemedAt
+                          ? "bg-surface-soft text-ink-muted"
+                          : "bg-gradient-warm text-white shadow-2xs"
+                      }`}
+                    >
+                      <Utensils className="size-4" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-black text-ink">Voucher Makan</span>
+                      <span className="text-[10px] font-bold text-ink-muted">Jatah 1x Penukaran</span>
+                    </div>
+                  </div>
+                </div>
+
+                {mealRedeemedAt ? (
+                  <div className="flex items-center justify-between rounded-xl bg-surface-soft px-2.5 py-1.5 text-[11px] font-extrabold text-ink-muted">
+                    <span>SUDAH DITUKAR</span>
+                    <span className="tabular-nums">{formatWib(mealRedeemedAt)}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between rounded-xl bg-success/12 px-2.5 py-1.5 text-[11px] font-black text-success">
+                    <span className="flex items-center gap-1">
+                      <Sparkles className="size-3" />
+                      TERSEDIA (AKTIF)
+                    </span>
+                    <span>1x SCAN</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Kartu 2: Kupon Photobooth */}
+              <div
+                className={`flex flex-col justify-between gap-2 rounded-2xl border p-3.5 transition ${
+                  photoboothRedeemedAt
+                    ? "border-line bg-white/60 opacity-85"
+                    : "border-brand-purple/40 bg-white shadow-sm ring-1 ring-brand-purple/15"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`flex size-8 items-center justify-center rounded-xl ${
+                        photoboothRedeemedAt
+                          ? "bg-surface-soft text-ink-muted"
+                          : "bg-gradient-cool text-white shadow-2xs"
+                      }`}
+                    >
+                      <Camera className="size-4" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-black text-ink">Photobooth</span>
+                      <span className="text-[10px] font-bold text-ink-muted">Jatah 1x Sesi Foto</span>
+                    </div>
+                  </div>
+                </div>
+
+                {photoboothRedeemedAt ? (
+                  <div className="flex items-center justify-between rounded-xl bg-surface-soft px-2.5 py-1.5 text-[11px] font-extrabold text-ink-muted">
+                    <span>SUDAH DIPAKAI</span>
+                    <span className="tabular-nums">{formatWib(photoboothRedeemedAt)}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between rounded-xl bg-brand-purple/12 px-2.5 py-1.5 text-[11px] font-black text-brand-purple">
+                    <span className="flex items-center gap-1">
+                      <Sparkles className="size-3" />
+                      TERSEDIA (AKTIF)
+                    </span>
+                    <span>1x SCAN</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <p className="text-center text-[11px] font-semibold leading-relaxed text-ink-muted">
+              Tunjukkan barcode di atas kepada panitia di <strong>Booth Konsumsi</strong> maupun{" "}
+              <strong>Booth Photobooth RE:SNAPS</strong>. Tiket ini tersimpan otomatis di browser HP kamu.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -211,17 +498,17 @@ export function DigitalTicket({
         <button
           type="button"
           onClick={handleShare}
-          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-line bg-surface/90 px-4 py-3 text-sm font-bold text-ink shadow-sm backdrop-blur-md transition hover:bg-surface-soft"
+          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-white/80 bg-white/90 px-4 py-3 text-sm font-extrabold text-ink shadow-sm backdrop-blur-md transition hover:bg-surface-soft"
         >
           {copied ? (
             <>
               <CheckCircle2 className="size-4 text-success" />
-              Tautan Tersalin!
+              Kode Tiket Tersalin!
             </>
           ) : (
             <>
               <Share2 className="size-4 text-brand-blue" />
-              Bagikan Bukti Kehadiran
+              Bagikan / Salin Kode Tiket
             </>
           )}
         </button>
@@ -230,13 +517,82 @@ export function DigitalTicket({
           <button
             type="button"
             onClick={onFinish}
-            className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-brand-blue px-4 py-3 text-sm font-extrabold text-white shadow-md transition hover:brightness-95"
+            className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-line bg-surface/70 px-4 py-3 text-xs font-bold text-ink-muted transition hover:bg-surface hover:text-ink"
           >
-            Selesai & Scan Tamu Lain
-            <ArrowRight className="size-4" />
+            Bukan {guestName}? Scan untuk Tamu Lain
+            <ArrowRight className="size-3.5" />
           </button>
         ) : null}
       </div>
+
+      {/* Modal Perbesar Barcode & QR (Kecerahan Maksimal untuk Memudahkan Scan Panitia) */}
+      {showZoomModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="flex w-full max-w-sm flex-col items-center gap-4 rounded-3xl bg-white p-6 text-center shadow-2xl">
+            <div className="flex w-full items-center justify-between border-b border-line pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-wider text-brand-purple">
+                  MODE SCAN PANITIA
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowZoomModal(false)}
+                className="rounded-full bg-surface-soft p-1.5 text-ink hover:bg-line"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <div className="flex flex-col items-center">
+              <p className="text-lg font-black text-ink">{guestName}</p>
+              {category ? (
+                <span className="text-xs font-bold text-brand-blue">{category}</span>
+              ) : null}
+            </div>
+
+            {qrDataUrl ? (
+              <div className="flex size-56 items-center justify-center rounded-2xl border-2 border-ink/10 bg-white p-3 shadow-inner">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={qrDataUrl}
+                  alt={`QR ${voucherCode}`}
+                  className="size-full object-contain"
+                />
+              </div>
+            ) : null}
+
+            <Barcode128 value={voucherCode} height={68} className="w-full border border-line" />
+
+            <div className="grid w-full grid-cols-2 gap-2 text-xs font-extrabold">
+              <div
+                className={`rounded-xl p-2 ${
+                  mealRedeemedAt ? "bg-surface-soft text-ink-muted" : "bg-success/15 text-success"
+                }`}
+              >
+                Makan: {mealRedeemedAt ? "Sudah Ditukar" : "TERSEDIA"}
+              </div>
+              <div
+                className={`rounded-xl p-2 ${
+                  photoboothRedeemedAt
+                    ? "bg-surface-soft text-ink-muted"
+                    : "bg-brand-purple/15 text-brand-purple"
+                }`}
+              >
+                Photobooth: {photoboothRedeemedAt ? "Sudah Dipakai" : "TERSEDIA"}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowZoomModal(false)}
+              className="mt-1 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-ink text-sm font-extrabold text-white"
+            >
+              Tutup Layar Scan
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

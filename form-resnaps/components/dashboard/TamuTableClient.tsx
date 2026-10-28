@@ -1,4 +1,5 @@
-// P10.5 / P11.1 / P11.2 / P11.5: Tabel tamu interaktif dengan pencarian, filter, absensi manual, undo, dan tambah tamu.
+// P10.5 / P11.1 / P11.2 / P11.5 / P17: Tabel tamu interaktif dengan filter Status HTM (Lunas/Belum Lunas),
+// persetujuan Hold Absensi, status Voucher Makan & Photobooth, absensi manual, undo, dan tambah tamu.
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
@@ -15,6 +16,10 @@ import {
   Radio,
   X,
   Loader2,
+  Wallet,
+  AlertTriangle,
+  Utensils,
+  Camera,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -27,7 +32,14 @@ type GuestRow = {
   id: string;
   name: string;
   category: string | null;
-  status: "belum_hadir" | "di_dalam" | "sudah_pulang";
+  status: "belum_hadir" | "ditahan" | "di_dalam" | "sudah_pulang";
+  paymentStatus: "lunas" | "belum_lunas";
+  holdAtWib: string;
+  voucherCode: string;
+  mealRedeemedAt: string | null;
+  mealRedeemedAtWib: string;
+  photoboothRedeemedAt: string | null;
+  photoboothRedeemedAtWib: string;
   checkedInAtWib: string;
   checkedOutAtWib: string;
 };
@@ -43,6 +55,7 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
   // Filter
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [paymentFilter, setPaymentFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
 
   // Modal Undo
@@ -58,12 +71,22 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
   const [newName, setNewName] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [newContact, setNewContact] = useState("");
+  const [newPaymentStatus, setNewPaymentStatus] = useState<"lunas" | "belum_lunas">("lunas");
   const [isAdding, setIsAdding] = useState(false);
 
   // Pesan feedback
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; text: string } | null>(
-    null
+    null,
   );
+
+  // Baca query parameter awal (mis. ?payment=belum_lunas dari Dashboard)
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const p = sp.get("payment");
+    if (p === "belum_lunas" || p === "lunas") {
+      setPaymentFilter(p);
+    }
+  }, []);
 
   const fetchGuests = useCallback(async () => {
     setIsLoading(true);
@@ -71,6 +94,7 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
       const sp = new URLSearchParams();
       if (query.trim()) sp.set("q", query.trim());
       if (statusFilter) sp.set("status", statusFilter);
+      if (paymentFilter) sp.set("payment", paymentFilter);
       if (categoryFilter) sp.set("category", categoryFilter);
       sp.set("page", String(page));
       sp.set("limit", "50");
@@ -88,12 +112,15 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
     } finally {
       setIsLoading(false);
     }
-  }, [query, statusFilter, categoryFilter, page]);
+  }, [query, statusFilter, paymentFilter, categoryFilter, page]);
 
   // Shortcut keyboard: tombol '/' atau 'Ctrl+K' langsung memfokuskan pencarian
   useEffect(() => {
     function handleGlobalKey(e: KeyboardEvent) {
-      if ((e.key === "/" || (e.ctrlKey && e.key === "k")) && document.activeElement?.tagName !== "INPUT") {
+      if (
+        (e.key === "/" || (e.ctrlKey && e.key === "k")) &&
+        document.activeElement?.tagName !== "INPUT"
+      ) {
         e.preventDefault();
         document.getElementById("tamu-search-input")?.focus();
       }
@@ -108,6 +135,42 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
     }, 250);
     return () => clearTimeout(timer);
   }, [fetchGuests]);
+
+  // Setujui masuk tamu yang ditahan (Hold) atau ubah status pembayaran HTM
+  async function handleHtmAction(
+    guest: GuestRow,
+    action: "approve_checkin" | "set_payment",
+    nextStatus?: "lunas" | "belum_lunas",
+  ) {
+    try {
+      const res = await fetch("/api/panitia/htm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          guest_id: guest.id,
+          action,
+          payment_status: nextStatus,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        setFeedback({
+          kind: "success",
+          text:
+            action === "approve_checkin"
+              ? `HTM ${guest.name} dilunasi & diizinkan masuk. Barcode Voucher telah aktif di HP tamu.`
+              : `Status HTM ${guest.name} diubah menjadi ${
+                  data.guest?.paymentStatus === "lunas" ? "LUNAS" : "BELUM LUNAS"
+                }.`,
+        });
+        void fetchGuests();
+      } else {
+        setFeedback({ kind: "error", text: data.message || "Gagal memperbarui status HTM." });
+      }
+    } catch {
+      setFeedback({ kind: "error", text: "Terjadi kesalahan jaringan." });
+    }
+  }
 
   // Absensi manual (P11.1)
   async function handleManualAttendance(guest: GuestRow, type: "in" | "out") {
@@ -124,7 +187,10 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
       });
       const data = await res.json();
       if (res.ok && data.ok) {
-        setFeedback({ kind: "success", text: `Absensi ${actionLabel} untuk ${guest.name} berhasil dicatat.` });
+        setFeedback({
+          kind: "success",
+          text: `Absensi ${actionLabel} untuk ${guest.name} berhasil dicatat.`,
+        });
         void fetchGuests();
       } else {
         setFeedback({ kind: "error", text: data.message || "Gagal mencatat absensi manual." });
@@ -153,7 +219,9 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
       if (res.ok && data.ok) {
         setFeedback({
           kind: "success",
-          text: `Absensi ${undoModal.type === "in" ? "masuk" : "pulang"} untuk ${undoModal.guest.name} telah dibatalkan.`,
+          text: `Absensi ${
+            undoModal.type === "in" ? "masuk" : "pulang"
+          } untuk ${undoModal.guest.name} telah dibatalkan.`,
         });
         setUndoModal(null);
         setUndoReason("");
@@ -179,15 +247,22 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
           full_name: newName.trim(),
           category: newCategory.trim() || null,
           contact: newContact.trim() || null,
+          payment_status: newPaymentStatus,
         }),
       });
       const data = await res.json();
       if (res.ok && data.ok) {
-        setFeedback({ kind: "success", text: `Tamu "${newName}" berhasil ditambahkan.` });
+        setFeedback({
+          kind: "success",
+          text: `Tamu "${newName}" (${
+            newPaymentStatus === "lunas" ? "HTM Lunas" : "HTM Belum Lunas"
+          }) berhasil ditambahkan.`,
+        });
         setShowAddModal(false);
         setNewName("");
         setNewCategory("");
         setNewContact("");
+        setNewPaymentStatus("lunas");
         void fetchGuests();
       } else {
         setFeedback({ kind: "error", text: data.message || "Gagal menambahkan tamu." });
@@ -220,9 +295,9 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
       {/* Header & Aksi Atas */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-ink">Daftar Tamu & Kehadiran</h1>
+          <h1 className="text-2xl font-black text-ink">Daftar Tamu, Status HTM, & Voucher</h1>
           <p className="text-sm text-ink-muted">
-            Total {totalCount} tamu terdaftar dalam sistem.
+            Total {totalCount} tamu sesuai filter saat ini.
           </p>
         </div>
 
@@ -250,7 +325,7 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
         <div className="relative min-w-56 flex-1">
           <Input
             id="tamu-search-input"
-            placeholder="Cari nama tamu... (Tekan / untuk fokus)"
+            placeholder="Cari nama tamu atau kode RSNP-XXXX... (Tekan / untuk fokus)"
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -263,6 +338,19 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
 
         <div className="flex flex-wrap items-center gap-2">
           <select
+            value={paymentFilter}
+            onChange={(e) => {
+              setPaymentFilter(e.target.value);
+              setPage(1);
+            }}
+            className="min-h-10 rounded-control border border-line bg-surface px-3 text-xs font-bold text-ink focus:outline-none"
+          >
+            <option value="">Semua Status HTM</option>
+            <option value="belum_lunas">HTM Belum Lunas</option>
+            <option value="lunas">HTM Lunas</option>
+          </select>
+
+          <select
             value={statusFilter}
             onChange={(e) => {
               setStatusFilter(e.target.value);
@@ -270,7 +358,8 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
             }}
             className="min-h-10 rounded-control border border-line bg-surface px-3 text-xs font-semibold text-ink focus:outline-none"
           >
-            <option value="">Semua Status</option>
+            <option value="">Semua Kehadiran</option>
+            <option value="ditahan">Ditahan (Hold HTM)</option>
             <option value="belum_hadir">Belum Hadir</option>
             <option value="di_dalam">Di Dalam</option>
             <option value="sudah_pulang">Sudah Pulang</option>
@@ -292,12 +381,13 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
             ))}
           </select>
 
-          {(query || statusFilter || categoryFilter) ? (
+          {query || statusFilter || paymentFilter || categoryFilter ? (
             <button
               type="button"
               onClick={() => {
                 setQuery("");
                 setStatusFilter("");
+                setPaymentFilter("");
                 setCategoryFilter("");
                 setPage(1);
               }}
@@ -309,30 +399,31 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
         </div>
       </Card>
 
-      {/* Tabel Tamu Responsif (P10.5) */}
+      {/* Tabel Tamu Responsif */}
       <Card className="overflow-x-auto p-0 shadow-sm">
-        <table className="w-full min-w-[700px] border-collapse text-left text-sm">
+        <table className="w-full min-w-[880px] border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-line bg-surface-soft text-xs font-bold uppercase tracking-wider text-ink-muted">
-              <th className="px-4 py-3">Nama Tamu</th>
+              <th className="px-4 py-3">Nama & Kode Voucher</th>
               <th className="px-4 py-3">Kategori</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Jam Masuk</th>
-              <th className="px-4 py-3">Jam Pulang</th>
+              <th className="px-4 py-3">Status HTM</th>
+              <th className="px-4 py-3">Status Hadir</th>
+              <th className="px-4 py-3">Voucher 2-in-1</th>
+              <th className="px-4 py-3">Masuk / Pulang</th>
               <th className="px-4 py-3 text-right">Tindakan</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
             {isLoading ? (
               <tr>
-                <td colSpan={6} className="py-12 text-center text-ink-muted">
+                <td colSpan={7} className="py-12 text-center text-ink-muted">
                   <Loader2 className="mx-auto size-6 animate-spin text-brand-blue" />
                   <p className="mt-2 text-xs font-semibold">Memuat data tamu...</p>
                 </td>
               </tr>
             ) : guests.length === 0 ? (
               <tr>
-                <td colSpan={6} className="py-12 text-center">
+                <td colSpan={7} className="py-12 text-center">
                   <EmptyState icon={Users} title="Tamu tidak ditemukan">
                     Tidak ada data tamu yang cocok dengan filter pencarian saat ini.
                   </EmptyState>
@@ -340,12 +431,56 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
               </tr>
             ) : (
               guests.map((g) => {
+                const isHeld = g.status === "ditahan";
+                const isUnpaid = g.paymentStatus === "belum_lunas";
                 return (
-                  <tr key={g.id} className="hover:bg-surface-soft/60">
-                    <td className="px-4 py-3 font-semibold text-ink">{g.name}</td>
-                    <td className="px-4 py-3 text-xs text-ink-muted">{g.category || "-"}</td>
+                  <tr
+                    key={g.id}
+                    className={`transition ${
+                      isHeld ? "bg-warning/10 hover:bg-warning/15" : "hover:bg-surface-soft/60"
+                    }`}
+                  >
                     <td className="px-4 py-3">
-                      {g.status === "belum_hadir" ? (
+                      <div className="flex flex-col">
+                        <span className="font-bold text-ink">{g.name}</span>
+                        <span className="font-mono text-[11px] font-bold text-brand-purple">
+                          {g.voucherCode}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-xs font-semibold text-ink-muted">
+                      {g.category || "-"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void handleHtmAction(
+                            g,
+                            "set_payment",
+                            isUnpaid ? "lunas" : "belum_lunas",
+                          )
+                        }
+                        className="group inline-flex items-center"
+                        title="Klik untuk mengubah status pembayaran HTM (Lunas / Belum Lunas)"
+                      >
+                        {isUnpaid ? (
+                          <Badge tone="warning" icon={Wallet}>
+                            Belum Lunas
+                          </Badge>
+                        ) : (
+                          <Badge tone="success" icon={CheckCircle2}>
+                            Lunas
+                          </Badge>
+                        )}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3">
+                      {isHeld ? (
+                        <Badge tone="warning" icon={AlertTriangle}>
+                          Ditahan (Hold)
+                        </Badge>
+                      ) : g.status === "belum_hadir" ? (
                         <Badge tone="neutral" icon={Clock}>
                           Belum Hadir
                         </Badge>
@@ -359,14 +494,51 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
                         </Badge>
                       )}
                     </td>
-                    <td className="px-4 py-3 tabular-nums text-ink">{g.checkedInAtWib}</td>
-                    <td className="px-4 py-3 tabular-nums text-ink">{g.checkedOutAtWib}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col gap-1 text-[11px]">
+                        <span
+                          className={`inline-flex items-center gap-1 font-bold ${
+                            g.mealRedeemedAt ? "text-success" : "text-ink-muted"
+                          }`}
+                        >
+                          <Utensils className="size-3" />
+                          Makan: {g.mealRedeemedAt ? `Ditukar (${g.mealRedeemedAtWib})` : "Belum"}
+                        </span>
+                        <span
+                          className={`inline-flex items-center gap-1 font-bold ${
+                            g.photoboothRedeemedAt ? "text-brand-purple" : "text-ink-muted"
+                          }`}
+                        >
+                          <Camera className="size-3" />
+                          Foto:{" "}
+                          {g.photoboothRedeemedAt
+                            ? `Dipakai (${g.photoboothRedeemedAtWib})`
+                            : "Belum"}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-xs tabular-nums text-ink">
+                      <div>Masuk: {g.checkedInAtWib}</div>
+                      <div className="text-ink-muted">Pulang: {g.checkedOutAtWib}</div>
+                    </td>
                     <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {g.status === "belum_hadir" ? (
+                      <div className="flex flex-wrap items-center justify-end gap-1.5">
+                        {isHeld || (isUnpaid && g.status === "belum_hadir") ? (
                           <button
                             type="button"
-                            onClick={() => handleManualAttendance(g, "in")}
+                            onClick={() => void handleHtmAction(g, "approve_checkin")}
+                            className="inline-flex items-center gap-1 rounded-control bg-success px-2.5 py-1 text-xs font-black text-white shadow-2xs hover:brightness-95"
+                            title="Lunasi HTM dan izinkan masuk"
+                          >
+                            <CheckCircle2 className="size-3" />
+                            {isHeld ? "Izinkan Masuk" : "Lunasi & Masuk"}
+                          </button>
+                        ) : null}
+
+                        {g.status === "belum_hadir" && !isUnpaid ? (
+                          <button
+                            type="button"
+                            onClick={() => void handleManualAttendance(g, "in")}
                             className="inline-flex items-center gap-1 rounded-control bg-brand-blue px-2.5 py-1 text-xs font-bold text-white hover:brightness-95"
                             title="Absen masuk manual"
                           >
@@ -379,7 +551,7 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
                           <>
                             <button
                               type="button"
-                              onClick={() => handleManualAttendance(g, "out")}
+                              onClick={() => void handleManualAttendance(g, "out")}
                               className="inline-flex items-center gap-1 rounded-control bg-brand-purple px-2.5 py-1 text-xs font-bold text-white hover:brightness-95"
                               title="Absen pulang manual"
                             >
@@ -463,8 +635,8 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
 
             <p className="text-sm text-ink-muted">
               Batalkan catatan absen {undoModal.type === "in" ? "MASUK" : "PULANG"} untuk{" "}
-              <strong className="text-ink">{undoModal.guest.name}</strong>? Tindakan ini akan dicatat
-              di log audit panitia.
+              <strong className="text-ink">{undoModal.guest.name}</strong>? Tindakan ini akan
+              dicatat di log audit panitia.
             </p>
 
             <div className="flex flex-col gap-1.5">
@@ -481,7 +653,11 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="secondary" onClick={() => setUndoModal(null)} className="h-10 text-xs">
+              <Button
+                variant="secondary"
+                onClick={() => setUndoModal(null)}
+                className="h-10 text-xs"
+              >
                 Batal
               </Button>
               <Button
@@ -497,12 +673,12 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
         </div>
       ) : null}
 
-      {/* Modal Tambah Tamu On-The-Spot (P11.5) */}
+      {/* Modal Tambah Tamu On-The-Spot (P11.5 / P17) */}
       {showAddModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
           <Card className="flex w-full max-w-md flex-col gap-4">
             <div className="flex items-center justify-between border-b border-line pb-3">
-              <span className="text-sm font-bold text-ink">Tambah Tamu On-the-Spot</span>
+              <span className="text-sm font-bold text-ink">Tambah Tamu / Kating On-the-Spot</span>
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}
@@ -519,7 +695,7 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
                 </label>
                 <Input
                   id="guest-name"
-                  placeholder="Nama tamu..."
+                  placeholder="Nama tamu / kating..."
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   autoFocus
@@ -528,14 +704,33 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
 
               <div className="flex flex-col gap-1">
                 <label htmlFor="guest-cat" className="text-xs font-bold text-ink">
-                  Kategori / Divisi
+                  Kategori / Angkatan / Divisi
                 </label>
                 <Input
                   id="guest-cat"
-                  placeholder="Contoh: Tamu Undangan / VIP"
+                  placeholder="Contoh: Kating Angkatan 2022 / VIP"
                   value={newCategory}
                   onChange={(e) => setNewCategory(e.target.value)}
                 />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label htmlFor="guest-htm" className="text-xs font-bold text-ink">
+                  Status Pembayaran HTM
+                </label>
+                <select
+                  id="guest-htm"
+                  value={newPaymentStatus}
+                  onChange={(e) =>
+                    setNewPaymentStatus(e.target.value as "lunas" | "belum_lunas")
+                  }
+                  className="min-h-11 rounded-control border border-line bg-surface px-3 text-sm font-semibold text-ink focus:outline-none"
+                >
+                  <option value="lunas">Sudah Lunas (Langsung Aktif Saat Scan)</option>
+                  <option value="belum_lunas">
+                    Belum Lunas (Ditahan / Hold Saat Scan Sampai Diizinkan)
+                  </option>
+                </select>
               </div>
 
               <div className="flex flex-col gap-1">

@@ -1,12 +1,13 @@
 # PROGRESS
 
 ## Status saat ini
-Phase aktif: P10 & P11 selesai. Berikutnya: P12 Hardening, Keamanan, Aksesibilitas.
-Terakhir diperbarui: 2026-10-16 (WIB)
+Phase aktif: P17 selesai (Sistem Status HTM & Hold Absensi, Barcode Voucher Terpadu Makan + Photobooth 2-in-1 1x Scan, Penyimpanan Permanen di Browser Tamu, Scanner Panitia, & Redesign Branding RE:SNAPS).
+Terakhir diperbarui: 2026-10-28 (WIB)
 
 ## Ringkasan phase
 | Phase | Status (todo/doing/done/blocked) | Catatan | Tanggal selesai |
 |---|---|---|---|
+| P17 | done | Status HTM (`lunas` / `belum_lunas`) & Hold Absensi (`ditahan`) sampai diizinkan panitia; Barcode Code-128 & QR Voucher 2-in-1 (Makan + Photobooth, masing-masing 1x pakai) tersimpan permanen di `localStorage`; Scanner Panitia (`/panitia/scanner` & modal Dashboard); Redesign UI/UX & Digital Ticket berpalet RE:SNAPS (`0008_htm_and_vouchers.sql`). | 2026-10-28 |
 | P00 | done | Ringkasan dan asumsi di `docs/ASSUMPTIONS.md`. Aset & jawaban §12 masih kosong (lihat Blocker). | 2026-10-16 |
 | P01 | blocked | Kode, scripts, struktur, dan verifikasi lokal selesai. Push ke GitHub selesai. Hubungan Vercel belum: butuh akses akun Vercel. | |
 | P02 | done | Design system, token Lampiran A, komponen UI, katalog `/_design` (dev only). Kontras di `docs/CONTRAST.md`. Verifikasi 360 px & 1280 px. | 2026-10-16 |

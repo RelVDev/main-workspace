@@ -10,6 +10,7 @@ Panduan operasional panitia dan teknis untuk sistem absensi Closing Party CHRYSA
 Gunakan format kolom yang sudah dibakukan di `docs/DATA-TEMPLATE.md` (Lampiran B):
 - `nama` (Wajib, maks 120 karakter) — Nama lengkap/panggilan tamu.
 - `kategori` (Disarankan) — Divisi, angkatan, atau grup; berfungsi membedakan nama kembar.
+- `status_htm` / `htm` (Opsional, default `lunas`) — Isi `belum_lunas` bagi Kating/Tamu yang belum melunasi HTM agar status absennya ditahan (*Hold*) saat scan masuk sampai diizinkan panitia.
 - `kontak` (Opsional) — Nomor telepon/HP; disimpan di server, **tidak pernah ditampilkan** ke tamu.
 - `catatan` (Opsional) — Catatan internal panitia (mis. "VIP", "Pembicara").
 
@@ -63,3 +64,5 @@ Import bersifat **idempoten**: tamu yang sudah pernah masuk (berdasarkan kecocok
 | **Koneksi internet venue putus** | Layar QR memegang token cadangan (*prefetch*). Jika koneksi mati total, panitia beralih ke absen manual di HP via `/panitia/tamu`. |
 | **Tamu gagal scan / HP bermasalah** | Panitia mencari nama tamu di `/panitia/tamu` dan menekan tombol **Catat Masuk (Manual)**. |
 | **QR tersebar ke luar venue** | Admin membuka `/panitia/pengaturan` dan menekan **Cabut Semua Sesi/QR**. Semua QR lama dan sesi aktif seketika hangus; layar otomatis mengambil kunci baru. |
+| **Kating / Tamu HTM Belum Lunas scan masuk** | Status absen tamu otomatis **DITAHAN (Hold)** di layar HP tamu. Setelah tamu melunasi di meja registrasi, panitia menekan tombol **Lunasi & Izinkan Masuk** di Dashboard (`/panitia`) atau `/panitia/tamu`. Layar HP tamu otomatis membuka Tiket & Barcode Voucher. |
+| **Penukaran Kupon Makan & Photobooth** | Panitia di meja konsumsi atau photobooth membuka `/panitia/scanner` (atau tombol **Buka Scanner** di Dashboard), memilih mode **Booth Makan** atau **Photobooth**, lalu memindai Barcode/QR pada tiket tamu. Setiap kupon hanya berlaku **1 kali scan**. |

@@ -14,3 +14,16 @@ export const tokenInput = z.object({
 });
 
 export const mode = z.enum(["in", "out"]);
+
+export const paymentStatusSchema = z.enum(["lunas", "belum_lunas"]);
+
+export const voucherScanInput = z.object({
+  code: z.string().trim().min(4).max(120),
+  kind: z.enum(["meal", "photobooth"]),
+});
+
+export const htmActionInput = z.object({
+  guest_id: z.string().uuid(),
+  action: z.enum(["approve_checkin", "set_payment"]),
+  payment_status: paymentStatusSchema.optional(),
+});

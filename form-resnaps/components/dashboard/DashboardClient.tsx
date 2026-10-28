@@ -1,4 +1,5 @@
-// P10: Dashboard Panitia yang disempurnakan dengan logo resmi RE:SNAPS, live stream scan preview, dan visual interaktif.
+// P10 / P17: Dashboard Panitia dengan panel Kating/Tamu Belum Lunas HTM (Hold Approval),
+// Scanner Voucher Makan & Photobooth terintegrasi, serta visual merek RE:SNAPS.
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
@@ -18,11 +19,21 @@ import {
   Activity,
   CheckCircle2,
   Calendar,
+  AlertTriangle,
+  Wallet,
+  Utensils,
+  Camera,
+  ScanLine,
+  ShieldCheck,
+  Loader2,
+  X,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { QrDisplay } from "@/components/qr/QrDisplay";
 import { AttendanceChart } from "./AttendanceChart";
+import { VoucherScannerClient } from "./VoucherScannerClient";
 import { createClient } from "@/lib/supabase/client";
 
 type DashboardMetrics = {
@@ -32,6 +43,22 @@ type DashboardMetrics = {
   inside: number;
   checkedOut: number;
   notYet: number;
+  onHoldCount: number;
+  unpaidCount: number;
+  paidCount: number;
+  mealRedeemedCount: number;
+  photoboothRedeemedCount: number;
+};
+
+type UnpaidGuestItem = {
+  id: string;
+  name: string;
+  category: string | null;
+  status: "belum_hadir" | "ditahan" | "di_dalam" | "sudah_pulang";
+  paymentStatus: "lunas" | "belum_lunas";
+  holdAt: string | null;
+  holdAtWib: string | null;
+  voucherCode: string;
 };
 
 type ActivityItem = {
@@ -52,6 +79,7 @@ type IntervalChartItem = {
 
 type DashboardData = {
   metrics: DashboardMetrics;
+  unpaidGuests: UnpaidGuestItem[];
   activities: ActivityItem[];
   chartData: IntervalChartItem[];
   settings: {
@@ -76,6 +104,9 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
   const [isLive, setIsLive] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [liveStream, setLiveStream] = useState<LiveScanEvent | null>(null);
+  const [processingGuestId, setProcessingGuestId] = useState<string | null>(null);
+  const [showScannerModal, setShowScannerModal] = useState(false);
+  const [actionBanner, setActionBanner] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -130,7 +161,7 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
     }
   }, []);
 
-  // 1. Initial fetch & 5s live polling
+  // 1. Initial fetch & polling
   useEffect(() => {
     let mounted = true;
     void (async () => {
@@ -142,7 +173,7 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
 
     const dataInterval = setInterval(() => {
       if (mounted) void fetchData();
-    }, 10000);
+    }, 6000);
 
     const liveInterval = setInterval(() => {
       if (mounted) void fetchLiveActivity();
@@ -166,7 +197,7 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
         () => {
           void fetchData();
           void fetchLiveActivity();
-        }
+        },
       )
       .subscribe((status) => {
         setIsLive(status === "SUBSCRIBED");
@@ -177,17 +208,48 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
     };
   }, [fetchData, fetchLiveActivity]);
 
+  // Fungsi menyetujui masuk tamu yang ditahan (Hold HTM) atau menandai Lunas
+  async function handleApproveOrMarkPaid(
+    guest: UnpaidGuestItem,
+    action: "approve_checkin" | "set_payment",
+  ) {
+    setProcessingGuestId(guest.id);
+    setActionBanner(null);
+    try {
+      const res = await fetch("/api/panitia/htm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          guest_id: guest.id,
+          action,
+          payment_status: "lunas",
+        }),
+      });
+      const d = await res.json();
+      if (res.ok && d.ok) {
+        setActionBanner(
+          action === "approve_checkin"
+            ? `✅ HTM ${guest.name} dilunasi & diizinkan masuk! Tiket & Barcode Voucher otomatis aktif di HP tamu.`
+            : `✅ Status HTM ${guest.name} berhasil ditandai LUNAS.`,
+        );
+        await fetchData();
+      }
+    } finally {
+      setProcessingGuestId(null);
+    }
+  }
+
   if (isLoading && !data) {
     return (
       <div className="flex flex-1 items-center justify-center p-12 text-center text-sm font-semibold text-ink-muted">
         <div className="flex flex-col items-center gap-3">
-          <div className="relative size-12 animate-pulse overflow-hidden rounded-xl shadow-md">
+          <div className="relative size-14 animate-pulse overflow-hidden rounded-2xl bg-white p-1 shadow-lg">
             <Image
               src="/brand/logo.png"
               alt="RE:SNAPS"
               width={96}
               height={96}
-              className="size-full object-cover"
+              className="size-full rounded-xl object-cover"
               priority
             />
           </div>
@@ -197,28 +259,36 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
     );
   }
 
-  const m = data?.metrics || {
+  const m: DashboardMetrics = data?.metrics || {
     total: 0,
     checkedIn: 0,
     percentCheckedIn: 0,
     inside: 0,
     checkedOut: 0,
     notYet: 0,
+    onHoldCount: 0,
+    unpaidCount: 0,
+    paidCount: 0,
+    mealRedeemedCount: 0,
+    photoboothRedeemedCount: 0,
   };
 
-  // P10.8: Mode Layar Besar (TV Mode) yang disempurnakan dengan logo resmi
+  const unpaidList = data?.unpaidGuests || [];
+  const heldGuests = unpaidList.filter((g) => g.status === "ditahan");
+
+  // P10.8: Mode Layar Besar (TV Mode)
   if (isTvMode) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas p-6 sm:p-10">
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-line pb-6">
           <div className="flex items-center gap-4">
-            <div className="relative size-16 overflow-hidden rounded-2xl shadow-md">
+            <div className="relative size-16 overflow-hidden rounded-2xl bg-white p-1 shadow-md">
               <Image
                 src="/brand/logo.png"
                 alt="RE:SNAPS"
                 width={128}
                 height={128}
-                className="size-full object-cover"
+                className="size-full rounded-xl object-cover"
                 priority
               />
             </div>
@@ -227,14 +297,14 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
                 RE:SNAPS — LIVE MONITOR
               </h1>
               <p className="text-sm font-semibold text-ink-muted">
-                Closing Party CHRYSALIS · Pemantauan Kehadiran Tamu
+                Closing Party CHRYSALIS · Pemantauan Kehadiran & Voucher Tamu
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             <Badge tone={isLive ? "success" : "warning"} icon={Radio}>
-              {isLive ? "REALTIME LIVE" : "POLLING (10s)"}
+              {isLive ? "REALTIME LIVE" : "POLLING (6s)"}
             </Badge>
             <span className="text-sm font-bold text-ink-muted">
               Diperbarui: {data?.updatedAtWib}
@@ -242,7 +312,6 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
           </div>
         </header>
 
-        {/* Live Notification Bar di TV Mode */}
         {liveStream ? (
           <div className="mt-6 flex items-center justify-between gap-4 rounded-2xl border border-success/30 bg-surface/90 p-4 shadow-lg backdrop-blur-md">
             <div className="flex items-center gap-3">
@@ -254,7 +323,9 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
                   {liveStream.type === "attendance" ? "Aktivitas Terkini" : "Pemindaian Baru"}
                 </span>
                 <span className="text-lg font-black text-ink">
-                  {liveStream.name ? `${liveStream.name} (${liveStream.category || "Tamu"})` : "Tamu sedang memindai QR..."}
+                  {liveStream.name
+                    ? `${liveStream.name} (${liveStream.category || "Tamu"})`
+                    : "Tamu sedang memindai QR..."}
                 </span>
               </div>
             </div>
@@ -295,11 +366,12 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
           </Card>
         </div>
 
-        {/* Progress Bar Besar */}
         <div className="mt-8 flex flex-col gap-2.5">
           <div className="flex justify-between text-base font-extrabold text-ink">
             <span>Tingkat Kehadiran Acara</span>
-            <span>{m.percentCheckedIn}% ({m.checkedIn} dari {m.total} tamu)</span>
+            <span>
+              {m.percentCheckedIn}% ({m.checkedIn} dari {m.total} tamu)
+            </span>
           </div>
           <div className="h-7 w-full overflow-hidden rounded-full bg-surface-soft p-1 shadow-inner">
             <div
@@ -314,7 +386,76 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Banner Live Stream Interaktif Pemindaian QR & Absensi */}
+      {/* Banner Umpan Balik Persetujuan HTM */}
+      {actionBanner ? (
+        <div className="flex items-center justify-between rounded-2xl border border-success/40 bg-success/10 px-4 py-3 text-xs font-extrabold text-success shadow-xs">
+          <span>{actionBanner}</span>
+          <button
+            type="button"
+            onClick={() => setActionBanner(null)}
+            className="rounded-lg p-1 hover:bg-success/15"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      ) : null}
+
+      {/* Peringatan Darurat bila Ada Tamu yang Sedang Tertahan (ON HOLD) di Gerbang */}
+      {heldGuests.length > 0 ? (
+        <div className="flex flex-col gap-3 rounded-3xl border-2 border-warning bg-gradient-to-r from-warning/15 via-surface to-brand-coral/10 p-5 shadow-lg animate-in fade-in">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="flex size-10 items-center justify-center rounded-2xl bg-warning text-white shadow-sm">
+                <AlertTriangle className="size-5 animate-bounce" />
+              </div>
+              <div>
+                <h2 className="text-sm font-black uppercase tracking-wider text-warning">
+                  {heldGuests.length} Tamu / Kating Tertahan di Gerbang (HTM Belum Lunas)
+                </h2>
+                <p className="text-xs font-semibold text-ink-muted">
+                  Tamu di bawah ini baru saja scan QR masuk, namun status absennya di-hold sampai
+                  panitia mengizinkan.
+                </p>
+              </div>
+            </div>
+            <Badge tone="warning" icon={Clock}>
+              Menunggu Persetujuan
+            </Badge>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            {heldGuests.map((g) => (
+              <div
+                key={g.id}
+                className="flex items-center justify-between gap-3 rounded-2xl border border-warning/40 bg-white p-3.5 shadow-sm"
+              >
+                <div className="flex flex-col">
+                  <span className="text-sm font-black text-ink">{g.name}</span>
+                  <span className="text-xs font-bold text-brand-blue">
+                    {g.category || "Tamu"} · Hold pukul {g.holdAtWib || "Barusan"}
+                  </span>
+                </div>
+                <Button
+                  onClick={() => void handleApproveOrMarkPaid(g, "approve_checkin")}
+                  disabled={processingGuestId === g.id}
+                  className="h-9 shrink-0 rounded-xl bg-success px-3 text-xs font-black text-white shadow-xs hover:brightness-95"
+                >
+                  {processingGuestId === g.id ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <>
+                      <CheckCircle2 className="size-3.5" />
+                      Lunasi & Izinkan Masuk
+                    </>
+                  )}
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Banner Live Stream Interaktif + Tombol Cepat Scanner Voucher */}
       <div className="overflow-hidden rounded-2xl border border-line bg-gradient-to-r from-surface via-surface to-surface-soft p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -340,7 +481,7 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
                 <div className="flex items-center gap-2 text-sm font-bold text-ink">
                   {liveStream.type === "attendance" ? (
                     <>
-                      <CheckCircle2 className="size-4 text-success shrink-0" />
+                      <CheckCircle2 className="size-4 shrink-0 text-success" />
                       <span>{liveStream.name}</span>
                       <span className="text-xs font-semibold text-ink-muted">
                         absen {liveStream.mode === "in" ? "Masuk" : "Pulang"} ({liveStream.timeWib})
@@ -348,9 +489,13 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
                     </>
                   ) : (
                     <>
-                      <Zap className="size-4 text-warning shrink-0 animate-bounce" />
-                      <span>Tamu sedang memindai QR {liveStream.mode === "in" ? "Masuk" : "Pulang"}</span>
-                      <span className="text-xs font-semibold text-ink-muted">({liveStream.timeWib})</span>
+                      <Zap className="size-4 shrink-0 animate-bounce text-warning" />
+                      <span>
+                        Tamu sedang memindai QR {liveStream.mode === "in" ? "Masuk" : "Pulang"}
+                      </span>
+                      <span className="text-xs font-semibold text-ink-muted">
+                        ({liveStream.timeWib})
+                      </span>
                     </>
                   )}
                 </div>
@@ -362,7 +507,15 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowScannerModal(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-brand px-3.5 py-2 text-xs font-black text-white shadow-sm transition hover:brightness-95"
+            >
+              <ScanLine className="size-3.5" />
+              Buka Scanner Makan & Photobooth
+            </button>
             <Link
               href="/panitia?tv=1"
               target="_blank"
@@ -391,9 +544,9 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
         </div>
       </div>
 
-      {/* 5 Kartu Metrik Kehadiran Premium */}
-      <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-5">
-        <Card className="flex flex-col justify-between gap-2 rounded-2xl border-line p-4 shadow-sm transition hover:shadow-md">
+      {/* Baris Metrik Utama Kehadiran, Status HTM, & Voucher */}
+      <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-6">
+        <Card className="flex flex-col justify-between gap-2 rounded-2xl border-line p-4 shadow-sm">
           <div className="flex items-center justify-between text-ink-muted">
             <span className="text-xs font-bold uppercase tracking-wider">Total Tamu</span>
             <Users className="size-4" />
@@ -404,7 +557,7 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
           </div>
         </Card>
 
-        <Card className="flex flex-col justify-between gap-2 rounded-2xl border-brand-blue/30 bg-gradient-to-br from-surface to-brand-blue/5 p-4 shadow-sm transition hover:shadow-md">
+        <Card className="flex flex-col justify-between gap-2 rounded-2xl border-brand-blue/30 bg-gradient-to-br from-surface to-brand-blue/5 p-4 shadow-sm">
           <div className="flex items-center justify-between text-brand-blue">
             <span className="text-xs font-bold uppercase tracking-wider">Sudah Masuk</span>
             <LogIn className="size-4" />
@@ -414,40 +567,66 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
               <span className="text-3xl font-black text-brand-blue">{m.checkedIn}</span>
               <span className="text-xs font-bold text-ink-muted">({m.percentCheckedIn}%)</span>
             </div>
-            <p className="text-[11px] font-semibold text-ink-muted">Telah hadir di venue</p>
+            <p className="text-[11px] font-semibold text-ink-muted">{m.inside} sedang di dalam</p>
           </div>
         </Card>
 
-        <Card className="flex flex-col justify-between gap-2 rounded-2xl border-success/30 bg-gradient-to-br from-surface to-success/5 p-4 shadow-sm transition hover:shadow-md">
-          <div className="flex items-center justify-between text-success">
-            <span className="text-xs font-bold uppercase tracking-wider">Di Dalam</span>
-            <Radio className="size-4" />
+        <Card className="flex flex-col justify-between gap-2 rounded-2xl border-warning/40 bg-gradient-to-br from-surface to-warning/10 p-4 shadow-sm">
+          <div className="flex items-center justify-between text-warning">
+            <span className="text-xs font-bold uppercase tracking-wider">Belum Lunas</span>
+            <Wallet className="size-4" />
           </div>
           <div>
-            <span className="text-3xl font-black text-success">{m.inside}</span>
-            <p className="text-[11px] font-semibold text-ink-muted">Tamu di area acara</p>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-3xl font-black text-warning">{m.unpaidCount}</span>
+              {m.onHoldCount > 0 ? (
+                <span className="rounded-full bg-error px-2 py-0.5 text-[10px] font-black text-white">
+                  {m.onHoldCount} HOLD
+                </span>
+              ) : null}
+            </div>
+            <p className="text-[11px] font-semibold text-ink-muted">Kating / Tamu belum lunas</p>
           </div>
         </Card>
 
-        <Card className="flex flex-col justify-between gap-2 rounded-2xl border-purple-500/30 bg-gradient-to-br from-surface to-purple-500/5 p-4 shadow-sm transition hover:shadow-md">
+        <Card className="flex flex-col justify-between gap-2 rounded-2xl border-brand-orange/35 bg-gradient-to-br from-surface to-brand-orange/10 p-4 shadow-sm">
+          <div className="flex items-center justify-between text-brand-orange">
+            <span className="text-xs font-bold uppercase tracking-wider">Kupon Makan</span>
+            <Utensils className="size-4" />
+          </div>
+          <div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-3xl font-black text-brand-orange">{m.mealRedeemedCount}</span>
+              <span className="text-xs font-bold text-ink-muted">/ {m.checkedIn}</span>
+            </div>
+            <p className="text-[11px] font-semibold text-ink-muted">Sudah ditukarkan</p>
+          </div>
+        </Card>
+
+        <Card className="flex flex-col justify-between gap-2 rounded-2xl border-brand-purple/35 bg-gradient-to-br from-surface to-brand-purple/10 p-4 shadow-sm">
           <div className="flex items-center justify-between text-brand-purple">
+            <span className="text-xs font-bold uppercase tracking-wider">Photobooth</span>
+            <Camera className="size-4" />
+          </div>
+          <div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-3xl font-black text-brand-purple">
+                {m.photoboothRedeemedCount}
+              </span>
+              <span className="text-xs font-bold text-ink-muted">/ {m.checkedIn}</span>
+            </div>
+            <p className="text-[11px] font-semibold text-ink-muted">Sesi foto dipakai</p>
+          </div>
+        </Card>
+
+        <Card className="flex flex-col justify-between gap-2 rounded-2xl border-line p-4 shadow-sm">
+          <div className="flex items-center justify-between text-ink-muted">
             <span className="text-xs font-bold uppercase tracking-wider">Sudah Pulang</span>
             <LogOut className="size-4" />
           </div>
           <div>
-            <span className="text-3xl font-black text-brand-purple">{m.checkedOut}</span>
-            <p className="text-[11px] font-semibold text-ink-muted">Telah check-out</p>
-          </div>
-        </Card>
-
-        <Card className="col-span-2 flex flex-col justify-between gap-2 rounded-2xl border-line p-4 shadow-sm transition hover:shadow-md sm:col-span-1">
-          <div className="flex items-center justify-between text-ink-muted">
-            <span className="text-xs font-bold uppercase tracking-wider">Belum Hadir</span>
-            <Clock className="size-4" />
-          </div>
-          <div>
-            <span className="text-3xl font-black text-ink">{m.notYet}</span>
-            <p className="text-[11px] font-semibold text-ink-muted">Belum check-in</p>
+            <span className="text-3xl font-black text-ink">{m.checkedOut}</span>
+            <p className="text-[11px] font-semibold text-ink-muted">{m.notYet} belum hadir</p>
           </div>
         </Card>
       </div>
@@ -471,9 +650,116 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
         </div>
       </div>
 
+      {/* Seksi Khusus: Daftar Kating / Tamu Belum Lunas HTM & Kontrol Persetujuan Hold */}
+      <Card className="flex flex-col gap-4 rounded-3xl border-warning/35 bg-gradient-to-b from-white to-surface-soft/40 p-5 shadow-md">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3.5">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 items-center justify-center rounded-2xl bg-warning/15 text-warning">
+              <Wallet className="size-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-black text-ink">
+                  Data Kating / Tamu Belum Lunas HTM
+                </h2>
+                <Badge tone={unpaidList.length > 0 ? "warning" : "success"}>
+                  {unpaidList.length} Belum Lunas
+                </Badge>
+              </div>
+              <p className="text-xs text-ink-muted">
+                Tamu dengan HTM belum lunas akan otomatis tertahan (Hold) saat scan masuk sampai
+                Anda mengizinkan di sini.
+              </p>
+            </div>
+          </div>
+
+          <Link
+            href="/panitia/tamu?payment=belum_lunas"
+            className="inline-flex items-center gap-1 text-xs font-extrabold text-brand-blue hover:underline"
+          >
+            Kelola di Tabel Tamu <ExternalLink className="size-3" />
+          </Link>
+        </div>
+
+        {unpaidList.length === 0 ? (
+          <div className="flex items-center justify-center gap-2 py-6 text-xs font-bold text-success">
+            <CheckCircle2 className="size-4" />
+            <span>Seluruh Kating dan Tamu sudah tercatat LUNAS HTM!</span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {unpaidList.map((g) => {
+              const isHeld = g.status === "ditahan";
+              return (
+                <div
+                  key={g.id}
+                  className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-3.5 transition ${
+                    isHeld
+                      ? "border-warning bg-warning/10 shadow-sm ring-1 ring-warning/30"
+                      : "border-line bg-white hover:border-brand-blue/30"
+                  }`}
+                >
+                  <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-black text-ink">{g.name}</span>
+                      {isHeld ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-warning px-2.5 py-0.5 text-[10px] font-black uppercase text-white">
+                          <Clock className="size-3" />
+                          HOLD DI GERBANG
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-extrabold text-warning">
+                          Belum Lunas
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-ink-muted">
+                      <span className="inline-flex items-center gap-1 font-bold text-brand-blue">
+                        <ShieldCheck className="size-3" />
+                        {g.category || "Tamu / Kating"}
+                      </span>
+                      <span>·</span>
+                      <span className="font-mono text-[11px]">{g.voucherCode}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={processingGuestId === g.id}
+                      onClick={() => void handleApproveOrMarkPaid(g, "approve_checkin")}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-success px-3 py-2 text-xs font-black text-white shadow-xs transition hover:brightness-95 disabled:opacity-50"
+                      title="Lunasi HTM dan langsung catat sukses absen masuk"
+                    >
+                      {processingGuestId === g.id ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="size-3.5" />
+                      )}
+                      {isHeld ? "Izinkan Masuk (Lunas)" : "Lunasi & Absen Masuk"}
+                    </button>
+
+                    {!isHeld ? (
+                      <button
+                        type="button"
+                        disabled={processingGuestId === g.id}
+                        onClick={() => void handleApproveOrMarkPaid(g, "set_payment")}
+                        className="inline-flex items-center gap-1 rounded-xl border border-line bg-surface px-2.5 py-2 text-xs font-bold text-ink hover:bg-surface-soft disabled:opacity-50"
+                        title="Tandai HTM sudah lunas (tamu tetap scan QR saat tiba)"
+                      >
+                        Tandai Lunas
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
       {/* Baris 2: Kartu QR Kompak di Dashboard & Grafik Kehadiran */}
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
-        {/* Kolom Kiri: Kartu QR Kompak */}
         <div className="flex flex-col gap-3 lg:col-span-5">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-extrabold text-ink">Layar QR Gerbang</h2>
@@ -488,14 +774,16 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
           <QrDisplay compact={true} />
         </div>
 
-        {/* Kolom Kanan: Grafik 15 Menit & Aktivitas Terbaru */}
         <div className="flex flex-col gap-6 lg:col-span-7">
-          {/* Grafik 15 Menit */}
           <Card className="flex flex-col gap-4 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-base font-extrabold text-ink">Grafik Kehadiran (Interval 15 Mnt)</h2>
-                <p className="text-xs text-ink-muted">Distribusi arus kedatangan dan kepulangan</p>
+                <h2 className="text-base font-extrabold text-ink">
+                  Grafik Kehadiran (Interval 15 Mnt)
+                </h2>
+                <p className="text-xs text-ink-muted">
+                  Distribusi arus kedatangan dan kepulangan
+                </p>
               </div>
               <span className="rounded-full bg-surface-soft px-2.5 py-1 text-[11px] font-bold text-ink-muted">
                 WIB
@@ -504,14 +792,16 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
             <AttendanceChart data={data?.chartData || []} />
           </Card>
 
-          {/* Aktivitas 20 Absensi Terakhir */}
           <Card className="flex flex-col gap-3 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center justify-between border-b border-line pb-2.5">
               <div>
                 <h2 className="text-base font-extrabold text-ink">Aktivitas Terakhir</h2>
                 <p className="text-xs text-ink-muted">Riwayat presensi masuk dan keluar</p>
               </div>
-              <Link href="/panitia/log" className="text-xs font-bold text-brand-blue hover:underline">
+              <Link
+                href="/panitia/log"
+                className="text-xs font-bold text-brand-blue hover:underline"
+              >
                 Lihat Semua Log
               </Link>
             </div>
@@ -528,12 +818,18 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
                             : "bg-brand-purple/10 text-brand-purple"
                         }`}
                       >
-                        {act.type === "in" ? <LogIn className="size-4" /> : <LogOut className="size-4" />}
+                        {act.type === "in" ? (
+                          <LogIn className="size-4" />
+                        ) : (
+                          <LogOut className="size-4" />
+                        )}
                       </div>
                       <div className="flex flex-col">
                         <span className="font-bold text-ink">{act.guestName}</span>
                         {act.category ? (
-                          <span className="text-[11px] font-semibold text-ink-muted">{act.category}</span>
+                          <span className="text-[11px] font-semibold text-ink-muted">
+                            {act.category}
+                          </span>
                         ) : null}
                       </div>
                     </div>
@@ -555,6 +851,34 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
           </Card>
         </div>
       </div>
+
+      {/* Modal Cepat Scanner Voucher Makan & Photobooth langsung dari Dashboard */}
+      {showScannerModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm">
+          <div className="relative my-8 flex w-full max-w-4xl flex-col gap-4 rounded-3xl bg-canvas p-5 shadow-2xl sm:p-6">
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <div className="flex items-center gap-2">
+                <ScanLine className="size-5 text-brand-magenta" />
+                <span className="text-base font-black text-ink">
+                  Scanner Voucher Makan & Photobooth (1x Pakai)
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowScannerModal(false);
+                  void fetchData();
+                }}
+                className="rounded-full bg-surface-soft p-1.5 text-ink hover:bg-line"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <VoucherScannerClient compact={true} />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

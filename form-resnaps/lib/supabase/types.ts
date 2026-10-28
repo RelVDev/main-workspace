@@ -146,10 +146,17 @@ export type Database = {
           contact: string | null;
           created_at: string;
           full_name: string;
+          hold_at: string | null;
           id: string;
           import_batch: string | null;
+          meal_redeemed_at: string | null;
+          meal_redeemed_by: string | null;
           name_search: string;
           notes: string | null;
+          payment_status: "lunas" | "belum_lunas";
+          photobooth_redeemed_at: string | null;
+          photobooth_redeemed_by: string | null;
+          voucher_code: string | null;
         };
         ComputedFields: never;
         Insert: {
@@ -157,20 +164,34 @@ export type Database = {
           contact?: string | null;
           created_at?: string;
           full_name: string;
+          hold_at?: string | null;
           id?: string;
           import_batch?: string | null;
+          meal_redeemed_at?: string | null;
+          meal_redeemed_by?: string | null;
           name_search: string;
           notes?: string | null;
+          payment_status?: "lunas" | "belum_lunas";
+          photobooth_redeemed_at?: string | null;
+          photobooth_redeemed_by?: string | null;
+          voucher_code?: string | null;
         };
         Update: {
           category?: string | null;
           contact?: string | null;
           created_at?: string;
           full_name?: string;
+          hold_at?: string | null;
           id?: string;
           import_batch?: string | null;
+          meal_redeemed_at?: string | null;
+          meal_redeemed_by?: string | null;
           name_search?: string;
           notes?: string | null;
+          payment_status?: "lunas" | "belum_lunas";
+          photobooth_redeemed_at?: string | null;
+          photobooth_redeemed_by?: string | null;
+          voucher_code?: string | null;
         };
         Relationships: [];
       };
@@ -254,13 +275,22 @@ export type Database = {
           checked_out_at: string | null;
           full_name: string | null;
           guest_id: string | null;
+          hold_at: string | null;
+          meal_redeemed_at: string | null;
+          payment_status: "lunas" | "belum_lunas" | null;
+          photobooth_redeemed_at: string | null;
           status: string | null;
+          voucher_code: string | null;
         };
         ComputedFields: never;
         Relationships: [];
       };
     };
     Functions: {
+      approve_guest_checkin: {
+        Args: { p_actor: string; p_guest_id: string };
+        Returns: Json;
+      };
       assert_committee: { Args: { p_actor: string; p_admin?: boolean }; Returns: undefined };
       check_in: { Args: { p_guest_id: string; p_session_id: string; p_ua: string }; Returns: Json };
       check_out: {
@@ -281,6 +311,10 @@ export type Database = {
         Args: { p_key: string; p_limit: number; p_window_seconds: number };
         Returns: boolean;
       };
+      redeem_guest_voucher: {
+        Args: { p_actor: string; p_code: string; p_kind: string };
+        Returns: Json;
+      };
       revoke_all_sessions: { Args: { p_actor: string }; Returns: Json };
       search_guests: {
         Args: {
@@ -293,6 +327,10 @@ export type Database = {
           full_name: string;
           id: string;
         }[];
+      };
+      set_guest_payment_status: {
+        Args: { p_actor: string; p_guest_id: string; p_status: string };
+        Returns: Json;
       };
       setting_text: { Args: { p_key: string }; Returns: string };
       show_limit: { Args: Record<PropertyKey, never>; Returns: number };

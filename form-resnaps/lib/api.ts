@@ -14,6 +14,18 @@ const MESSAGES: Record<string, { status: number; message: string }> = {
   already_in: { status: 409, message: "Kamu sudah absen masuk." },
   already_out: { status: 409, message: "Kamu sudah absen pulang." },
   not_checked_in: { status: 409, message: "Kamu belum tercatat absen masuk. Hubungi panitia." },
+  payment_hold: {
+    status: 403,
+    message: "Status pembayaran HTM belum lunas. Absensi ditahan menunggu konfirmasi panitia.",
+  },
+  voucher_invalid: {
+    status: 404,
+    message: "Kode barcode / QR voucher tidak dikenali dalam sistem.",
+  },
+  voucher_already_used: {
+    status: 409,
+    message: "Voucher ini sudah pernah di-scan dan ditukarkan sebelumnya (maksimal 1x pakai).",
+  },
   not_found: { status: 404, message: "Data tidak ditemukan." },
   invalid_input: { status: 400, message: "Permintaan tidak valid." },
   rate_limited: { status: 429, message: "Terlalu banyak permintaan. Coba lagi sebentar." },

@@ -30,6 +30,8 @@ type RawRow = {
   kategori?: string;
   kontak?: string;
   catatan?: string;
+  htm?: string;
+  status_htm?: string;
 };
 
 type ValidGuest = {
@@ -39,6 +41,7 @@ type ValidGuest = {
   category: string | null;
   contact: string | null;
   notes: string | null;
+  payment_status: "lunas" | "belum_lunas";
 };
 
 type RowIssue = {
@@ -93,6 +96,11 @@ async function main() {
     const category = cleanField(row.kategori) || null;
     const contact = cleanField(row.kontak) || null;
     const notes = cleanField(row.catatan) || null;
+    const htmRaw = cleanField(row.status_htm || row.htm).toLowerCase();
+    const paymentStatus: "lunas" | "belum_lunas" =
+      htmRaw.includes("belum") || htmRaw === "unpaid" || htmRaw === "hold"
+        ? "belum_lunas"
+        : "lunas";
 
     if (!name) {
       invalidRows.push({ line: lineNum, reason: "Nama wajib diisi", raw: JSON.stringify(row) });
@@ -127,6 +135,7 @@ async function main() {
       category,
       contact,
       notes,
+      payment_status: paymentStatus,
     });
   });
 

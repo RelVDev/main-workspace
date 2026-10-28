@@ -1,29 +1,42 @@
-// Logo resmi RE:SNAPS dari aset 20261003_121137_0000.png
+// Logo resmi RE:SNAPS dari aset 20261003_121137_0000.png dengan tipografi gradien merek.
 import Image from "next/image";
 
 export function Logo({
-  className = "size-9",
+  className = "size-10",
   showText = true,
+  subtitle,
 }: {
   className?: string;
   showText?: boolean;
+  subtitle?: string;
 }) {
   return (
-    <div className="flex items-center gap-2.5">
-      <div className={`relative overflow-hidden rounded-xl shadow-xs shrink-0 ${className}`}>
+    <div className="flex items-center gap-3">
+      <div
+        className={`relative shrink-0 overflow-hidden rounded-2xl bg-white p-0.5 shadow-md ring-1 ring-brand-purple/15 ${className}`}
+      >
         <Image
           src="/brand/logo.png"
-          alt="RE:SNAPS"
-          width={80}
-          height={80}
-          className="size-full object-cover"
+          alt="RE:SNAPS Official Logo"
+          width={96}
+          height={96}
+          className="size-full rounded-[14px] object-cover"
           priority
         />
       </div>
       {showText ? (
-        <span className="font-extrabold tracking-tight text-ink font-sans text-lg sm:text-xl">
-          RE:<span className="text-brand-blue">SNAPS</span>
-        </span>
+        <div className="flex flex-col leading-none">
+          <span className="font-sans text-lg font-black tracking-tight sm:text-xl">
+            <span className="text-brand-blue">Re</span>
+            <span className="text-brand-purple">:</span>
+            <span className="text-gradient-brand">snaps</span>
+          </span>
+          {subtitle ? (
+            <span className="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-ink-muted">
+              {subtitle}
+            </span>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

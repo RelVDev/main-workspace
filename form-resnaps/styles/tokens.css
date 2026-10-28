@@ -1,8 +1,8 @@
-/* RE:SNAPS brand tokens — sumber: PLANNING Lampiran A (palet usulan).
+/* RE:SNAPS brand tokens — bersumber dari logo resmi RE:SNAPS (20261003_121137_0000.png).
  * Prefix --brand-* dipakai agar tidak bentrok dengan namespace --color-* milik Tailwind
- * (lihat app/globals.css). Ubah NILAI di sini saja bila panduan merek resmi tersedia. */
+ * (lihat app/globals.css). */
 :root {
-  /* Brand */
+  /* Palet Utama Logo RE:SNAPS */
   --brand-blue: #1677B8;
   --brand-purple: #6035A8;
   --brand-magenta: #B313A5;
@@ -10,35 +10,42 @@
   --brand-orange: #F28B43;
   --brand-gold: #F2B92E;
 
-  /* Surfaces and text */
-  --surface-canvas: #FFF9F4;
+  /* Surfaces and text (pastel sky-to-warm-peach ambient canvas seperti latar logo) */
+  --surface-canvas: #FFF9F5;
   --surface-card: #FFFFFF;
-  --surface-soft: #FFF0E7;
-  --ink: #252339;
-  --ink-muted: #666476;
-  --line: #E9E2E4;
+  --surface-soft: #FFF1E8;
+  --ink: #221F35;
+  --ink-muted: #646177;
+  --line: #E8E0E4;
   --white: #FFFFFF;
 
   /* Status */
-  --status-success: #267A57;
+  --status-success: #1F7A54;
   --status-warning: #9A5A00;
   --status-error: #B8323A;
-  --status-info: #236A9A;
+  --status-info: #1677B8;
 
-  /* Gradients (satu fokus visual per layar, §7) */
+  /* Gradients khas Logo RE:SNAPS */
   --gradient-brand: linear-gradient(
-    110deg,
+    115deg,
     #1677B8 0%,
-    #6035A8 28%,
-    #B313A5 49%,
-    #E66B72 69%,
-    #F28B43 84%,
+    #6035A8 24%,
+    #B313A5 48%,
+    #E66B72 68%,
+    #F28B43 85%,
     #F2B92E 100%
   );
-  --gradient-cool: linear-gradient(110deg, #1677B8, #6035A8 55%, #B313A5);
-  --gradient-warm: linear-gradient(110deg, #F2B92E, #F28B43 48%, #E66B72);
+  --gradient-cool: linear-gradient(120deg, #1677B8 0%, #6035A8 52%, #B313A5 100%);
+  --gradient-warm: linear-gradient(120deg, #F2B92E 0%, #F28B43 48%, #E66B72 100%);
+  --gradient-canvas-aura: radial-gradient(
+      circle at 12% 14%,
+      rgba(22, 119, 184, 0.12) 0%,
+      transparent 45%
+    ),
+    radial-gradient(circle at 88% 20%, rgba(179, 19, 165, 0.1) 0%, transparent 45%),
+    radial-gradient(circle at 50% 92%, rgba(242, 139, 67, 0.12) 0%, transparent 50%);
 
-  /* Bentuk (§7 default sementara) */
-  --radius-card-px: 16px;
+  /* Bentuk */
+  --radius-card-px: 18px;
   --radius-control-px: 12px;
 }

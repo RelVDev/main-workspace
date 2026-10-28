@@ -1,40 +1,39 @@
--- P03.8: data DEV saja (±30 tamu dummy). JANGAN dijalankan di production (P14.2).
+-- P03.8 / P17: data DEV saja (±30 tamu dummy, termasuk Kating/Tamu dengan status HTM belum_lunas).
 -- Idempoten: dilewati bila batch 'seed-dev' sudah ada.
--- Mencakup: 2 nama kembar beda kategori, nama beraksen, nama panjang.
 
-insert into guests (full_name, category, contact, import_batch)
-select v.full_name, v.category, v.contact, 'seed-dev'
+insert into guests (full_name, category, contact, payment_status, import_batch)
+select v.full_name, v.category, v.contact, v.payment_status, 'seed-dev'
 from (values
-  ('Anindya Putri Maharani',                 'Divisi Dokumentasi', '0812000000001'),
-  ('Bagas Pratama',                          'Divisi Acara',       '0812000000002'),
-  ('Bagas Pratama',                          'Divisi Media',       '0812000000003'),
-  ('Citra Lestari',                          'Angkatan 2023',      null),
-  ('Dewi Anggraini',                         'Divisi Konsumsi',    '0812000000005'),
-  ('Eko Prasetyo',                           'Angkatan 2022',      null),
-  ('Fajar Nugroho',                          'Divisi Acara',       '0812000000007'),
-  ('Gita Ayu Saraswati',                     'Divisi Dokumentasi', null),
-  ('Hendra Wijaya',                          'Angkatan 2024',      '0812000000009'),
-  ('Intan Permata Sari',                     'Divisi Media',       null),
-  ('Joko Susilo',                            'Alumni',             null),
-  ('Kartika Dewi',                           'Divisi Konsumsi',    null),
-  ('Lukas Hartono',                          'Angkatan 2023',      null),
-  ('Maya Safitri',                           'Divisi Acara',       null),
-  ('Nicolas Chandra',                        'Alumni',             null),
-  ('Oktaviani Rahayu',                       'Divisi Media',       null),
-  ('Putu Ardana Wirawan',                    'Angkatan 2022',      null),
-  ('Qonita Azzahra',                         'Divisi Dokumentasi', null),
-  ('Rizky Firmansyah',                       'Angkatan 2024',      null),
-  ('Sri Wahyuningsih',                       'Divisi Konsumsi',    null),
-  ('Teguh Santoso',                          'Divisi Acara',       null),
-  ('Umi Kalsum',                             'Alumni',             null),
-  ('Vincentius Adi Nugraha Putra Hadiwijaya','Angkatan 2023',      null),
-  ('Wulan Sari',                             'Divisi Media',       null),
-  ('Yohanes Setiawan',                       'Divisi Dokumentasi', null),
-  ('Zahra Amelia',                           'Angkatan 2024',      null),
-  ('Ádhitya Gunawan',                        'Divisi Acara',       null),
-  ('Ñoel Ramírez',                           'Alumni',             null),
-  ('Ratna Juwita',                           'Divisi Konsumsi',    null),
-  ('Dimas Aditya',                           'Angkatan 2022',      null),
-  ('Salsabila Nur',                          'Divisi Media',       null)
-) as v(full_name, category, contact)
+  ('Anindya Putri Maharani',                 'Divisi Dokumentasi', '0812000000001', 'lunas'),
+  ('Bagas Pratama',                          'Divisi Acara',       '0812000000002', 'lunas'),
+  ('Bagas Pratama',                          'Divisi Media',       '0812000000003', 'lunas'),
+  ('Citra Lestari',                          'Kating Angkatan 2023', null,          'belum_lunas'),
+  ('Dewi Anggraini',                         'Divisi Konsumsi',    '0812000000005', 'lunas'),
+  ('Eko Prasetyo',                           'Kating Angkatan 2022', null,          'belum_lunas'),
+  ('Fajar Nugroho',                          'Divisi Acara',       '0812000000007', 'lunas'),
+  ('Gita Ayu Saraswati',                     'Divisi Dokumentasi', null,            'lunas'),
+  ('Hendra Wijaya',                          'Angkatan 2024',      '0812000000009', 'lunas'),
+  ('Intan Permata Sari',                     'Divisi Media',       null,            'lunas'),
+  ('Joko Susilo',                            'Kating / Alumni',    null,            'belum_lunas'),
+  ('Kartika Dewi',                           'Divisi Konsumsi',    null,            'lunas'),
+  ('Lukas Hartono',                          'Kating Angkatan 2023', null,          'belum_lunas'),
+  ('Maya Safitri',                           'Divisi Acara',       null,            'lunas'),
+  ('Nicolas Chandra',                        'Kating / Alumni',    null,            'belum_lunas'),
+  ('Oktaviani Rahayu',                       'Divisi Media',       null,            'lunas'),
+  ('Putu Ardana Wirawan',                    'Kating Angkatan 2022', null,          'belum_lunas'),
+  ('Qonita Azzahra',                         'Divisi Dokumentasi', null,            'lunas'),
+  ('Rizky Firmansyah',                       'Angkatan 2024',      null,            'lunas'),
+  ('Sri Wahyuningsih',                       'Divisi Konsumsi',    null,            'lunas'),
+  ('Teguh Santoso',                          'Divisi Acara',       null,            'lunas'),
+  ('Umi Kalsum',                             'Alumni',             null,            'lunas'),
+  ('Vincentius Adi Nugraha Putra Hadiwijaya','Kating Angkatan 2023', null,          'belum_lunas'),
+  ('Wulan Sari',                             'Divisi Media',       null,            'lunas'),
+  ('Yohanes Setiawan',                       'Divisi Dokumentasi', null,            'lunas'),
+  ('Zahra Amelia',                           'Angkatan 2024',      null,            'lunas'),
+  ('Ádhitya Gunawan',                        'Divisi Acara',       null,            'lunas'),
+  ('Ñoel Ramírez',                           'Alumni',             null,            'lunas'),
+  ('Ratna Juwita',                           'Divisi Konsumsi',    null,            'lunas'),
+  ('Dimas Aditya',                           'Kating Angkatan 2022', null,          'belum_lunas'),
+  ('Salsabila Nur',                          'Divisi Media',       null,            'lunas')
+) as v(full_name, category, contact, payment_status)
 where not exists (select 1 from guests where import_batch = 'seed-dev');

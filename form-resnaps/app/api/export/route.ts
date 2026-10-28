@@ -1,7 +1,9 @@
-// P11.4: Ekspor data kehadiran tamu ke CSV dengan proteksi formula injection dan UTF-8 BOM.
+// P11.4 / P17: Ekspor data kehadiran, status HTM, dan pemakaian Voucher (Makan & Photobooth) ke CSV
+// dengan proteksi formula injection dan UTF-8 BOM.
 import { NextRequest, NextResponse } from "next/server";
 import { getCommitteeAuth } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchEnrichedGuests } from "@/lib/guest-extras";
 import { formatWib } from "@/lib/time";
 import { fail } from "@/lib/api";
 
@@ -38,26 +40,20 @@ export async function GET(req: NextRequest) {
   if (!auth) return fail("session_invalid");
 
   const db = createAdminClient();
+  const guests = await fetchEnrichedGuests(db);
 
-  // Ambil data status seluruh tamu dari view guest_status
-  const { data: guests, error } = await db
-    .from("guest_status")
-    .select("full_name, category, status, checked_in_at, checked_out_at")
-    .order("full_name", { ascending: true });
-
-  if (error || !guests) return fail("internal");
-
-  // Ambil sumber absensi (qr / manual)
-  const { data: logSources } = await db
-    .from("attendance_logs")
-    .select("guest_id, type, source");
-
-  const sourceMap = new Map<string, string>();
-  for (const l of logSources || []) {
-    sourceMap.set(`${l.guest_id}_${l.type}`, l.source);
-  }
-
-  const header = ["Nama", "Kategori", "Status", "Jam Masuk (WIB)", "Jam Pulang (WIB)", "Durasi Hadir"];
+  const header = [
+    "Nama",
+    "Kategori",
+    "Status HTM",
+    "Status Kehadiran",
+    "Kode Voucher",
+    "Jam Masuk (WIB)",
+    "Jam Pulang (WIB)",
+    "Durasi Hadir",
+    "Voucher Makan (WIB)",
+    "Voucher Photobooth (WIB)",
+  ];
   const rows: string[] = [header.map(escapeCsvCell).join(",")];
 
   for (const g of guests) {
@@ -66,21 +62,32 @@ export async function GET(req: NextRequest) {
         ? "Di Dalam"
         : g.status === "sudah_pulang"
           ? "Sudah Pulang"
-          : "Belum Hadir";
+          : g.status === "ditahan"
+            ? "Ditahan (Hold HTM)"
+            : "Belum Hadir";
 
+    const htmLabel = g.payment_status === "belum_lunas" ? "Belum Lunas" : "Lunas";
     const inWib = g.checked_in_at ? formatWib(g.checked_in_at) : "-";
     const outWib = g.checked_out_at ? formatWib(g.checked_out_at) : "-";
     const duration = calculateDuration(g.checked_in_at, g.checked_out_at);
+    const mealWib = g.meal_redeemed_at ? `Sudah Ditukar (${formatWib(g.meal_redeemed_at)})` : "Belum Ditukar";
+    const photoWib = g.photobooth_redeemed_at
+      ? `Sudah Dipakai (${formatWib(g.photobooth_redeemed_at)})`
+      : "Belum Dipakai";
 
     rows.push(
       [
         escapeCsvCell(g.full_name),
         escapeCsvCell(g.category || "-"),
+        escapeCsvCell(htmLabel),
         escapeCsvCell(statusLabel),
+        escapeCsvCell(g.voucher_code),
         escapeCsvCell(inWib),
         escapeCsvCell(outWib),
         escapeCsvCell(duration),
-      ].join(",")
+        escapeCsvCell(mealWib),
+        escapeCsvCell(photoWib),
+      ].join(","),
     );
   }
 
