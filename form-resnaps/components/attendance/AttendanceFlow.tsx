@@ -15,14 +15,9 @@ import {
   LogOut,
   ArrowRight,
   X,
-  Sparkles,
-  ShieldCheck,
   Clock,
-  AlertTriangle,
   Ticket,
   RefreshCw,
-  Utensils,
-  Camera,
   Lock,
 } from "lucide-react";
 import { BrandHeader } from "@/components/brand/BrandHeader";
@@ -103,8 +98,8 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const isMasuk = expectedMode === "in";
-  const title = isMasuk ? "Gerbang Check-In Tamu" : "Gerbang Check-Out Tamu";
-  const subtitle = "Closing Party CHRYSALIS · RE:SNAPS Official Gate";
+  const title = isMasuk ? "Check-In" : "Check-Out";
+  const subtitle = isMasuk ? "Gerbang Masuk" : "Gerbang Pulang";
 
   const displayedResults = query.trim().length >= 2 ? searchResults : [];
 
@@ -602,11 +597,11 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
 
       <BrandHeader title={title} subtitle={subtitle} />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-lg flex-1 flex-col px-4 pt-5">
+      <div className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col items-center px-4 pt-6">
         {/* Banner Pemberitahuan bila Kunci Perangkat Baru Saja Di-Recovery oleh Admin */}
         {recoveryNotice ? (
-          <div className="mb-4 animate-in fade-in slide-in-from-top-2">
-            <StatusBanner kind="info" title="Recovery Perangkat Berhasil">
+          <div className="mb-4 w-full animate-in fade-in slide-in-from-top-2">
+            <StatusBanner kind="info" title="Recovery Berhasil">
               {recoveryNotice}
             </StatusBanner>
           </div>
@@ -614,26 +609,24 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
 
         {/* Banner Akses Cepat ke Tiket & Barcode Voucher Tersimpan */}
         {savedTicket && stage !== "success" && stage !== "on_hold" ? (
-          <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-brand-purple/25 bg-white/90 p-3.5 shadow-md backdrop-blur-md">
+          <div className="mb-4 flex w-full items-center justify-between gap-3 rounded-2xl border border-line bg-white/95 p-3.5 shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-brand text-white shadow-xs">
-                <Ticket className="size-5" />
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand-purple/10 text-brand-purple">
+                <Ticket className="size-4" />
               </div>
               <div className="flex flex-col">
-                <span className="text-[10px] font-black uppercase tracking-wider text-brand-purple">
-                  Tiket Tersimpan di Perangkat Ini
+                <span className="text-[10px] font-bold uppercase tracking-wider text-brand-purple">
+                  Pass Aktif
                 </span>
-                <span className="text-xs font-extrabold text-ink">
-                  {savedTicket.guestName} ({savedTicket.voucherCode})
-                </span>
+                <span className="text-xs font-extrabold text-ink">{savedTicket.guestName}</span>
               </div>
             </div>
             <button
               type="button"
               onClick={() => restoreFromSavedTicket(savedTicket)}
-              className="shrink-0 rounded-xl bg-brand-blue px-3 py-2 text-xs font-extrabold text-white shadow-xs transition hover:brightness-95"
+              className="shrink-0 rounded-xl bg-ink px-3 py-1.5 text-xs font-bold text-white"
             >
-              Buka Barcode
+              Lihat Pass
             </button>
           </div>
         ) : null}
@@ -643,7 +636,7 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
         secondsRemaining > 0 &&
         secondsRemaining < 120 &&
         stage === "active" ? (
-          <div className="mb-4 animate-in fade-in slide-in-from-top-2">
+          <div className="mb-4 w-full animate-in fade-in slide-in-from-top-2">
             <StatusBanner
               kind="warning"
               title={`Sesi berakhir dalam ${Math.floor(secondsRemaining / 60)}:${(
@@ -652,7 +645,7 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
                 .toString()
                 .padStart(2, "0")}`}
             >
-              Selesaikan pencarian dan konfirmasi nama Anda sebelum waktu habis.
+              Segera pilih dan konfirmasi nama Anda.
             </StatusBanner>
           </div>
         ) : null}
@@ -662,40 +655,23 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
 
         {/* STAGE 2: Tanpa Sesi / Belum Scan QR */}
         {stage === "no_session" ? (
-          <div className="flex flex-col items-center gap-5 rounded-3xl border border-white/85 bg-white/85 p-8 text-center shadow-xl backdrop-blur-xl ring-1 ring-brand-purple/10">
-            <div className="relative flex size-20 items-center justify-center rounded-3xl bg-gradient-to-br from-brand-blue/15 via-brand-purple/15 to-brand-coral/15 text-brand-blue shadow-inner">
-              <QrCode className="size-10 text-brand-purple" />
+          <div className="flex w-full flex-col items-center gap-4 rounded-[28px] border border-white/90 bg-white/95 p-8 text-center shadow-xl backdrop-blur-xl">
+            <div className="flex size-16 items-center justify-center rounded-2xl bg-brand-purple/10 text-brand-purple">
+              <QrCode className="size-8" />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <h2 className="text-2xl font-black text-ink">Scan QR Terlebih Dahulu</h2>
-              <p className="max-w-sm text-xs leading-relaxed text-ink-muted">
-                Untuk mulai absen {isMasuk ? "masuk" : "pulang"}, silakan arahkan kamera ponsel Anda
-                ke layar QR dinamis yang ditampilkan panitia di gerbang acara.
+            <div className="flex flex-col gap-1">
+              <h2 className="text-xl font-black text-ink">Scan QR Gerbang</h2>
+              <p className="max-w-xs text-xs leading-relaxed text-ink-muted">
+                Arahkan kamera ponsel Anda ke layar QR di meja registrasi untuk{" "}
+                {isMasuk ? "check-in masuk" : "check-out pulang"}.
               </p>
-            </div>
-
-            <div className="grid w-full grid-cols-2 gap-2.5 pt-2 text-left text-xs">
-              <div className="flex items-center gap-2.5 rounded-2xl border border-line/70 bg-surface-soft/60 p-3">
-                <Utensils className="size-4 shrink-0 text-brand-orange" />
-                <div>
-                  <p className="font-extrabold text-ink">Free Voucher Makan</p>
-                  <p className="text-[10px] text-ink-muted">Otomatis setelah check-in</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2.5 rounded-2xl border border-line/70 bg-surface-soft/60 p-3">
-                <Camera className="size-4 shrink-0 text-brand-purple" />
-                <div>
-                  <p className="font-extrabold text-ink">Free Photobooth</p>
-                  <p className="text-[10px] text-ink-muted">1 Barcode terintegrasi</p>
-                </div>
-              </div>
             </div>
           </div>
         ) : null}
 
         {/* STAGE 3: Error Token / Sesi Habis / Absen Ditutup */}
         {stage === "error" ? (
-          <div className="flex flex-col gap-4 animate-in fade-in">
+          <div className="flex w-full flex-col gap-4 animate-in fade-in">
             <StatusBanner kind="error" title="Tidak Dapat Melanjutkan">
               {errorMessage}
             </StatusBanner>
@@ -715,20 +691,14 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
 
         {/* STAGE 4: Aktif - Pencarian Nama Tamu */}
         {stage === "active" || stage === "confirming" || stage === "submitting" ? (
-          <div className="flex flex-col gap-5">
-            <div className="flex flex-col gap-2.5 rounded-3xl border border-white/85 bg-white/85 p-5 shadow-md backdrop-blur-xl ring-1 ring-brand-purple/10">
-              <div className="flex items-center justify-between">
-                <label
-                  htmlFor="search-input"
-                  className="text-xs font-black uppercase tracking-wider text-ink"
-                >
-                  Cari Nama Undanganmu
-                </label>
-                <span className="flex items-center gap-1 text-[11px] font-extrabold text-brand-purple">
-                  <Sparkles className="size-3 text-brand-gold" />
-                  Ketik min. 2 huruf
-                </span>
-              </div>
+          <div className="flex w-full flex-col gap-4">
+            <div className="flex flex-col gap-2.5 rounded-[26px] border border-white/90 bg-white/95 p-5 shadow-md backdrop-blur-xl">
+              <label
+                htmlFor="search-input"
+                className="text-xs font-extrabold uppercase tracking-wider text-ink-muted"
+              >
+                Cari Nama Undangan
+              </label>
 
               <div className="relative">
                 <Input
@@ -737,11 +707,11 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
                   inputMode="search"
                   autoComplete="off"
                   autoFocus
-                  placeholder="Ketik namamu di sini..."
+                  placeholder="Ketik nama lengkap..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  className="h-13 rounded-2xl border-line/80 bg-white pr-11 text-base font-bold shadow-inner focus:border-brand-blue focus:ring-4 focus:ring-brand-blue/15"
+                  className="h-12 rounded-2xl border-line bg-white pr-11 text-base font-bold focus:border-brand-blue"
                 />
                 <div className="pointer-events-none absolute inset-y-0 right-3.5 flex items-center text-ink-muted">
                   {isSearching ? (
@@ -755,10 +725,9 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
 
             {/* Loading Skeleton */}
             {isSearching ? (
-              <div className="flex flex-col gap-2.5 pt-1">
-                <Skeleton className="h-16 w-full rounded-2xl" />
-                <Skeleton className="h-16 w-full rounded-2xl" />
-                <Skeleton className="h-16 w-full rounded-2xl" />
+              <div className="flex flex-col gap-2">
+                <Skeleton className="h-15 w-full rounded-2xl" />
+                <Skeleton className="h-15 w-full rounded-2xl" />
               </div>
             ) : null}
 
@@ -768,7 +737,7 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
                 <div
                   role="listbox"
                   aria-label="Daftar nama tamu"
-                  className="flex flex-col gap-2.5 pt-1"
+                  className="flex flex-col gap-2"
                 >
                   {displayedResults.map((guest, idx) => {
                     const isHighlighted = idx === highlightedIndex;
@@ -782,32 +751,30 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
                           setSelectedGuest(guest);
                           setStage("confirming");
                         }}
-                        className={`flex min-h-15 w-full items-center justify-between gap-3 rounded-2xl border p-4 text-left transition-all ${
+                        className={`flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3.5 text-left transition-all ${
                           isHighlighted
-                            ? "border-brand-purple bg-white shadow-lg ring-2 ring-brand-purple/25 scale-[1.01]"
-                            : "border-white/80 bg-white/85 shadow-xs backdrop-blur-md hover:bg-white hover:shadow-md"
+                            ? "border-brand-purple bg-white shadow-md ring-2 ring-brand-purple/20"
+                            : "border-line/80 bg-white/95 shadow-2xs hover:bg-white"
                         }`}
                       >
                         <div className="flex flex-col">
-                          <span className="text-base font-black text-ink">{guest.name}</span>
+                          <span className="text-sm font-black text-ink sm:text-base">
+                            {guest.name}
+                          </span>
                           {guest.category ? (
-                            <span className="mt-0.5 inline-flex items-center gap-1 text-xs font-bold text-brand-blue">
-                              <ShieldCheck className="size-3.5" />
+                            <span className="text-xs font-semibold text-ink-muted">
                               {guest.category}
                             </span>
                           ) : null}
                         </div>
-                        <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-blue/15 to-brand-purple/15 text-brand-purple">
-                          <ArrowRight className="size-4" />
-                        </div>
+                        <ArrowRight className="size-4 text-brand-purple" />
                       </button>
                     );
                   })}
                 </div>
               ) : (
                 <EmptyState icon={Users} title="Nama tidak ditemukan">
-                  Mungkin kamu sudah absen, atau namamu belum terdaftar. Hubungi panitia di meja
-                  registrasi.
+                  Periksa ejaan nama atau hubungi panitia di meja registrasi.
                 </EmptyState>
               )
             ) : null}
@@ -817,10 +784,10 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
         {/* Modal Konfirmasi Pilihan Nama */}
         {(stage === "confirming" || stage === "submitting") && selectedGuest ? (
           <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm sm:items-center">
-            <Card className="flex w-full max-w-md flex-col gap-6 rounded-3xl border border-white/90 bg-white p-6 shadow-2xl animate-in fade-in-50 zoom-in-95">
-              <div className="flex items-center justify-between border-b border-line pb-3">
-                <span className="text-xs font-black uppercase tracking-wider text-gradient-brand">
-                  Konfirmasi Identitas Tamu
+            <Card className="flex w-full max-w-sm flex-col gap-5 rounded-[28px] border border-white/90 bg-white p-6 shadow-2xl animate-in fade-in-50 zoom-in-95">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-ink-muted">
+                  Konfirmasi Kehadiran
                 </span>
                 <button
                   type="button"
@@ -828,38 +795,35 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
                   disabled={stage === "submitting"}
                   className="rounded-full p-1 text-ink-muted hover:bg-surface-soft"
                 >
-                  <X className="size-5" />
+                  <X className="size-4" />
                 </button>
               </div>
 
-              <div className="flex flex-col items-center gap-2.5 py-2 text-center">
-                <div className="flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-blue/15 via-brand-purple/15 to-brand-magenta/15 text-brand-purple shadow-inner">
-                  {isMasuk ? <LogIn className="size-8" /> : <LogOut className="size-8" />}
+              <div className="flex flex-col items-center gap-2 py-2 text-center">
+                <div className="flex size-14 items-center justify-center rounded-2xl bg-brand-purple/10 text-brand-purple">
+                  {isMasuk ? <LogIn className="size-6" /> : <LogOut className="size-6" />}
                 </div>
-                <p className="text-xs font-bold uppercase tracking-wider text-ink-muted">
-                  Apakah benar ini namamu?
-                </p>
-                <p className="text-2xl font-black text-ink">{selectedGuest.name}</p>
+                <p className="mt-1 text-xl font-black text-ink">{selectedGuest.name}</p>
                 {selectedGuest.category ? (
-                  <span className="rounded-full bg-brand-blue/10 px-3.5 py-1 text-xs font-extrabold text-brand-blue ring-1 ring-brand-blue/20">
+                  <span className="rounded-full bg-surface-soft px-3 py-0.5 text-xs font-semibold text-ink-muted">
                     {selectedGuest.category}
                   </span>
                 ) : null}
               </div>
 
-              <div className="flex flex-col gap-2.5 pt-1">
+              <div className="flex flex-col gap-2">
                 <Button
                   onClick={handleSubmitAttendance}
                   disabled={stage === "submitting"}
-                  className="h-13 rounded-2xl bg-gradient-brand text-base font-black text-white shadow-lg"
+                  className="h-12 rounded-2xl bg-gradient-brand text-sm font-black text-white shadow-md"
                 >
                   {stage === "submitting" ? (
                     <>
-                      <Loader2 className="size-5 animate-spin" />
-                      Memproses Absensi...
+                      <Loader2 className="size-4 animate-spin" />
+                      Memproses...
                     </>
                   ) : (
-                    `Ya, Absen ${isMasuk ? "Masuk & Ambil Voucher" : "Pulang"}`
+                    `Konfirmasi ${isMasuk ? "Check-In" : "Check-Out"}`
                   )}
                 </Button>
 
@@ -868,13 +832,13 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
                     variant="secondary"
                     onClick={() => setStage("active")}
                     disabled={stage === "submitting"}
-                    className="h-12 rounded-2xl text-sm"
+                    className="h-11 rounded-2xl text-xs"
                   >
-                    Bukan Saya (Cari Ulang)
+                    Cari Nama Lain
                   </Button>
                 ) : (
-                  <p className="text-center text-[11px] font-bold text-ink-muted">
-                    🔒 Perangkat ini terikat pada identitas kehadiran {selectedGuest.name}.
+                  <p className="pt-1 text-center text-[11px] font-medium text-ink-muted">
+                    🔒 Terkunci untuk {selectedGuest.name}
                   </p>
                 )}
               </div>
@@ -882,72 +846,47 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
           </div>
         ) : null}
 
-        {/* STAGE 5: ON HOLD — Pembayaran HTM Belum Lunas (Menunggu Konfirmasi Panitia) */}
+        {/* STAGE 5: ON HOLD — Pembayaran HTM Belum Lunas (Minimalis & Jelas) */}
         {stage === "on_hold" && holdData ? (
-          <div className="flex flex-col items-center gap-5 animate-in fade-in zoom-in-95 duration-300">
-            <div className="w-full overflow-hidden rounded-[28px] border-2 border-warning/40 bg-white shadow-2xl">
-              <div className="h-2 w-full bg-gradient-warm" />
-              <div className="flex flex-col items-center gap-4 p-6 text-center sm:p-7">
-                <div className="relative flex size-18 items-center justify-center rounded-3xl bg-warning/15 text-warning shadow-inner">
-                  <AlertTriangle className="size-9 animate-bounce" />
-                </div>
-
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-warning/15 px-3.5 py-1 text-xs font-black uppercase tracking-wider text-warning ring-1 ring-warning/30">
-                  <Clock className="size-3.5 animate-spin" />
-                  <span>STATUS ABSEN: DITAHAN (HOLD)</span>
+          <div className="flex w-full max-w-sm flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-300">
+            <div className="w-full overflow-hidden rounded-[30px] border border-warning/40 bg-white shadow-xl">
+              <div className="h-1.5 w-full bg-gradient-warm" />
+              <div className="flex flex-col items-center gap-4 p-6 text-center">
+                <div className="flex size-14 items-center justify-center rounded-2xl bg-warning/15 text-warning">
+                  <Clock className="size-7 animate-pulse" />
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <h2 className="text-2xl font-black text-ink">{holdData.name}</h2>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-warning">
+                    Menunggu Konfirmasi Panitia
+                  </span>
+                  <h2 className="text-xl font-black text-ink">{holdData.name}</h2>
                   {holdData.category ? (
-                    <span className="text-xs font-extrabold text-brand-blue">
+                    <span className="text-xs font-semibold text-ink-muted">
                       {holdData.category}
                     </span>
                   ) : null}
                 </div>
 
-                <div className="w-full rounded-2xl border border-warning/30 bg-surface-soft/80 p-4 text-left text-xs leading-relaxed text-ink">
-                  <p className="font-black text-warning uppercase tracking-wide">
-                    Pembayaran HTM Belum Tercatat Lunas
-                  </p>
-                  <p className="mt-1 font-medium text-ink-muted">
-                    Permintaan absen masuk kamu sudah masuk ke antrean layar Panitia. Silakan
-                    tunjukkan layar ini ke <strong>Meja Registrasi / Panitia</strong> untuk
-                    konfirmasi pelunasan HTM.
-                  </p>
-                </div>
-
-                <div className="flex w-full items-center justify-between rounded-2xl bg-canvas px-4 py-3 text-xs">
-                  <span className="flex items-center gap-2 font-bold text-ink-muted">
-                    <Loader2 className="size-4 animate-spin text-brand-blue" />
-                    Menunggu persetujuan panitia...
-                  </span>
-                  <span className="font-mono font-black text-brand-purple">
-                    {holdData.voucherCode}
-                  </span>
-                </div>
+                <p className="rounded-2xl bg-surface-soft/80 p-3.5 text-xs leading-relaxed text-ink-muted">
+                  Tunjukkan layar ini ke <strong className="text-ink">Meja Registrasi</strong>{" "}
+                  untuk verifikasi HTM. Pass akan terbuka otomatis setelah disetujui.
+                </p>
 
                 <Button
                   onClick={() => void checkHoldApproval()}
                   disabled={isCheckingHold}
-                  className="h-12 w-full rounded-2xl text-sm font-extrabold"
+                  className="h-11 w-full rounded-2xl text-xs font-extrabold"
                 >
-                  <RefreshCw className={`size-4 ${isCheckingHold ? "animate-spin" : ""}`} />
-                  {isCheckingHold
-                    ? "Memeriksa Status..."
-                    : "Cek Status Persetujuan / Recovery Sekarang"}
+                  <RefreshCw className={`size-3.5 ${isCheckingHold ? "animate-spin" : ""}`} />
+                  {isCheckingHold ? "Memeriksa..." : "Segarkan Status"}
                 </Button>
 
                 {deviceLockEnabled ? (
-                  <div className="flex items-start gap-2 rounded-2xl border border-brand-purple/20 bg-brand-purple/5 p-3 text-left text-[11px] leading-relaxed text-ink-muted">
-                    <Lock className="mt-0.5 size-4 shrink-0 text-brand-purple" />
-                    <span>
-                      <strong>Kunci Keamanan Perangkat Aktif:</strong> HP ini terkunci pada antrean{" "}
-                      <strong className="text-ink">{holdData.name}</strong>. Jika Anda salah memilih
-                      nama, minta Panitia/Admin menekan tombol <strong>Recovery / Reset</strong> di
-                      dashboard untuk membuka kunci HP Anda.
-                    </span>
-                  </div>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-ink-muted">
+                    <Lock className="size-3 text-brand-purple" />
+                    Terkunci di perangkat ini · Hubungi panitia bila salah nama
+                  </span>
                 ) : (
                   <button
                     type="button"
@@ -957,7 +896,7 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
                     }}
                     className="text-xs font-bold text-ink-muted underline hover:text-ink"
                   >
-                    Mode Kiosk: Ganti Tamu
+                    Ganti Tamu
                   </button>
                 )}
               </div>
