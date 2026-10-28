@@ -4,7 +4,7 @@
 // ("guest_extras_v1") bila migrasi 0008 belum dijalankan di database remote.
 import "server-only";
 import { createAdminClient } from "./supabase/admin";
-import type { Json, TablesUpdate } from "./supabase/types";
+import type { TablesUpdate } from "./supabase/types";
 import { generateVoucherCode, normalizeVoucherInput, type PaymentStatus } from "./voucher";
 
 export type GuestExtraState = {
@@ -98,7 +98,7 @@ export async function writeExtrasStore(
   await db.from("event_settings").upsert(
     {
       key: EXTRAS_SETTING_KEY,
-      value: store as unknown as Json,
+      value: store,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "key" },
