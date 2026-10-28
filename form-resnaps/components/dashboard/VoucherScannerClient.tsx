@@ -1,5 +1,6 @@
 // Scanner Barcode & QR Voucher Terpadu Panitia (Mode Konsumsi/Makan & Mode Photobooth).
 // Setiap voucher tamu hanya dapat di-scan 1 kali untuk Makan dan 1 kali untuk Photobooth.
+// Mendukung pemindaian otomatis di Kamera Laptop (Webcam), iPad/Tablet, iPhone (iOS Safari), dan HP Android.
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -16,6 +17,8 @@ import {
   UserCheck,
   Clock,
   Loader2,
+  SwitchCamera,
+  FlipHorizontal,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -23,6 +26,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { playSuccessChime, playWarningTone, playScanBlip } from "@/lib/sound";
+import { scanImageDataForCode128 } from "@/lib/barcode-scanner";
 import type { VoucherKind } from "@/lib/voucher";
 
 type VoucherStats = {
@@ -72,12 +76,17 @@ type ScanResultState = {
   };
 };
 
+type VideoDeviceOption = {
+  deviceId: string;
+  label: string;
+};
+
 // Deklarasi tipe Web BarcodeDetector API
 interface DetectedBarcode {
   rawValue: string;
 }
 interface BarcodeDetectorInstance {
-  detect(source: HTMLVideoElement): Promise<DetectedBarcode[]>;
+  detect(source: HTMLVideoElement | HTMLCanvasElement): Promise<DetectedBarcode[]>;
 }
 interface WindowWithBarcodeDetector extends Window {
   BarcodeDetector?: new (options?: { formats: string[] }) => BarcodeDetectorInstance;
@@ -86,7 +95,15 @@ interface WindowWithBarcodeDetector extends Window {
 export function VoucherScannerClient({ compact = false }: { compact?: boolean }) {
   const [kind, setKind] = useState<VoucherKind>("meal");
   const [cameraActive, setCameraActive] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
+  const [streamVersion, setStreamVersion] = useState(0);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
+  const [mirrorVideo, setMirrorVideo] = useState(false);
+  const [videoDevices, setVideoDevices] = useState<VideoDeviceOption[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
+  const [scanPulse, setScanPulse] = useState(false);
+
   const [manualCode, setManualCode] = useState("");
   const [guestSearch, setGuestSearch] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -104,8 +121,14 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
   const [eligibleGuests, setEligibleGuests] = useState<EligibleGuestItem[]>([]);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const lastScannedRef = useRef<{ code: string; at: number }>({ code: "", at: 0 });
+  const isSubmittingRef = useRef(false);
+
+  useEffect(() => {
+    isSubmittingRef.current = isSubmitting;
+  }, [isSubmitting]);
 
   const fetchScannerData = useCallback(async () => {
     try {
@@ -118,7 +141,7 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
         setEligibleGuests(d.eligibleGuests || []);
       }
     } catch {
-      // Abaikan
+      // Abaikan gangguan jaringan sementara
     }
   }, []);
 
@@ -134,9 +157,13 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
   const submitVoucherScan = useCallback(
     async (rawCode: string, targetKind: VoucherKind) => {
       const cleaned = rawCode.trim();
-      if (!cleaned || isSubmitting) return;
+      if (!cleaned || isSubmittingRef.current) return;
 
+      isSubmittingRef.current = true;
       setIsSubmitting(true);
+      setScanPulse(true);
+      setTimeout(() => setScanPulse(false), 500);
+
       try {
         playScanBlip();
       } catch {
@@ -191,48 +218,182 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
           message: "Gagal menghubungi server. Periksa koneksi internet.",
         });
       } finally {
+        isSubmittingRef.current = false;
         setIsSubmitting(false);
       }
     },
-    [isSubmitting, fetchScannerData],
+    [fetchScannerData],
   );
 
-  // Mengelola kamera pemindai barcode / QR
+  // Menghentikan stream kamera aktif dengan bersih
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setVideoReady(false);
     setCameraActive(false);
   }, []);
 
-  const startCamera = useCallback(async () => {
-    setCameraError(null);
-    try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setCameraError(
-          "Peramban ini tidak mendukung akses kamera langsung. Gunakan kolom input kode atau pencarian nama di bawah.",
-        );
-        return;
-      }
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false,
-      });
-      streamRef.current = stream;
-      setCameraActive(true);
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play().catch(() => {});
-      }
-    } catch {
-      setCameraError(
-        "Izin kamera ditolak atau perangkat tidak memiliki kamera. Anda tetap dapat mengetik kode RSNP-XXXX atau memilih nama tamu di bawah.",
-      );
-      setCameraActive(false);
-    }
-  }, []);
+  // Memulai kamera dengan fallback bertingkat untuk HP (Android/iOS), iPad, dan Laptop
+  const startCamera = useCallback(
+    async (opts?: { preferredFacing?: "environment" | "user"; deviceId?: string }) => {
+      setCameraError(null);
+      setVideoReady(false);
 
+      const targetFacing = opts?.preferredFacing ?? facingMode;
+      const targetDeviceId = opts?.deviceId !== undefined ? opts.deviceId : selectedDeviceId;
+
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          setCameraError(
+            "Peramban ini tidak mendukung akses kamera langsung (pastikan membuka via HTTPS atau localhost). Gunakan kolom input kode atau pencarian nama di bawah.",
+          );
+          return;
+        }
+
+        // Hentikan stream lama sebelum membuka stream baru
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((t) => t.stop());
+          streamRef.current = null;
+        }
+
+        const constraintCandidates: MediaStreamConstraints[] = [];
+
+        if (targetDeviceId) {
+          constraintCandidates.push({
+            video: {
+              deviceId: { exact: targetDeviceId },
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            },
+            audio: false,
+          });
+          constraintCandidates.push({
+            video: { deviceId: { exact: targetDeviceId } },
+            audio: false,
+          });
+        }
+
+        constraintCandidates.push(
+          {
+            video: {
+              facingMode: { ideal: targetFacing },
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            },
+            audio: false,
+          },
+          {
+            video: {
+              facingMode: targetFacing,
+            },
+            audio: false,
+          },
+          {
+            video: true,
+            audio: false,
+          },
+        );
+
+        let acquiredStream: MediaStream | null = null;
+        let lastErr: unknown = null;
+
+        for (const constraints of constraintCandidates) {
+          try {
+            acquiredStream = await navigator.mediaDevices.getUserMedia(constraints);
+            if (acquiredStream) break;
+          } catch (err) {
+            lastErr = err;
+          }
+        }
+
+        if (!acquiredStream) {
+          throw lastErr || new Error("Gagal membuka stream kamera");
+        }
+
+        streamRef.current = acquiredStream;
+
+        // Deteksi otomatis karakteristik kamera (apakah webcam laptop/depan atau kamera belakang HP/iPad)
+        const videoTrack = acquiredStream.getVideoTracks()[0];
+        if (videoTrack) {
+          const settings = videoTrack.getSettings?.() || {};
+          const label = (videoTrack.label || "").toLowerCase();
+          const isFrontOrWebcam =
+            settings.facingMode === "user" ||
+            (!settings.facingMode &&
+              (label.includes("front") ||
+                label.includes("facetime") ||
+                label.includes("integrated") ||
+                label.includes("webcam") ||
+                label.includes("usb") ||
+                targetFacing === "user"));
+          setMirrorVideo(Boolean(isFrontOrWebcam));
+          if (settings.deviceId) {
+            setSelectedDeviceId(settings.deviceId);
+          }
+        }
+
+        // Muat daftar kamera yang tersedia (HP multi-lensa, iPad, atau Laptop + Webcam eksternal)
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const cams = devices
+            .filter((d) => d.kind === "videoinput")
+            .map((d, idx) => ({
+              deviceId: d.deviceId,
+              label: d.label || `Kamera ${idx + 1}`,
+            }));
+          setVideoDevices(cams);
+        } catch {
+          // Abaikan bila tidak didukung
+        }
+
+        setCameraActive(true);
+        setStreamVersion((v) => v + 1);
+      } catch {
+        setCameraError(
+          "Izin kamera ditolak atau kamera sedang dipakai aplikasi lain. Izinkan akses kamera di pengaturan browser, atau ketik kode RSNP-XXXX di bawah.",
+        );
+        setCameraActive(false);
+      }
+    },
+    [facingMode, selectedDeviceId],
+  );
+
+  // Pastikan stream selalu terpasang ke elemen <video> begitu <video> ter-render (mencegah layar blank hitam di HP & iPad)
+  useEffect(() => {
+    if (!cameraActive || !streamRef.current || !videoRef.current) return;
+
+    const videoEl = videoRef.current;
+    const stream = streamRef.current;
+
+    videoEl.muted = true;
+    videoEl.playsInline = true;
+    videoEl.setAttribute("playsinline", "true");
+    videoEl.setAttribute("webkit-playsinline", "true");
+
+    if (videoEl.srcObject !== stream) {
+      videoEl.srcObject = stream;
+    }
+
+    const playVideo = async () => {
+      try {
+        await videoEl.play();
+        if (videoEl.readyState >= 2) {
+          setVideoReady(true);
+        }
+      } catch {
+        // Akan dipicu ulang saat onLoadedMetadata / onCanPlay
+      }
+    };
+
+    void playVideo();
+  }, [cameraActive, streamVersion]);
+
+  // Bersihkan kamera saat komponen unmount
   useEffect(() => {
     return () => {
       if (streamRef.current) {
@@ -241,52 +402,118 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
     };
   }, []);
 
-  // Loop deteksi Barcode 1D (Code-128) & QR Code menggunakan BarcodeDetector API
+  // Fungsi pemindaian 1 frame secara instan (dipakai oleh loop otomatis & tombol "Pindai Sekarang")
+  const scanCurrentVideoFrame = useCallback(
+    async (detector: BarcodeDetectorInstance | null) => {
+      const video = videoRef.current;
+      if (!video || video.readyState < 2 || isSubmittingRef.current) return;
+
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      if (!vw || !vh) return;
+
+      const handleDetectedCode = (rawVal: string) => {
+        const cleaned = rawVal.trim();
+        if (!cleaned) return false;
+        const now = Date.now();
+        if (
+          cleaned === lastScannedRef.current.code &&
+          now - lastScannedRef.current.at < 3000
+        ) {
+          return false;
+        }
+        lastScannedRef.current = { code: cleaned, at: now };
+        void submitVoucherScan(cleaned, kind);
+        return true;
+      };
+
+      // 1. Coba melalui Native BarcodeDetector API terlebih dahulu bila tersedia di perangkat
+      if (detector) {
+        try {
+          const barcodes = await detector.detect(video);
+          if (barcodes.length > 0 && barcodes[0].rawValue) {
+            if (handleDetectedCode(barcodes[0].rawValue)) return;
+          }
+        } catch {
+          // Lanjut ke dekoder optik Canvas Code-128B
+        }
+      }
+
+      // 2. Dekoder Optik Canvas Code-128B (bekerja di semua Laptop Webcam, iPad, iOS Safari & Android)
+      try {
+        let canvas = canvasRef.current;
+        if (!canvas) {
+          canvas = document.createElement("canvas");
+          canvasRef.current = canvas;
+        }
+
+        const targetW = Math.min(840, vw);
+        const targetH = Math.max(120, Math.round((vh / vw) * targetW));
+        if (canvas.width !== targetW || canvas.height !== targetH) {
+          canvas.width = targetW;
+          canvas.height = targetH;
+        }
+
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (!ctx) return;
+
+        ctx.drawImage(video, 0, 0, targetW, targetH);
+        const imageData = ctx.getImageData(0, 0, targetW, targetH);
+        const decodedCode128 = scanImageDataForCode128(imageData);
+
+        if (decodedCode128) {
+          handleDetectedCode(decodedCode128);
+        }
+      } catch {
+        // Abaikan bila frame belum siap
+      }
+    },
+    [kind, submitVoucherScan],
+  );
+
+  // Loop deteksi otomatis (menggabungkan Native BarcodeDetector + Canvas Code-128B Decoder setiap 170ms)
   useEffect(() => {
     if (!cameraActive) return;
 
     const win = window as unknown as WindowWithBarcodeDetector;
-    if (!win.BarcodeDetector) return;
-
     let detector: BarcodeDetectorInstance | null = null;
-    try {
-      detector = new win.BarcodeDetector({
-        formats: ["qr_code", "code_128", "code_39", "ean_13"],
-      });
-    } catch {
+    if (win.BarcodeDetector) {
       try {
-        detector = new win.BarcodeDetector();
+        detector = new win.BarcodeDetector({
+          formats: ["qr_code", "code_128", "code_39", "ean_13"],
+        });
       } catch {
-        detector = null;
+        try {
+          detector = new win.BarcodeDetector();
+        } catch {
+          detector = null;
+        }
       }
     }
 
-    if (!detector) return;
-
-    const interval = setInterval(async () => {
-      if (!videoRef.current || videoRef.current.readyState < 2 || isSubmitting) return;
-      try {
-        const barcodes = await detector.detect(videoRef.current);
-        if (barcodes.length > 0 && barcodes[0].rawValue) {
-          const rawVal = barcodes[0].rawValue.trim();
-          const now = Date.now();
-          // Cegah scan berulang pada kode yang sama dalam 3 detik
-          if (
-            rawVal === lastScannedRef.current.code &&
-            now - lastScannedRef.current.at < 3000
-          ) {
-            return;
-          }
-          lastScannedRef.current = { code: rawVal, at: now };
-          void submitVoucherScan(rawVal, kind);
-        }
-      } catch {
-        // Abaikan frame gagal deteksi
-      }
-    }, 350);
+    const interval = setInterval(() => {
+      void scanCurrentVideoFrame(detector);
+    }, 170);
 
     return () => clearInterval(interval);
-  }, [cameraActive, isSubmitting, kind, submitVoucherScan]);
+  }, [cameraActive, scanCurrentVideoFrame]);
+
+  // Ganti kamera depan <-> belakang (HP & iPad) atau pindah antar webcam (Laptop)
+  const handleSwitchCamera = useCallback(() => {
+    if (videoDevices.length > 1 && selectedDeviceId) {
+      const currentIdx = videoDevices.findIndex((d) => d.deviceId === selectedDeviceId);
+      const nextDevice = videoDevices[(currentIdx + 1) % videoDevices.length];
+      if (nextDevice) {
+        setSelectedDeviceId(nextDevice.deviceId);
+        void startCamera({ deviceId: nextDevice.deviceId });
+        return;
+      }
+    }
+    const nextFacing = facingMode === "environment" ? "user" : "environment";
+    setFacingMode(nextFacing);
+    setSelectedDeviceId("");
+    void startCamera({ preferredFacing: nextFacing, deviceId: "" });
+  }, [facingMode, selectedDeviceId, startCamera, videoDevices]);
 
   const filteredEligible = guestSearch.trim()
     ? eligibleGuests
@@ -299,19 +526,19 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
     : [];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 sm:gap-6">
       {/* Header & Pemilih Mode Booth (Makan vs Photobooth) */}
       {!compact ? (
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
           <div>
             <div className="inline-flex items-center gap-1.5 rounded-full bg-brand-purple/10 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-brand-purple">
               <Sparkles className="size-3 text-brand-gold" />
               <span>Scanner Voucher Terpadu 2-in-1</span>
             </div>
-            <h1 className="mt-1 text-2xl font-black text-ink sm:text-3xl">
+            <h1 className="mt-1 text-xl font-black text-ink sm:text-2xl lg:text-3xl">
               Scanner Barcode Makan & Photobooth
             </h1>
-            <p className="text-sm text-ink-muted">
+            <p className="text-xs text-ink-muted sm:text-sm">
               1 Barcode tamu berlaku untuk <strong>1x Makan</strong> dan{" "}
               <strong>1x Photobooth</strong> secara terpisah.
             </p>
@@ -328,50 +555,58 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
         </div>
       ) : null}
 
-      {/* Kartu Ringkasan Kuota Voucher */}
-      <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3">
-        <Card className="flex flex-col justify-between gap-1.5 rounded-2xl border-line p-4">
+      {/* Kartu Ringkasan Kuota Voucher (Responsif HP, iPad, Laptop) */}
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3.5">
+        <Card className="flex flex-col justify-between gap-1 rounded-2xl border-line p-3.5 sm:p-4">
           <div className="flex items-center justify-between text-brand-blue">
-            <span className="text-xs font-black uppercase tracking-wider">Tamu Check-In</span>
-            <UserCheck className="size-4" />
+            <span className="text-[11px] font-black uppercase tracking-wider sm:text-xs">
+              Tamu Check-In
+            </span>
+            <UserCheck className="size-4 shrink-0" />
           </div>
           <div>
-            <span className="text-3xl font-black text-ink">{stats.eligibleCount}</span>
+            <span className="text-2xl font-black text-ink sm:text-3xl">
+              {stats.eligibleCount}
+            </span>
             <p className="text-[11px] font-semibold text-ink-muted">Berhak klaim voucher</p>
           </div>
         </Card>
 
-        <Card className="flex flex-col justify-between gap-1.5 rounded-2xl border-brand-orange/35 bg-gradient-to-br from-white to-brand-orange/10 p-4">
+        <Card className="flex flex-col justify-between gap-1 rounded-2xl border-brand-orange/35 bg-gradient-to-br from-white to-brand-orange/10 p-3.5 sm:p-4">
           <div className="flex items-center justify-between text-brand-orange">
-            <span className="text-xs font-black uppercase tracking-wider">Kupon Makan</span>
-            <Utensils className="size-4" />
+            <span className="text-[11px] font-black uppercase tracking-wider sm:text-xs">
+              Kupon Makan
+            </span>
+            <Utensils className="size-4 shrink-0" />
           </div>
           <div>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-3xl font-black text-brand-orange">
+              <span className="text-2xl font-black text-brand-orange sm:text-3xl">
                 {stats.mealRedeemedCount}
               </span>
-              <span className="text-xs font-bold text-ink-muted">
-                / {stats.eligibleCount} ditukar
+              <span className="text-[11px] font-bold text-ink-muted sm:text-xs">
+                / {stats.eligibleCount}
               </span>
             </div>
             <p className="text-[11px] font-semibold text-ink-muted">
-              Sisa {stats.mealRemainingCount} belum klaim makan
+              Sisa {stats.mealRemainingCount} belum klaim
             </p>
           </div>
         </Card>
 
-        <Card className="col-span-2 flex flex-col justify-between gap-1.5 rounded-2xl border-brand-purple/35 bg-gradient-to-br from-white to-brand-purple/10 p-4 sm:col-span-1">
+        <Card className="col-span-2 flex flex-col justify-between gap-1 rounded-2xl border-brand-purple/35 bg-gradient-to-br from-white to-brand-purple/10 p-3.5 sm:col-span-1 sm:p-4">
           <div className="flex items-center justify-between text-brand-purple">
-            <span className="text-xs font-black uppercase tracking-wider">Photobooth</span>
-            <Camera className="size-4" />
+            <span className="text-[11px] font-black uppercase tracking-wider sm:text-xs">
+              Photobooth
+            </span>
+            <Camera className="size-4 shrink-0" />
           </div>
           <div>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-3xl font-black text-brand-purple">
+              <span className="text-2xl font-black text-brand-purple sm:text-3xl">
                 {stats.photoboothRedeemedCount}
               </span>
-              <span className="text-xs font-bold text-ink-muted">
+              <span className="text-[11px] font-bold text-ink-muted sm:text-xs">
                 / {stats.eligibleCount} dipakai
               </span>
             </div>
@@ -382,11 +617,11 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
         </Card>
       </div>
 
-      {/* Area Utama: Pemilih Booth + Kamera / Input Manual + Kartu Hasil */}
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
+      {/* Area Utama: Responsif di HP (1 kolom), iPad (12 kolom proporsional), dan Laptop */}
+      <div className="grid grid-cols-1 items-start gap-4 sm:gap-6 md:grid-cols-12">
         {/* Kolom Kiri: Kontrol Scanner */}
-        <div className="flex flex-col gap-4 lg:col-span-7">
-          <Card className="flex flex-col gap-5 rounded-3xl border-white/80 bg-white/95 p-5 shadow-lg sm:p-6">
+        <div className="flex flex-col gap-4 md:col-span-7">
+          <Card className="flex flex-col gap-4 rounded-3xl border-white/80 bg-white/95 p-4 shadow-lg sm:gap-5 sm:p-6">
             {/* Langkah 1: Pilih Mode Booth */}
             <div className="flex flex-col gap-2">
               <span className="text-xs font-black uppercase tracking-wider text-ink-muted">
@@ -412,7 +647,7 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
               <div
                 role="status"
                 aria-live="assertive"
-                className={`flex flex-col gap-3 rounded-2xl border-2 p-4 shadow-md animate-in fade-in zoom-in-95 duration-200 ${
+                className={`flex flex-col gap-3 rounded-2xl border-2 p-3.5 shadow-md animate-in fade-in zoom-in-95 duration-200 sm:p-4 ${
                   scanResult.ok
                     ? "border-success bg-success/10 text-ink"
                     : "border-error bg-error/10 text-ink"
@@ -421,19 +656,19 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div
-                      className={`flex size-11 shrink-0 items-center justify-center rounded-2xl text-white shadow-sm ${
+                      className={`flex size-10 shrink-0 items-center justify-center rounded-2xl text-white shadow-sm sm:size-11 ${
                         scanResult.ok ? "bg-success" : "bg-error"
                       }`}
                     >
                       {scanResult.ok ? (
-                        <CheckCircle2 className="size-6" />
+                        <CheckCircle2 className="size-5 sm:size-6" />
                       ) : (
-                        <AlertTriangle className="size-6" />
+                        <AlertTriangle className="size-5 sm:size-6" />
                       )}
                     </div>
                     <div className="flex flex-col">
                       <span
-                        className={`text-xs font-black uppercase tracking-wider ${
+                        className={`text-[11px] font-black uppercase tracking-wider sm:text-xs ${
                           scanResult.ok ? "text-success" : "text-error"
                         }`}
                       >
@@ -445,7 +680,7 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
                             }`
                           : "DITOLAK · VOUCHER TIDAK DAPAT DIGUNAKAN"}
                       </span>
-                      <span className="text-base font-black text-ink">
+                      <span className="text-sm font-black text-ink sm:text-base">
                         {scanResult.guest?.name || scanResult.message}
                       </span>
                       {scanResult.guest?.category ? (
@@ -468,7 +703,7 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
                 </p>
 
                 {scanResult.guest ? (
-                  <div className="grid grid-cols-2 gap-2 rounded-xl bg-white/85 p-2.5 text-[11px] font-bold">
+                  <div className="grid grid-cols-1 gap-1.5 rounded-xl bg-white/85 p-2.5 text-[11px] font-bold sm:grid-cols-2 sm:gap-2">
                     <div>
                       Makan:{" "}
                       <strong className="text-ink">
@@ -490,31 +725,88 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
               </div>
             ) : null}
 
-            {/* Langkah 2: Kamera Pemindai Otomatis */}
+            {/* Langkah 2: Kamera Pemindai Otomatis (Responsif HP, iPad, dan Laptop) */}
             <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-black uppercase tracking-wider text-ink-muted">
                   2. Kamera Pemindai Barcode / QR
                 </span>
-                <Button
-                  type="button"
-                  variant={cameraActive ? "secondary" : "primary"}
-                  onClick={() => (cameraActive ? stopCamera() : void startCamera())}
-                  className="h-9 px-3 text-xs font-extrabold"
-                >
+                <div className="flex flex-wrap items-center gap-1.5">
                   {cameraActive ? (
                     <>
-                      <CameraOff className="size-3.5" />
-                      Matikan Kamera
+                      <button
+                        type="button"
+                        onClick={handleSwitchCamera}
+                        className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-line bg-surface px-2.5 text-xs font-bold text-ink shadow-2xs transition hover:bg-surface-soft"
+                        title="Ganti Kamera Depan / Belakang"
+                      >
+                        <SwitchCamera className="size-3.5 text-brand-purple" />
+                        <span>Balik Kamera</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMirrorVideo((m) => !m)}
+                        className={`inline-flex h-9 items-center gap-1 rounded-xl border px-2.5 text-xs font-bold transition ${
+                          mirrorVideo
+                            ? "border-brand-blue/40 bg-brand-blue/10 text-brand-blue"
+                            : "border-line bg-surface text-ink-muted hover:bg-surface-soft"
+                        }`}
+                        title="Mirror tampilan video (berguna untuk webcam laptop)"
+                      >
+                        <FlipHorizontal className="size-3.5" />
+                        <span className="hidden sm:inline">Mirror</span>
+                      </button>
                     </>
-                  ) : (
-                    <>
-                      <Camera className="size-3.5" />
-                      Aktifkan Kamera Scanner
-                    </>
-                  )}
-                </Button>
+                  ) : null}
+
+                  <Button
+                    type="button"
+                    variant={cameraActive ? "secondary" : "primary"}
+                    onClick={() => (cameraActive ? stopCamera() : void startCamera())}
+                    className="h-9 px-3 text-xs font-extrabold"
+                  >
+                    {cameraActive ? (
+                      <>
+                        <CameraOff className="size-3.5" />
+                        Matikan
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="size-3.5" />
+                        Aktifkan Kamera
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
+
+              {/* Pilihan Lensa Kamera bila perangkat memiliki >1 kamera */}
+              {cameraActive && videoDevices.length > 1 ? (
+                <div className="flex items-center gap-2">
+                  <label
+                    htmlFor="scanner-camera-select"
+                    className="shrink-0 text-[11px] font-bold text-ink-muted"
+                  >
+                    Lensa:
+                  </label>
+                  <select
+                    id="scanner-camera-select"
+                    value={selectedDeviceId}
+                    onChange={(e) => {
+                      const nextId = e.target.value;
+                      setSelectedDeviceId(nextId);
+                      void startCamera({ deviceId: nextId });
+                    }}
+                    className="h-8 w-full rounded-xl border border-line bg-surface px-2.5 text-xs font-semibold text-ink focus:border-brand-purple focus:outline-none"
+                  >
+                    {videoDevices.map((dev, idx) => (
+                      <option key={dev.deviceId || idx} value={dev.deviceId}>
+                        {dev.label || `Kamera ${idx + 1}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
 
               {cameraError ? (
                 <div className="rounded-2xl border border-warning/40 bg-warning/10 p-3 text-xs font-semibold text-warning">
@@ -523,22 +815,70 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
               ) : null}
 
               {cameraActive ? (
-                <div className="relative aspect-video w-full overflow-hidden rounded-2xl border-2 border-brand-purple bg-black shadow-inner">
+                <div
+                  className={`relative aspect-[4/3] max-h-[46vh] w-full overflow-hidden rounded-2xl border-2 bg-neutral-950 shadow-inner transition sm:aspect-[16/10] sm:max-h-[360px] lg:aspect-video lg:max-h-[400px] ${
+                    scanPulse
+                      ? "border-success ring-4 ring-success/30"
+                      : "border-brand-purple"
+                  }`}
+                >
                   <video
                     ref={videoRef}
+                    autoPlay
                     playsInline
                     muted
-                    className="size-full object-cover"
+                    onLoadedMetadata={(e) => {
+                      const el = e.currentTarget;
+                      void el.play().catch(() => {});
+                      if (el.readyState >= 2) setVideoReady(true);
+                    }}
+                    onCanPlay={() => setVideoReady(true)}
+                    onPlaying={() => setVideoReady(true)}
+                    className={`size-full object-cover transition-transform duration-200 ${
+                      mirrorVideo ? "-scale-x-100" : ""
+                    }`}
                   />
-                  {/* Bingkai Viewfinder & Laser Scanline */}
-                  <div className="pointer-events-none absolute inset-6 rounded-2xl border-2 border-white/60">
-                    <div className="animate-scanline absolute inset-x-2 h-1 rounded-full bg-gradient-brand shadow-[0_0_16px_rgba(242,185,46,0.9)]" />
+
+                  {/* Indikator Loading Kamera sebelum frame pertama muncul */}
+                  {!videoReady ? (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-neutral-950/85 p-4 text-center text-white">
+                      <Loader2 className="size-7 animate-spin text-brand-gold" />
+                      <span className="text-xs font-bold">
+                        Menyiapkan lensa kamera...
+                      </span>
+                    </div>
+                  ) : null}
+
+                  {/* Bingkai Viewfinder & Laser Scanline Responsif */}
+                  <div className="pointer-events-none absolute inset-x-4 inset-y-6 rounded-2xl border-2 border-white/70 shadow-[0_0_0_9999px_rgba(0,0,0,0.28)] sm:inset-x-8 sm:inset-y-8">
+                    {/* Sudut Penanda Fokus Barcode */}
+                    <div className="absolute -top-0.5 -left-0.5 size-5 rounded-tl-xl border-t-4 border-l-4 border-brand-gold" />
+                    <div className="absolute -top-0.5 -right-0.5 size-5 rounded-tr-xl border-t-4 border-r-4 border-brand-gold" />
+                    <div className="absolute -bottom-0.5 -left-0.5 size-5 rounded-bl-xl border-b-4 border-l-4 border-brand-gold" />
+                    <div className="absolute -bottom-0.5 -right-0.5 size-5 rounded-br-xl border-b-4 border-r-4 border-brand-gold" />
+
+                    <div className="animate-scanline absolute inset-x-2 h-1 rounded-full bg-gradient-brand shadow-[0_0_16px_rgba(242,185,46,0.95)]" />
                   </div>
-                  <div className="absolute inset-x-0 bottom-2 text-center">
-                    <span className="rounded-full bg-black/70 px-3 py-1 text-[11px] font-bold text-white">
-                      Arahkan kamera ke Barcode / QR Tiket Tamu (Mode:{" "}
-                      {kind === "meal" ? "Makan" : "Photobooth"})
+
+                  {/* Status Bar Kamera Atas */}
+                  <div className="pointer-events-none absolute top-2.5 left-2.5 flex items-center gap-1.5 rounded-full bg-black/65 px-2.5 py-1 text-[10px] font-extrabold text-white backdrop-blur-xs">
+                    <span className="size-2 animate-pulse rounded-full bg-success" />
+                    <span>AUTO-SCAN AKTIF (BARCODE & QR)</span>
+                  </div>
+
+                  {/* Instruksi Bawah & Tombol Pindai Instan */}
+                  <div className="absolute inset-x-2 bottom-2 flex items-center justify-between gap-2">
+                    <span className="truncate rounded-full bg-black/75 px-3 py-1 text-[11px] font-bold text-white backdrop-blur-xs">
+                      Arahkan Barcode Tiket ke tengah kotak ({kind === "meal" ? "Makan" : "Photobooth"})
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => void scanCurrentVideoFrame(null)}
+                      disabled={isSubmitting}
+                      className="shrink-0 rounded-full bg-brand-gold px-3 py-1 text-[11px] font-black text-ink shadow-md transition active:scale-95 disabled:opacity-50"
+                    >
+                      Pindai Sekarang
+                    </button>
                   </div>
                 </div>
               ) : null}
@@ -558,7 +898,7 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
               >
                 3. Ketik Kode Barcode / Gunakan Alat Scanner USB
               </label>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <Input
                   id="manual-voucher-input"
                   placeholder="Contoh: RSNP-8F3A92C1 atau 8F3A92C1"
@@ -569,7 +909,7 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
                 <Button
                   type="submit"
                   disabled={!manualCode.trim() || isSubmitting}
-                  className="h-11 px-4 text-xs font-black"
+                  className="h-11 shrink-0 px-4 text-xs font-black"
                 >
                   {isSubmitting ? (
                     <Loader2 className="size-4 animate-spin" />
@@ -615,7 +955,7 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
                     return (
                       <div
                         key={g.id}
-                        className="flex items-center justify-between gap-2 px-3.5 py-2.5 text-xs"
+                        className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 text-xs"
                       >
                         <div className="flex flex-col">
                           <span className="font-black text-ink">{g.name}</span>
@@ -655,11 +995,11 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
         </div>
 
         {/* Kolom Kanan: Riwayat Penukaran Voucher Terbaru */}
-        <div className="flex flex-col gap-4 lg:col-span-5">
-          <Card className="flex flex-col gap-3.5 rounded-3xl p-5 shadow-sm">
+        <div className="flex flex-col gap-4 md:col-span-5">
+          <Card className="flex flex-col gap-3.5 rounded-3xl p-4 shadow-sm sm:p-5">
             <div className="flex items-center justify-between border-b border-line pb-3">
               <div>
-                <h2 className="text-base font-extrabold text-ink">
+                <h2 className="text-sm font-extrabold text-ink sm:text-base">
                   Riwayat Scan Voucher Terakhir
                 </h2>
                 <p className="text-xs text-ink-muted">
@@ -674,10 +1014,10 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
                 Belum ada voucher makan atau photobooth yang di-scan.
               </p>
             ) : (
-              <div className="flex max-h-[460px] flex-col divide-y divide-line overflow-y-auto pr-1 text-xs">
+              <div className="flex max-h-[380px] flex-col divide-y divide-line overflow-y-auto pr-1 text-xs sm:max-h-[460px]">
                 {history.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between py-2.5">
-                    <div className="flex items-center gap-2.5">
+                  <div key={item.id} className="flex items-center justify-between gap-2 py-2.5">
+                    <div className="flex min-w-0 items-center gap-2.5">
                       <div
                         className={`flex size-8 shrink-0 items-center justify-center rounded-xl text-white ${
                           item.kind === "meal" ? "bg-brand-orange" : "bg-brand-purple"
@@ -689,15 +1029,17 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
                           <Camera className="size-4" />
                         )}
                       </div>
-                      <div className="flex flex-col">
-                        <span className="font-bold text-ink">{item.guestName}</span>
-                        <span className="text-[11px] text-ink-muted">
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate font-bold text-ink">{item.guestName}</span>
+                        <span className="truncate text-[11px] text-ink-muted">
                           {item.kind === "meal" ? "Voucher Makan" : "Photobooth"} ·{" "}
                           <span className="font-mono">{item.voucherCode}</span>
                         </span>
                       </div>
                     </div>
-                    <span className="font-bold tabular-nums text-ink">{item.redeemedAtWib}</span>
+                    <span className="shrink-0 font-bold tabular-nums text-ink">
+                      {item.redeemedAtWib}
+                    </span>
                   </div>
                 ))}
               </div>

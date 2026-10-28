@@ -1,4 +1,5 @@
 // Komponen SVG Barcode 1D Code-128B minimalis & presisi tinggi untuk Tiket VIP RE:SNAPS.
+// Mengenkode payload padat ber-bar lebar agar sangat cepat terbaca oleh webcam laptop, iPad, maupun HP.
 "use client";
 
 import { useMemo } from "react";
@@ -14,15 +15,21 @@ type Barcode128Props = {
 
 export function Barcode128({
   value,
-  height = 64,
+  height = 72,
   className = "",
   showLabel = true,
   variant = "default",
 }: Barcode128Props) {
+  const cleanCode = value.trim().toUpperCase();
+  const rawBody = cleanCode.replace(/^RSNP-/, "");
+
+  // Gunakan payload 8-karakter inti untuk kepadatan batang 50% lebih lebar (otomatis dinormalisasi ke RSNP-XXXX saat scan)
+  const encodedPayload = /^[0-9A-F]{8}$/.test(rawBody) ? rawBody : cleanCode;
+
   const { bars, totalModules } = useMemo(() => {
     try {
-      const bits = encodeCode128B(value);
-      const quietZone = 12;
+      const bits = encodeCode128B(encodedPayload);
+      const quietZone = 14;
       const rects: { x: number; w: number; isGuard: boolean }[] = [];
       let i = 0;
       while (i < bits.length) {
@@ -46,18 +53,16 @@ export function Barcode128({
     } catch {
       return { bars: [], totalModules: 100 };
     }
-  }, [value]);
+  }, [encodedPayload]);
 
   if (bars.length === 0) return null;
 
-  const cleanCode = value.trim().toUpperCase();
-  const rawBody = cleanCode.replace(/^RSNP-/, "");
   const formattedSerial =
     rawBody.length === 8
       ? `RSNP   ${rawBody.slice(0, 4)}   ${rawBody.slice(4, 8)}`
       : cleanCode;
 
-  const guardExtra = 5;
+  const guardExtra = 6;
   const svgHeight = height + guardExtra;
 
   return (
@@ -67,11 +72,11 @@ export function Barcode128({
       <svg
         viewBox={`0 0 ${totalModules} ${svgHeight}`}
         className={`${
-          variant === "zoom" ? "h-22 sm:h-26" : "h-16 sm:h-18"
+          variant === "zoom" ? "h-24 sm:h-28" : "h-18 sm:h-20"
         } w-full max-w-[340px] select-none`}
         preserveAspectRatio="none"
         role="img"
-        aria-label={`Barcode ${value}`}
+        aria-label={`Barcode ${cleanCode}`}
       >
         <rect width={totalModules} height={svgHeight} fill="#FFFFFF" />
         {bars.map((b, idx) => (
@@ -81,14 +86,14 @@ export function Barcode128({
             y={0}
             width={b.w}
             height={b.isGuard ? svgHeight : height}
-            fill="#0F1420"
+            fill="#000000"
             shapeRendering="crispEdges"
           />
         ))}
       </svg>
 
       {showLabel ? (
-        <span className="mt-2.5 font-mono text-[11px] font-bold tracking-[0.28em] text-ink/75">
+        <span className="mt-2.5 font-mono text-[11px] font-bold tracking-[0.28em] text-ink/80">
           {formattedSerial}
         </span>
       ) : null}

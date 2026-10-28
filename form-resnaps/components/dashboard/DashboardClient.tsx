@@ -960,12 +960,12 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
 
       {/* Modal Cepat Scanner Voucher Makan & Photobooth langsung dari Dashboard */}
       {showScannerModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm">
-          <div className="relative my-8 flex w-full max-w-4xl flex-col gap-4 rounded-3xl bg-canvas p-5 shadow-2xl sm:p-6">
-            <div className="flex items-center justify-between border-b border-line pb-3">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-2.5 backdrop-blur-sm sm:items-center sm:p-4">
+          <div className="relative my-auto flex max-h-[92dvh] w-full max-w-5xl flex-col gap-4 overflow-y-auto rounded-3xl bg-canvas p-4 shadow-2xl sm:p-6">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-canvas/95 pb-3 backdrop-blur-xs">
               <div className="flex items-center gap-2">
-                <ScanLine className="size-5 text-brand-magenta" />
-                <span className="text-base font-black text-ink">
+                <ScanLine className="size-5 shrink-0 text-brand-magenta" />
+                <span className="text-sm font-black text-ink sm:text-base">
                   Scanner Voucher Makan & Photobooth (1x Pakai)
                 </span>
               </div>
