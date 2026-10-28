@@ -2,7 +2,8 @@
 // serta status pemakaian Voucher Makan & Photobooth (1x pakai) secara real-time.
 import { NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { findEnrichedGuest } from "@/lib/guest-extras";
+import { findEnrichedGuest, isDeviceLockEnabled } from "@/lib/guest-extras";
+import { clearDeviceGuestCookie } from "@/lib/session";
 import { formatWib } from "@/lib/time";
 import { fail, ok } from "@/lib/api";
 import { allow, ipKey, LIMITS } from "@/lib/rate-limit";
@@ -19,12 +20,22 @@ export async function GET(req: NextRequest) {
   }
 
   const db = createAdminClient();
-  const guest = await findEnrichedGuest(db, lookupKey);
+  const [guest, deviceLockEnabled] = await Promise.all([
+    findEnrichedGuest(db, lookupKey),
+    isDeviceLockEnabled(db),
+  ]);
   if (!guest) {
     return fail("not_found");
   }
 
+  // Jika Admin telah membatalkan / me-reset absensi tamu ini kembali ke 'belum_hadir',
+  // buka juga kunci cookie perangkat secara otomatis agar tamu dapat memilih nama yang benar.
+  if (guest.status === "belum_hadir") {
+    await clearDeviceGuestCookie();
+  }
+
   return ok({
+    deviceLockEnabled,
     ticket: {
       guestId: guest.guest_id,
       guestName: guest.full_name,
@@ -45,6 +56,7 @@ export async function GET(req: NextRequest) {
       photoboothRedeemedAtWib: guest.photobooth_redeemed_at
         ? formatWib(guest.photobooth_redeemed_at)
         : null,
+      deviceResetAt: guest.device_reset_at,
     },
   });
 }

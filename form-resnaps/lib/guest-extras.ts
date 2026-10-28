@@ -31,6 +31,7 @@ export type EnrichedGuestRow = {
   voucher_code: string;
   meal_redeemed_at: string | null;
   photobooth_redeemed_at: string | null;
+  device_reset_at: string | null;
 };
 
 const EXTRAS_SETTING_KEY = "guest_extras_v1";
@@ -72,6 +73,7 @@ export type StoredExtraRecord = {
   mealRedeemedBy?: string | null;
   photoboothRedeemedAt?: string | null;
   photoboothRedeemedBy?: string | null;
+  deviceResetAt?: string | null;
 };
 
 type StoredExtrasMap = Record<string, StoredExtraRecord>;
@@ -103,6 +105,25 @@ export async function writeExtrasStore(
     },
     { onConflict: "key" },
   );
+}
+
+/**
+ * Mengecek apakah fitur keamanan Kunci 1 Perangkat = 1 Tamu aktif (default: true).
+ * Dapat dikontrol oleh Admin melalui Pengaturan.
+ */
+export async function isDeviceLockEnabled(
+  db: ReturnType<typeof createAdminClient>,
+): Promise<boolean> {
+  const { data } = await db
+    .from("event_settings")
+    .select("value")
+    .eq("key", "device_lock_enabled")
+    .maybeSingle();
+
+  if (data && typeof data.value === "boolean") {
+    return data.value;
+  }
+  return true;
 }
 
 /**
@@ -168,6 +189,7 @@ export async function fetchEnrichedGuests(
         voucher_code: voucherCode,
         meal_redeemed_at: mealRedeemedAt,
         photobooth_redeemed_at: photoboothRedeemedAt,
+        device_reset_at: over?.deviceResetAt ?? null,
       };
     });
   }
@@ -217,6 +239,7 @@ export async function fetchEnrichedGuests(
       voucher_code: voucherCode,
       meal_redeemed_at: mealRedeemedAt,
       photobooth_redeemed_at: photoboothRedeemedAt,
+      device_reset_at: over?.deviceResetAt ?? null,
     };
   });
 }

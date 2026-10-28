@@ -27,6 +27,7 @@ import {
   ShieldCheck,
   Loader2,
   X,
+  RotateCcw,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -222,10 +223,10 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
     };
   }, [fetchData, fetchLiveActivity]);
 
-  // Fungsi menyetujui masuk tamu yang ditahan (Hold HTM) atau menandai Lunas
+  // Fungsi menyetujui masuk tamu yang ditahan (Hold HTM), menandai Lunas, atau me-recovery salah absen
   async function handleApproveOrMarkPaid(
     guest: UnpaidGuestItem,
-    action: "approve_checkin" | "set_payment",
+    action: "approve_checkin" | "set_payment" | "reset_attendance",
   ) {
     setProcessingGuestId(guest.id);
     setActionBanner(null);
@@ -236,7 +237,7 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
         body: JSON.stringify({
           guest_id: guest.id,
           action,
-          payment_status: "lunas",
+          payment_status: action === "reset_attendance" ? undefined : "lunas",
         }),
       });
       const d = await res.json();
@@ -244,7 +245,9 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
         setActionBanner(
           action === "approve_checkin"
             ? `✅ HTM ${guest.name} dilunasi & diizinkan masuk! Tiket & Barcode Voucher otomatis aktif di HP tamu.`
-            : `✅ Status HTM ${guest.name} berhasil ditandai LUNAS.`,
+            : action === "reset_attendance"
+              ? `🔄 Recovery berhasil: Status Hold ${guest.name} dibatalkan & kunci perangkat HP tamu telah dibuka kembali.`
+              : `✅ Status HTM ${guest.name} berhasil ditandai LUNAS.`,
         );
         await fetchData();
       }
@@ -450,20 +453,32 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
                     {g.category || "Tamu"} · Hold pukul {g.holdAtWib || "Barusan"}
                   </span>
                 </div>
-                <Button
-                  onClick={() => void handleApproveOrMarkPaid(g, "approve_checkin")}
-                  disabled={processingGuestId === g.id}
-                  className="h-9 shrink-0 rounded-xl bg-success px-3 text-xs font-black text-white shadow-xs hover:brightness-95"
-                >
-                  {processingGuestId === g.id ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <>
-                      <CheckCircle2 className="size-3.5" />
-                      Lunasi & Izinkan Masuk
-                    </>
-                  )}
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    onClick={() => void handleApproveOrMarkPaid(g, "approve_checkin")}
+                    disabled={processingGuestId === g.id}
+                    className="h-9 shrink-0 rounded-xl bg-success px-3 text-xs font-black text-white shadow-xs hover:brightness-95"
+                  >
+                    {processingGuestId === g.id ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <>
+                        <CheckCircle2 className="size-3.5" />
+                        Lunasi & Izinkan Masuk
+                      </>
+                    )}
+                  </Button>
+                  <button
+                    type="button"
+                    disabled={processingGuestId === g.id}
+                    onClick={() => void handleApproveOrMarkPaid(g, "reset_attendance")}
+                    className="inline-flex h-9 items-center gap-1 rounded-xl border border-error/40 bg-error/10 px-2.5 text-xs font-bold text-error hover:bg-error/15"
+                    title="Recovery bila tamu salah memilih nama & buka kunci HP tamu"
+                  >
+                    <RotateCcw className="size-3.5" />
+                    Reset (Salah Absen)
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -764,7 +779,18 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
                       >
                         Tandai Lunas
                       </button>
-                    ) : null}
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={processingGuestId === g.id}
+                        onClick={() => void handleApproveOrMarkPaid(g, "reset_attendance")}
+                        className="inline-flex items-center gap-1 rounded-xl border border-error/40 bg-error/10 px-2.5 py-2 text-xs font-bold text-error hover:bg-error/15 disabled:opacity-50"
+                        title="Buka kunci HP tamu bila salah klik nama"
+                      >
+                        <RotateCcw className="size-3.5" />
+                        Recovery HP
+                      </button>
+                    )}
                   </div>
                 </div>
               );

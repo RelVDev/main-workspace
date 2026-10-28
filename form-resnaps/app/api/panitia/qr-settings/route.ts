@@ -18,6 +18,8 @@ export async function POST(req: NextRequest) {
   const graceWindows = Number(body?.qr_grace_windows);
   const ttlSec = Number(body?.session_ttl_seconds);
   const verificationMode = Boolean(body?.verification_mode);
+  const deviceLockEnabled =
+    body?.device_lock_enabled !== undefined ? Boolean(body.device_lock_enabled) : true;
 
   if (
     !Number.isFinite(windowSec) ||
@@ -39,13 +41,18 @@ export async function POST(req: NextRequest) {
     { key: "qr_grace_windows", value: graceWindows as unknown as Json },
     { key: "session_ttl_seconds", value: ttlSec as unknown as Json },
     { key: "verification_mode", value: verificationMode as unknown as Json },
+    { key: "device_lock_enabled", value: deviceLockEnabled as unknown as Json },
   ];
 
   for (const u of updates) {
-    await db
-      .from("event_settings")
-      .update({ value: u.value as NonNullable<Json>, updated_at: new Date().toISOString() })
-      .eq("key", u.key);
+    await db.from("event_settings").upsert(
+      {
+        key: u.key,
+        value: u.value as NonNullable<Json>,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "key" },
+    );
   }
 
   await db.from("audit_logs").insert({
@@ -56,6 +63,7 @@ export async function POST(req: NextRequest) {
       qr_grace_windows: graceWindows,
       session_ttl_seconds: ttlSec,
       verification_mode: verificationMode,
+      device_lock_enabled: deviceLockEnabled,
     },
   });
 
@@ -64,5 +72,6 @@ export async function POST(req: NextRequest) {
     qr_grace_windows: graceWindows,
     session_ttl_seconds: ttlSec,
     verification_mode: verificationMode,
+    device_lock_enabled: deviceLockEnabled,
   });
 }

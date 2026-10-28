@@ -3,11 +3,11 @@
 import { NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { lookupSession } from "@/lib/scan-session";
-import { clearSessionCookie } from "@/lib/session";
+import { clearSessionCookie, readDeviceGuestId, setDeviceGuestCookie } from "@/lib/session";
 import { guestId } from "@/lib/validation/schemas";
 import { fail, ok } from "@/lib/api";
 import { allow, ipKey, LIMITS } from "@/lib/rate-limit";
-import { findEnrichedGuest, updateGuestExtra } from "@/lib/guest-extras";
+import { findEnrichedGuest, isDeviceLockEnabled, updateGuestExtra } from "@/lib/guest-extras";
 import { generateVoucherCode } from "@/lib/voucher";
 
 export async function POST(req: NextRequest) {
@@ -23,6 +23,23 @@ export async function POST(req: NextRequest) {
 
   const db = createAdminClient();
   const targetId = parsed.data.guest_id;
+
+  // Keamanan Anti-Titip Absen: 1 Perangkat = 1 Tamu (bila fitur device_lock_enabled aktif)
+  const lockEnabled = await isDeviceLockEnabled(db);
+  if (lockEnabled) {
+    const cookieGuestId = await readDeviceGuestId();
+    const clientLockedId = parsed.data.locked_guest_id;
+    const boundGuestId = cookieGuestId || clientLockedId || null;
+
+    if (boundGuestId && boundGuestId !== targetId) {
+      const boundGuest = await findEnrichedGuest(db, boundGuestId);
+      // Jika tamu sebelumnya pada perangkat ini masih berstatus hadir / ditahan (belum di-recovery Admin), tolak!
+      if (boundGuest && boundGuest.status !== "belum_hadir") {
+        return fail("device_locked");
+      }
+    }
+  }
+
   const enriched = await findEnrichedGuest(db, targetId);
   if (!enriched) return fail("not_found");
 
@@ -43,6 +60,7 @@ export async function POST(req: NextRequest) {
       .eq("id", s.session.id);
 
     await clearSessionCookie();
+    await setDeviceGuestCookie(targetId);
     return ok({
       status: "on_hold",
       mode: "in",
@@ -77,6 +95,7 @@ export async function POST(req: NextRequest) {
       voucherCode: payload.voucher_code || voucherCode,
     });
     await clearSessionCookie();
+    await setDeviceGuestCookie(targetId);
     return ok({
       status: "on_hold",
       mode: "in",
@@ -99,8 +118,9 @@ export async function POST(req: NextRequest) {
     voucherCode: payload.voucher_code || voucherCode,
   });
 
-  // Sukses: sesi sudah dikonsumsi di DB; hapus cookie agar tidak dipakai ulang.
+  // Sukses: sesi sudah dikonsumsi di DB; hapus cookie sesi scan & kunci cookie perangkat ke tamu ini.
   await clearSessionCookie();
+  await setDeviceGuestCookie(targetId);
   return ok({
     status: "ok",
     mode: s.session.mode,

@@ -114,15 +114,18 @@ export async function GET(req: NextRequest) {
     category: l.guests?.category || null,
   }));
 
-  // 3. Status buka/tutup absen dari event_settings
+  // 3. Status buka/tutup absen & kunci perangkat dari event_settings
   const { data: settings } = await db
     .from("event_settings")
     .select("key, value")
-    .in("key", ["checkin_open", "checkout_open"]);
+    .in("key", ["checkin_open", "checkout_open", "device_lock_enabled", "verification_mode"]);
 
   const settingsMap = new Map((settings || []).map((s) => [s.key, s.value]));
   const checkinOpen = settingsMap.get("checkin_open") === true;
   const checkoutOpen = settingsMap.get("checkout_open") === true;
+  const deviceLockEnabled =
+    settingsMap.has("device_lock_enabled") ? settingsMap.get("device_lock_enabled") === true : true;
+  const verificationMode = settingsMap.get("verification_mode") === true;
 
   // 4. Agregasi grafik per interval 15 menit (P10.3)
   const intervalMap: Record<string, { time: string; masuk: number; pulang: number }> = {};
@@ -170,6 +173,8 @@ export async function GET(req: NextRequest) {
     settings: {
       checkinOpen,
       checkoutOpen,
+      deviceLockEnabled,
+      verificationMode,
     },
     updatedAtWib: formatWib(new Date(), "HH:mm:ss 'WIB'"),
   });

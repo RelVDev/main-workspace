@@ -13,6 +13,7 @@ export function PengaturanClient() {
   const [graceWindows, setGraceWindows] = useState(1);
   const [ttlSec, setTtlSec] = useState(600);
   const [verificationMode, setVerificationMode] = useState(false);
+  const [deviceLockEnabled, setDeviceLockEnabled] = useState(true);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -30,6 +31,15 @@ export function PengaturanClient() {
       try {
         const res = await fetch("/api/panitia/dashboard-data");
         if (res.ok) {
+          const dash = await res.json();
+          if (dash.settings) {
+            if (typeof dash.settings.deviceLockEnabled === "boolean") {
+              setDeviceLockEnabled(dash.settings.deviceLockEnabled);
+            }
+            if (typeof dash.settings.verificationMode === "boolean") {
+              setVerificationMode(dash.settings.verificationMode);
+            }
+          }
           // Ambil pengaturan via GET qr-token config
           const qrRes = await fetch("/api/panitia/qr-token?mode=in&ahead=0");
           if (qrRes.ok) {
@@ -58,6 +68,7 @@ export function PengaturanClient() {
           qr_grace_windows: graceWindows,
           session_ttl_seconds: ttlSec,
           verification_mode: verificationMode,
+          device_lock_enabled: deviceLockEnabled,
         }),
       });
       const data = await res.json();
@@ -181,6 +192,27 @@ export function PengaturanClient() {
               />
               <span className="text-[11px] text-ink-muted">
                 Standar: 600 detik (10 menit). Waktu tamu memilih nama setelah scan.
+              </span>
+            </div>
+
+            {/* Feature Flag: Kunci Keamanan 1 Perangkat = 1 Tamu (Anti-Titip Absen) */}
+            <div className="flex flex-col gap-1.5 rounded-2xl border border-brand-purple/25 bg-brand-purple/5 p-3.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-ink">
+                  Kunci 1 Perangkat = 1 Tamu (Anti-Titip Absen)
+                </span>
+                <input
+                  type="checkbox"
+                  checked={deviceLockEnabled}
+                  onChange={(e) => setDeviceLockEnabled(e.target.checked)}
+                  className="size-4 rounded accent-brand-purple"
+                />
+              </div>
+              <span className="text-[11px] leading-relaxed text-ink-muted">
+                Bila aktif (direkomendasikan), tamu yang sudah absen di perangkatnya tidak dapat
+                menggunakan HP yang sama untuk mengabsenkan nama tamu lain. Jika tamu salah pilih
+                nama, Admin/Panitia dapat melakukan <strong>Recovery / Reset Absen</strong> di Tabel
+                Tamu atau Dashboard untuk membuka kunci HP tamu.
               </span>
             </div>
 

@@ -1,7 +1,8 @@
-// P11.2: Batalkan absensi (undo_attendance) dengan alasan wajib diisi.
+// P11.2 / P17: Batalkan absensi (undo_attendance) sekaligus me-recovery / membuka kunci perangkat tamu bila salah absen.
 import { NextRequest } from "next/server";
 import { getCommitteeAuth } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { updateGuestExtra } from "@/lib/guest-extras";
 import { fail, ok } from "@/lib/api";
 
 export async function POST(req: NextRequest) {
@@ -33,5 +34,17 @@ export async function POST(req: NextRequest) {
     return fail(payload.code);
   }
 
-  return ok({ undone: true, type, guestId });
+  // Bila absen masuk dibatalkan (mis. karena salah pilih nama), buka kunci perangkat tamu & reset hold/voucher
+  if (type === "in") {
+    await updateGuestExtra(db, guestId, {
+      holdAt: null,
+      mealRedeemedAt: null,
+      mealRedeemedBy: null,
+      photoboothRedeemedAt: null,
+      photoboothRedeemedBy: null,
+      deviceResetAt: new Date().toISOString(),
+    });
+  }
+
+  return ok({ undone: true, type, guestId, deviceRecovered: type === "in" });
 }

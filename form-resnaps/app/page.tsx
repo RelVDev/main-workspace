@@ -17,6 +17,7 @@ import {
 import {
   DigitalTicket,
   SAVED_TICKET_STORAGE_KEY,
+  clearSavedTicketFromStorage,
   type SavedGuestTicket,
 } from "@/components/attendance/DigitalTicket";
 
@@ -31,6 +32,20 @@ export default function Home() {
         const parsed = JSON.parse(raw) as SavedGuestTicket;
         if (parsed && parsed.guestName && parsed.voucherCode) {
           setSavedTicket(parsed);
+          // Verifikasi apakah Admin melakukan recovery / pembatalan absen
+          const param = parsed.guestId
+            ? `guest_id=${encodeURIComponent(parsed.guestId)}`
+            : `code=${encodeURIComponent(parsed.voucherCode)}`;
+          fetch(`/api/attendance/ticket-status?${param}`)
+            .then((r) => (r.ok ? r.json() : null))
+            .then((d) => {
+              if (d?.ok && d.ticket?.status === "belum_hadir") {
+                clearSavedTicketFromStorage();
+                setSavedTicket(null);
+                setShowFullTicket(false);
+              }
+            })
+            .catch(() => {});
         }
       }
     } catch {
@@ -63,11 +78,17 @@ export default function Home() {
               guestId={savedTicket.guestId}
               guestName={savedTicket.guestName}
               category={savedTicket.category}
+              allergies={savedTicket.allergies}
               scannedAt={savedTicket.scannedAt}
               voucherCode={savedTicket.voucherCode}
               initialMealRedeemedAt={savedTicket.mealRedeemedAt}
               initialPhotoboothRedeemedAt={savedTicket.photoboothRedeemedAt}
+              isHomePreview={true}
               onFinish={() => setShowFullTicket(false)}
+              onDeviceRecovered={() => {
+                setSavedTicket(null);
+                setShowFullTicket(false);
+              }}
             />
           </div>
         ) : (

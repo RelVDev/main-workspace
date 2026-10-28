@@ -138,12 +138,21 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
     return () => clearTimeout(timer);
   }, [fetchGuests]);
 
-  // Setujui masuk tamu yang ditahan (Hold) atau ubah status pembayaran HTM
+  // Setujui masuk tamu yang ditahan (Hold), ubah status pembayaran HTM, atau recovery salah absen
   async function handleHtmAction(
     guest: GuestRow,
-    action: "approve_checkin" | "set_payment",
+    action: "approve_checkin" | "set_payment" | "reset_attendance",
     nextStatus?: "lunas" | "belum_lunas",
   ) {
+    if (
+      action === "reset_attendance" &&
+      !window.confirm(
+        `Recovery Salah Absen untuk "${guest.name}"?\n\nStatus kehadiran akan dikembalikan ke Belum Hadir dan kunci perangkat (HP) tamu akan langsung dibuka agar dapat memilih nama yang benar.`,
+      )
+    ) {
+      return;
+    }
+
     try {
       const res = await fetch("/api/panitia/htm", {
         method: "POST",
@@ -161,13 +170,15 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
           text:
             action === "approve_checkin"
               ? `HTM ${guest.name} dilunasi & diizinkan masuk. Barcode Voucher telah aktif di HP tamu.`
-              : `Status HTM ${guest.name} diubah menjadi ${
-                  data.guest?.paymentStatus === "lunas" ? "LUNAS" : "BELUM LUNAS"
-                }.`,
+              : action === "reset_attendance"
+                ? `Recovery berhasil! Status ${guest.name} telah di-reset ke Belum Hadir dan kunci perangkat HP tamu telah dibuka.`
+                : `Status HTM ${guest.name} diubah menjadi ${
+                    data.guest?.paymentStatus === "lunas" ? "LUNAS" : "BELUM LUNAS"
+                  }.`,
         });
         void fetchGuests();
       } else {
-        setFeedback({ kind: "error", text: data.message || "Gagal memperbarui status HTM." });
+        setFeedback({ kind: "error", text: data.message || "Gagal memperbarui status." });
       }
     } catch {
       setFeedback({ kind: "error", text: "Terjadi kesalahan jaringan." });
@@ -551,6 +562,18 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
                           </button>
                         ) : null}
 
+                        {isHeld ? (
+                          <button
+                            type="button"
+                            onClick={() => void handleHtmAction(g, "reset_attendance")}
+                            className="inline-flex items-center gap-1 rounded-control border border-error px-2 py-1 text-xs font-semibold text-error hover:bg-error/10"
+                            title="Recovery salah absen & buka kunci HP tamu"
+                          >
+                            <RotateCcw className="size-3" />
+                            Recovery HP
+                          </button>
+                        ) : null}
+
                         {g.status === "belum_hadir" && !isUnpaid ? (
                           <button
                             type="button"
@@ -578,10 +601,10 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
                               type="button"
                               onClick={() => setUndoModal({ guest: g, type: "in" })}
                               className="inline-flex items-center gap-1 rounded-control border border-error px-2 py-1 text-xs font-semibold text-error hover:bg-error/10"
-                              title="Batalkan absen masuk"
+                              title="Batalkan absen masuk & buka kunci HP tamu (Recovery Salah Absen)"
                             >
                               <RotateCcw className="size-3" />
-                              Batal
+                              Batal / Recovery HP
                             </button>
                           </>
                         ) : null}
@@ -651,8 +674,10 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
 
             <p className="text-sm text-ink-muted">
               Batalkan catatan absen {undoModal.type === "in" ? "MASUK" : "PULANG"} untuk{" "}
-              <strong className="text-ink">{undoModal.guest.name}</strong>? Tindakan ini akan
-              dicatat di log audit panitia.
+              <strong className="text-ink">{undoModal.guest.name}</strong>?{" "}
+              {undoModal.type === "in"
+                ? "Tindakan ini juga akan otomatis me-recovery & membuka kunci perangkat (HP) tamu yang salah absen agar dapat memilih nama yang benar."
+                : "Tindakan ini akan dicatat di log audit panitia."}
             </p>
 
             <div className="flex flex-col gap-1.5">

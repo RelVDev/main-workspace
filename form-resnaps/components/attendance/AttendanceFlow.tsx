@@ -23,6 +23,7 @@ import {
   RefreshCw,
   Utensils,
   Camera,
+  Lock,
 } from "lucide-react";
 import { BrandHeader } from "@/components/brand/BrandHeader";
 import { Button } from "@/components/ui/Button";
@@ -35,6 +36,7 @@ import { ScanningOverlay } from "./ScanningOverlay";
 import {
   DigitalTicket,
   SAVED_TICKET_STORAGE_KEY,
+  clearSavedTicketFromStorage,
   type SavedGuestTicket,
 } from "./DigitalTicket";
 import { playWarningTone } from "@/lib/sound";
@@ -71,8 +73,10 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
   const [selectedGuest, setSelectedGuest] = useState<GuestItem | null>(null);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
-  // Tiket tersimpan di localStorage browser tamu
+  // Tiket tersimpan di localStorage browser tamu & status kunci perangkat
   const [savedTicket, setSavedTicket] = useState<SavedGuestTicket | null>(null);
+  const [deviceLockEnabled, setDeviceLockEnabled] = useState(true);
+  const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);
 
   // Data Hold (ketika pembayaran HTM tamu belum lunas)
   const [holdData, setHoldData] = useState<{
@@ -146,12 +150,91 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
     }
   }, []);
 
-  // 1. Inisialisasi: tukar token `?t=`, cek cookie sesi, atau pulihkan tiket tersimpan
+  // 1. Inisialisasi: verifikasi kunci perangkat (1 HP = 1 Tamu), tukar token `?t=`, atau cek sesi
   useEffect(() => {
     let mounted = true;
     const stored = loadSavedTicketFromStorage();
 
     async function initSession() {
+      let activeStored: SavedGuestTicket | null = stored;
+      let lockActive = true;
+
+      // Jika di perangkat ini sudah ada riwayat absen tersimpan, sinkronkan dulu dengan server
+      if (stored) {
+        try {
+          const param = stored.guestId
+            ? `guest_id=${encodeURIComponent(stored.guestId)}`
+            : `code=${encodeURIComponent(stored.voucherCode)}`;
+          const statusRes = await fetch(`/api/attendance/ticket-status?${param}`);
+          if (statusRes.ok) {
+            const statusData = await statusRes.json();
+            if (statusData.ok && statusData.ticket) {
+              if (typeof statusData.deviceLockEnabled === "boolean") {
+                lockActive = statusData.deviceLockEnabled;
+                if (mounted) setDeviceLockEnabled(lockActive);
+              }
+              const t = statusData.ticket;
+              // Bila Admin telah me-recovery / membatalkan absen tamu ini kembali ke belum_hadir -> buka kunci perangkat!
+              if (t.status === "belum_hadir") {
+                clearSavedTicketFromStorage();
+                activeStored = null;
+                if (mounted) {
+                  setSavedTicket(null);
+                  setRecoveryNotice(
+                    "Kunci absensi perangkat telah di-reset oleh Admin/Panitia. Silakan pilih nama yang benar.",
+                  );
+                }
+              } else {
+                activeStored = {
+                  guestId: t.guestId,
+                  guestName: t.guestName,
+                  category: t.category,
+                  allergies: t.allergies ?? null,
+                  mode: t.status === "sudah_pulang" ? "out" : "in",
+                  status:
+                    t.status === "ditahan"
+                      ? "on_hold"
+                      : t.status === "sudah_pulang"
+                        ? "checked_out"
+                        : "active",
+                  paymentStatus: t.paymentStatus,
+                  scannedAt: t.checkedOutAt || t.checkedInAt || stored.scannedAt,
+                  holdAt: t.holdAt,
+                  voucherCode: t.voucherCode,
+                  mealRedeemedAt: t.mealRedeemedAt,
+                  photoboothRedeemedAt: t.photoboothRedeemedAt,
+                };
+                if (mounted) setSavedTicket(activeStored);
+                try {
+                  localStorage.setItem(SAVED_TICKET_STORAGE_KEY, JSON.stringify(activeStored));
+                } catch {
+                  // Abaikan
+                }
+              }
+            }
+          }
+        } catch {
+          // Gunakan data localStorage bila offline sesaat
+        }
+      }
+
+      // KEAMANAN 1 PERANGKAT = 1 TAMU:
+      // Bila perangkat sudah memiliki riwayat absen aktif dan fitur kunci perangkat menyala:
+      // - Di /masuk: blokir pencarian nama lain (walau scan QR baru) & langsung tampilkan tiket/hold milik perangkat ini!
+      // - Di /keluar: bila sudah check-out, langsung tampilkan tiket check-out!
+      if (activeStored && lockActive) {
+        if (isMasuk) {
+          window.history.replaceState({}, "", window.location.pathname);
+          if (mounted) restoreFromSavedTicket(activeStored);
+          return;
+        }
+        if (!isMasuk && activeStored.status === "checked_out") {
+          window.history.replaceState({}, "", window.location.pathname);
+          if (mounted) restoreFromSavedTicket(activeStored);
+          return;
+        }
+      }
+
       const urlParams = new URLSearchParams(window.location.search);
       const token = urlParams.get("t");
 
@@ -190,7 +273,17 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
           if (mounted) {
             const expMs = new Date(data.expiresAt).getTime();
             setSessionExpiresAt(expMs);
-            setStage("active");
+            // Bila mode /keluar dan perangkat sudah terikat ke tamu yang sedang di_dalam, kunci pilihan hanya ke tamu tersebut
+            if (!isMasuk && activeStored && lockActive && activeStored.guestId) {
+              setSelectedGuest({
+                id: activeStored.guestId,
+                name: activeStored.guestName,
+                category: activeStored.category,
+              });
+              setStage("confirming");
+            } else {
+              setStage("active");
+            }
           }
         } catch {
           if (mounted) {
@@ -210,7 +303,16 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
               }
               if (mounted) {
                 setSessionExpiresAt(new Date(data.expiresAt).getTime());
-                setStage("active");
+                if (!isMasuk && activeStored && lockActive && activeStored.guestId) {
+                  setSelectedGuest({
+                    id: activeStored.guestId,
+                    name: activeStored.guestName,
+                    category: activeStored.category,
+                  });
+                  setStage("confirming");
+                } else {
+                  setStage("active");
+                }
               }
               return;
             }
@@ -219,16 +321,16 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
           // Jika tidak ada sesi QR aktif tetapi di browser tamu pada mode /masuk sudah ada tiket/hold tersimpan,
           // langsung pulihkan agar barcode voucher tidak pernah hilang saat browser ditutup!
           if (mounted) {
-            if (isMasuk && stored) {
-              restoreFromSavedTicket(stored);
+            if (isMasuk && activeStored) {
+              restoreFromSavedTicket(activeStored);
             } else {
               setStage("no_session");
             }
           }
         } catch {
           if (mounted) {
-            if (isMasuk && stored) {
-              restoreFromSavedTicket(stored);
+            if (isMasuk && activeStored) {
+              restoreFromSavedTicket(activeStored);
             } else {
               setStage("no_session");
             }
@@ -268,7 +370,7 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
     };
   }, [sessionExpiresAt, stage]);
 
-  // 3. Polling otomatis saat tamu berada di stage "on_hold" (menunggu panitia melunasi/mengizinkan masuk)
+  // 3. Polling otomatis saat tamu berada di stage "on_hold" (menunggu panitia melunasi/mengizinkan masuk atau recovery)
   const checkHoldApproval = useCallback(async () => {
     if (!holdData) return;
     setIsCheckingHold(true);
@@ -280,7 +382,23 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
       if (!res.ok) return;
       const d = await res.json();
       if (d.ok && d.ticket) {
+        if (typeof d.deviceLockEnabled === "boolean") {
+          setDeviceLockEnabled(d.deviceLockEnabled);
+        }
         const t = d.ticket;
+
+        // Jika Admin/Panitia melakukan Recovery / Reset Salah Absen (status kembali ke belum_hadir)
+        if (t.status === "belum_hadir") {
+          clearSavedTicketFromStorage();
+          setSavedTicket(null);
+          setHoldData(null);
+          setRecoveryNotice(
+            "Status Hold & kunci perangkat telah di-reset oleh Admin/Panitia. Silakan scan QR atau pilih nama yang benar.",
+          );
+          setStage(sessionExpiresAt && sessionExpiresAt > Date.now() ? "active" : "no_session");
+          return;
+        }
+
         // Jika panitia sudah melunasi & mengizinkan masuk -> otomatis buka Tiket Digital & Barcode Voucher!
         if (
           t.paymentStatus === "lunas" &&
@@ -306,7 +424,7 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
     } finally {
       setIsCheckingHold(false);
     }
-  }, [holdData]);
+  }, [holdData, sessionExpiresAt]);
 
   useEffect(() => {
     if (stage !== "on_hold" || !holdData) return;
@@ -370,7 +488,10 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
       const res = await fetch("/api/attendance/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ guest_id: selectedGuest.id }),
+        body: JSON.stringify({
+          guest_id: selectedGuest.id,
+          locked_guest_id: savedTicket?.guestId || undefined,
+        }),
       });
       const data = await res.json();
 
@@ -482,7 +603,16 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
       <BrandHeader title={title} subtitle={subtitle} />
 
       <div className="relative z-10 mx-auto flex w-full max-w-lg flex-1 flex-col px-4 pt-5">
-        {/* Banner Akses Cepat ke Tiket & Barcode Voucher Tersimpan (Bila sedang di mode Scan Tamu Lain) */}
+        {/* Banner Pemberitahuan bila Kunci Perangkat Baru Saja Di-Recovery oleh Admin */}
+        {recoveryNotice ? (
+          <div className="mb-4 animate-in fade-in slide-in-from-top-2">
+            <StatusBanner kind="info" title="Recovery Perangkat Berhasil">
+              {recoveryNotice}
+            </StatusBanner>
+          </div>
+        ) : null}
+
+        {/* Banner Akses Cepat ke Tiket & Barcode Voucher Tersimpan */}
         {savedTicket && stage !== "success" && stage !== "on_hold" ? (
           <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-brand-purple/25 bg-white/90 p-3.5 shadow-md backdrop-blur-md">
             <div className="flex items-center gap-3">
@@ -733,14 +863,20 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
                   )}
                 </Button>
 
-                <Button
-                  variant="secondary"
-                  onClick={() => setStage("active")}
-                  disabled={stage === "submitting"}
-                  className="h-12 rounded-2xl text-sm"
-                >
-                  Bukan Saya (Cari Ulang)
-                </Button>
+                {!(!isMasuk && savedTicket && deviceLockEnabled) ? (
+                  <Button
+                    variant="secondary"
+                    onClick={() => setStage("active")}
+                    disabled={stage === "submitting"}
+                    className="h-12 rounded-2xl text-sm"
+                  >
+                    Bukan Saya (Cari Ulang)
+                  </Button>
+                ) : (
+                  <p className="text-center text-[11px] font-bold text-ink-muted">
+                    🔒 Perangkat ini terikat pada identitas kehadiran {selectedGuest.name}.
+                  </p>
+                )}
               </div>
             </Card>
           </div>
@@ -799,19 +935,31 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
                   <RefreshCw className={`size-4 ${isCheckingHold ? "animate-spin" : ""}`} />
                   {isCheckingHold
                     ? "Memeriksa Status..."
-                    : "Cek Status Persetujuan Sekarang"}
+                    : "Cek Status Persetujuan / Recovery Sekarang"}
                 </Button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStage("no_session");
-                    setHoldData(null);
-                  }}
-                  className="text-xs font-bold text-ink-muted underline hover:text-ink"
-                >
-                  Ganti Tamu / Scan Ulang
-                </button>
+                {deviceLockEnabled ? (
+                  <div className="flex items-start gap-2 rounded-2xl border border-brand-purple/20 bg-brand-purple/5 p-3 text-left text-[11px] leading-relaxed text-ink-muted">
+                    <Lock className="mt-0.5 size-4 shrink-0 text-brand-purple" />
+                    <span>
+                      <strong>Kunci Keamanan Perangkat Aktif:</strong> HP ini terkunci pada antrean{" "}
+                      <strong className="text-ink">{holdData.name}</strong>. Jika Anda salah memilih
+                      nama, minta Panitia/Admin menekan tombol <strong>Recovery / Reset</strong> di
+                      dashboard untuk membuka kunci HP Anda.
+                    </span>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStage("no_session");
+                      setHoldData(null);
+                    }}
+                    className="text-xs font-bold text-ink-muted underline hover:text-ink"
+                  >
+                    Mode Kiosk: Ganti Tamu
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -829,6 +977,15 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
             voucherCode={successData.voucherCode}
             initialMealRedeemedAt={successData.mealRedeemedAt}
             initialPhotoboothRedeemedAt={successData.photoboothRedeemedAt}
+            onDeviceRecovered={() => {
+              setSavedTicket(null);
+              setSuccessData(null);
+              setQuery("");
+              setRecoveryNotice(
+                "Kunci absensi perangkat telah di-reset oleh Admin/Panitia. Silakan pilih nama yang benar.",
+              );
+              setStage(sessionExpiresAt && sessionExpiresAt > Date.now() ? "active" : "no_session");
+            }}
             onFinish={() => {
               setStage("no_session");
               setSuccessData(null);

@@ -5,6 +5,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 
 export const SESSION_COOKIE = "rs_session";
+export const DEVICE_LOCK_COOKIE = "rs_device_guest";
 
 function secret(): string {
   const s = process.env.SESSION_COOKIE_SECRET;
@@ -52,4 +53,28 @@ export async function setSessionCookie(sessionId: string, maxAgeSeconds: number)
 export async function clearSessionCookie(): Promise<void> {
   const jar = await cookies();
   jar.delete(SESSION_COOKIE);
+}
+
+/** Membaca ID tamu yang terkunci pada perangkat/browser ini (anti-titip absen). */
+export async function readDeviceGuestId(): Promise<string | null> {
+  const jar = await cookies();
+  return decodeSessionCookie(jar.get(DEVICE_LOCK_COOKIE)?.value);
+}
+
+/** Mengunci perangkat/browser ini ke satu guestId selama 24 jam. */
+export async function setDeviceGuestCookie(guestId: string): Promise<void> {
+  const jar = await cookies();
+  jar.set(DEVICE_LOCK_COOKIE, encodeSessionCookie(guestId), {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24, // 24 jam
+  });
+}
+
+/** Membuka kunci perangkat bila Admin melakukan recovery / pembatalan absen. */
+export async function clearDeviceGuestCookie(): Promise<void> {
+  const jar = await cookies();
+  jar.delete(DEVICE_LOCK_COOKIE);
 }

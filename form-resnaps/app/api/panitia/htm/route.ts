@@ -43,6 +43,66 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  // Recovery Salah Absen / Buka Kunci Perangkat Tamu (mengembalikan status ke belum_hadir & me-reset kunci HP)
+  if (action === "reset_attendance") {
+    if (existing.status === "sudah_pulang") {
+      await db.rpc("undo_attendance", {
+        p_guest_id: guest_id,
+        p_type: "out",
+        p_actor: auth.userId,
+        p_reason: "Recovery salah absen / reset kunci perangkat oleh panitia",
+      });
+      await db.rpc("undo_attendance", {
+        p_guest_id: guest_id,
+        p_type: "in",
+        p_actor: auth.userId,
+        p_reason: "Recovery salah absen / reset kunci perangkat oleh panitia",
+      });
+    } else if (existing.status === "di_dalam") {
+      await db.rpc("undo_attendance", {
+        p_guest_id: guest_id,
+        p_type: "in",
+        p_actor: auth.userId,
+        p_reason: "Recovery salah absen / reset kunci perangkat oleh panitia",
+      });
+    }
+
+    const resetAt = new Date().toISOString();
+    await updateGuestExtra(db, guest_id, {
+      holdAt: null,
+      mealRedeemedAt: null,
+      mealRedeemedBy: null,
+      photoboothRedeemedAt: null,
+      photoboothRedeemedBy: null,
+      deviceResetAt: resetAt,
+      voucherCode: existing.voucher_code,
+    });
+
+    await db.from("audit_logs").insert({
+      actor: auth.userId,
+      action: "recover_wrong_attendance",
+      target_guest: guest_id,
+      meta: {
+        guest_name: existing.full_name,
+        previous_status: existing.status,
+        recovered_by: auth.email,
+      },
+    });
+
+    return ok({
+      action: "reset_attendance",
+      guest: {
+        id: existing.guest_id,
+        name: existing.full_name,
+        category: existing.category,
+        paymentStatus: existing.payment_status,
+        status: "belum_hadir",
+        voucherCode: existing.voucher_code,
+        deviceResetAt: resetAt,
+      },
+    });
+  }
+
   // 1. Lunasi HTM & Izinkan Masuk (melepas Hold dan mencatat absen masuk)
   if (action === "approve_checkin" || (action === "set_payment" && payment_status === "lunas" && existing.status === "ditahan")) {
     await updateGuestExtra(db, guest_id, {

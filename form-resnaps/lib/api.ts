@@ -26,6 +26,11 @@ const MESSAGES: Record<string, { status: number; message: string }> = {
     status: 409,
     message: "Voucher ini sudah pernah di-scan dan ditukarkan sebelumnya (maksimal 1x pakai).",
   },
+  device_locked: {
+    status: 403,
+    message:
+      "Perangkat ini sudah digunakan untuk absensi tamu. Demi keamanan, 1 perangkat hanya berlaku untuk 1 tamu. Hubungi Admin/Panitia di meja registrasi jika terjadi salah pilih nama.",
+  },
   not_found: { status: 404, message: "Data tidak ditemukan." },
   invalid_input: { status: 400, message: "Permintaan tidak valid." },
   rate_limited: { status: 429, message: "Terlalu banyak permintaan. Coba lagi sebentar." },
