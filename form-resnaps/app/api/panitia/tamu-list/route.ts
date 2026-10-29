@@ -1,9 +1,9 @@
 // P10.5 / P17: Daftar tamu yang diperkaya dengan status HTM (lunas/belum_lunas),
-// status Hold (ditahan), serta kode & status Voucher (Makan & Photobooth).
+// status OTS & kuota 50 slot Tiket Makan Tamu Angkatan, serta kode & status Voucher.
 import { NextRequest } from "next/server";
 import { getCommitteeAuth } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { fetchEnrichedGuests } from "@/lib/guest-extras";
+import { computeTamuMealQuota, fetchEnrichedGuests } from "@/lib/guest-extras";
 import { formatWib } from "@/lib/time";
 import { fail, ok } from "@/lib/api";
 
@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
 
   const db = createAdminClient();
   const allGuests = await fetchEnrichedGuests(db);
+  const tamuMealQuota = computeTamuMealQuota(allGuests);
 
   const categories = Array.from(
     new Set(allGuests.map((c) => c.category).filter((c): c is string => Boolean(c))),
@@ -58,6 +59,9 @@ export async function GET(req: NextRequest) {
     allergies: g.allergies,
     status: g.status,
     paymentStatus: g.payment_status,
+    isOts: g.is_ots,
+    mealEligible: g.meal_eligible,
+    isTamuRole: g.is_tamu_role,
     holdAt: g.hold_at,
     holdAtWib: g.hold_at ? formatWib(g.hold_at) : "-",
     voucherCode: g.voucher_code,
@@ -73,6 +77,7 @@ export async function GET(req: NextRequest) {
 
   return ok({
     guests,
+    tamuMealQuota,
     total,
     page,
     limit,

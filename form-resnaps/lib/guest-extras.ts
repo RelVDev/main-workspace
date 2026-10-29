@@ -1,12 +1,17 @@
 // Layer pengelolaan data tambahan tamu: Status Pembayaran HTM (lunas/belum_lunas),
+// Status OTS & Hak Tiket Makan (meal_eligible dengan kuota 50 slot Tamu Angkatan),
 // Data Alergi Makanan (allergies), Status Hold Absensi (hold_at), serta Voucher Makan & Photobooth (1x pakai).
 // Dioptimalkan dengan query paralel (Promise.all) & in-memory cache 3 detik yang di-invalidasi otomatis saat mutasi.
 import "server-only";
 import { createAdminClient } from "./supabase/admin";
 import { generateVoucherCode, normalizeVoucherInput, type PaymentStatus } from "./voucher";
 
+export const TAMU_ANGKATAN_MEAL_MAX_SLOTS = 50;
+
 export type GuestExtraState = {
   paymentStatus: PaymentStatus;
+  isOts: boolean;
+  mealEligible: boolean;
   allergies: string | null;
   holdAt: string | null;
   voucherCode: string;
@@ -25,6 +30,9 @@ export type EnrichedGuestRow = {
   checked_in_at: string | null;
   checked_out_at: string | null;
   payment_status: PaymentStatus;
+  is_ots: boolean;
+  meal_eligible: boolean;
+   is_tamu_role: boolean;
   hold_at: string | null;
   voucher_code: string;
   meal_redeemed_at: string | null;
@@ -32,9 +40,17 @@ export type EnrichedGuestRow = {
   device_reset_at: string | null;
 };
 
+export type TamuMealQuotaInfo = {
+  maxSlots: number;
+  usedSlots: number;
+  remainingSlots: number;
+  totalTamuCount: number;
+  canAddOtsMeal: boolean;
+};
+
 const EXTRAS_SETTING_KEY = "guest_extras_v1";
 
-// Daftar nama Panitia/Peserta pada data Gladi Bersih Chrysalis 2026 yang disimulasikan memiliki status HTM 'belum_lunas'
+// Daftar nama pada data Gladi Bersih Chrysalis 2026 yang disimulasikan memiliki status HTM di tempat ('belum_lunas')
 export const DEFAULT_UNPAID_NAMES = new Set([
   "raditiya putra pratama",
   "siti mawardah",
@@ -68,6 +84,8 @@ export const DEFAULT_ALLERGY_MAP: Record<string, string> = {
 
 export type StoredExtraRecord = {
   paymentStatus?: PaymentStatus;
+  isOts?: boolean;
+  mealEligible?: boolean;
   allergies?: string | null;
   holdAt?: string | null;
   voucherCode?: string;
@@ -88,6 +106,45 @@ const CACHE_TTL_MS = 3000;
 export function invalidateGuestsCache(): void {
   enrichedGuestsCache = null;
   deviceLockCache = null;
+}
+
+/**
+ * Menentukan apakah kategori/role tamu merupakan kelompok "Tamu / Tamu Angkatan / OTS" (bukan Panitia reguler).
+ */
+export function isCategoryTamuRole(category: string | null, isOts = false): boolean {
+  if (isOts) return true;
+  const c = (category || "").trim().toLowerCase();
+  if (!c) return true;
+  if (c.includes("ots")) return true;
+  if (c.startsWith("panitia")) return false;
+  return true;
+}
+
+/**
+ * Menghitung pemakaian kuota 50 slot Tiket Makan khusus Tamu Angkatan & OTS.
+ * Jika slot yang terpakai < 50, panitia masih bisa menambahkan tiket makan bagi tamu OTS.
+ */
+export function computeTamuMealQuota(rows: EnrichedGuestRow[]): TamuMealQuotaInfo {
+  let usedSlots = 0;
+  let totalTamuCount = 0;
+
+  for (const r of rows) {
+    if (r.is_tamu_role || r.is_ots) {
+      totalTamuCount++;
+      if (r.meal_eligible) {
+        usedSlots++;
+      }
+    }
+  }
+
+  const remainingSlots = Math.max(0, TAMU_ANGKATAN_MEAL_MAX_SLOTS - usedSlots);
+  return {
+    maxSlots: TAMU_ANGKATAN_MEAL_MAX_SLOTS,
+    usedSlots,
+    remainingSlots,
+    totalTamuCount,
+    canAddOtsMeal: usedSlots < TAMU_ANGKATAN_MEAL_MAX_SLOTS,
+  };
 }
 
 export async function readExtrasStore(
@@ -167,12 +224,27 @@ export async function fetchEnrichedGuests(
     const id = r.guest_id ?? "";
     const over = store[id];
     const nameLower = (r.full_name ?? "").trim().toLowerCase();
-    const defaultPayment: PaymentStatus = DEFAULT_UNPAID_NAMES.has(nameLower)
-      ? "belum_lunas"
-      : "lunas";
+    const catLower = (r.category ?? "").trim().toLowerCase();
+
+    const isDefaultUnpaid = DEFAULT_UNPAID_NAMES.has(nameLower);
+    const defaultPayment: PaymentStatus = isDefaultUnpaid ? "belum_lunas" : "lunas";
     const defaultAllergy = DEFAULT_ALLERGY_MAP[nameLower] ?? null;
 
     const paymentStatus: PaymentStatus = over?.paymentStatus ?? defaultPayment;
+    // Tamu dikategorikan OTS / HTM di tempat bila ditandai isOts, kategorinya mengandung "ots", atau berasal dari simulasi HTM di tempat
+    const isOts =
+      over?.isOts !== undefined
+        ? over.isOts
+        : catLower.includes("ots") || isDefaultUnpaid || paymentStatus === "belum_lunas";
+    const isTamuRole = isCategoryTamuRole(r.category ?? null, isOts);
+
+    // Aturan Kuota Makan:
+    // - Tamu OTS / HTM di tempat secara default HANYA mendapat tiket Photobooth (mealEligible = false),
+    //   kecuali panitia secara eksplisit mengaktifkan mealEligible = true (selama slot Tamu Angkatan < 50).
+    // - Panitia reguler & Tamu Angkatan reguler (bukan OTS) secara default mendapat tiket makan (mealEligible = true).
+    const mealEligible =
+      over?.mealEligible !== undefined ? over.mealEligible : isOts ? false : true;
+
     const allergies = over?.allergies !== undefined ? over.allergies : defaultAllergy;
     const holdAt = over?.holdAt ?? null;
     const voucherCode = over?.voucherCode || generateVoucherCode(id);
@@ -197,6 +269,9 @@ export async function fetchEnrichedGuests(
       checked_in_at: r.checked_in_at ?? null,
       checked_out_at: r.checked_out_at ?? null,
       payment_status: paymentStatus,
+      is_ots: isOts,
+      meal_eligible: mealEligible,
+      is_tamu_role: isTamuRole,
       hold_at: holdAt,
       voucher_code: voucherCode,
       meal_redeemed_at: mealRedeemedAt,

@@ -65,6 +65,8 @@ type UnpaidGuestItem = {
   allergies?: string | null;
   status: "belum_hadir" | "ditahan" | "di_dalam" | "sudah_pulang";
   paymentStatus: "lunas" | "belum_lunas";
+  isOts?: boolean;
+  mealEligible?: boolean;
   holdAt: string | null;
   holdAtWib: string | null;
   voucherCode: string;
@@ -77,9 +79,19 @@ type QuickGuestItem = {
   allergies: string | null;
   status: "belum_hadir" | "ditahan" | "di_dalam" | "sudah_pulang";
   paymentStatus: "lunas" | "belum_lunas";
+  isOts?: boolean;
+  mealEligible?: boolean;
   voucherCode: string;
   mealRedeemedAtWib: string | null;
   photoboothRedeemedAtWib: string | null;
+};
+
+type TamuMealQuota = {
+  maxSlots: number;
+  usedSlots: number;
+  remainingSlots: number;
+  totalTamuCount: number;
+  canAddOtsMeal: boolean;
 };
 
 type AllergyGuestItem = {
@@ -111,6 +123,7 @@ type IntervalChartItem = {
 
 type DashboardData = {
   metrics: DashboardMetrics;
+  tamuMealQuota?: TamuMealQuota;
   unpaidGuests: UnpaidGuestItem[];
   quickGuests?: QuickGuestItem[];
   allergyGuests?: AllergyGuestItem[];
@@ -159,6 +172,7 @@ export function DashboardClient({ isTvMode: propTvMode }: { isTvMode?: boolean }
   const [otsContact, setOtsContact] = useState("");
   const [otsAllergies, setOtsAllergies] = useState("");
   const [otsPayment, setOtsPayment] = useState<"lunas" | "belum_lunas">("lunas");
+  const [otsIncludeMeal, setOtsIncludeMeal] = useState(false);
   const [otsAutoCheckin, setOtsAutoCheckin] = useState(true);
   const [isAddingOts, setIsAddingOts] = useState(false);
 
@@ -341,6 +355,38 @@ export function DashboardClient({ isTvMode: propTvMode }: { isTvMode?: boolean }
     }
   }
 
+  async function handleToggleMealEligible(
+    guest: { id: string; name: string },
+    mealEligible: boolean,
+  ) {
+    setProcessingGuestId(guest.id);
+    setActionBanner(null);
+    try {
+      const res = await fetch("/api/panitia/htm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          guest_id: guest.id,
+          action: "set_meal_eligible",
+          meal_eligible: mealEligible,
+        }),
+      });
+      const d = await res.json();
+      if (res.ok && d.ok) {
+        setActionBanner(
+          mealEligible
+            ? `Tiket Makan ditambahkan untuk ${guest.name} (Slot Tamu: ${d.tamuMealQuota?.usedSlots ?? 0}/${d.tamuMealQuota?.maxSlots ?? 50}).`
+            : `Tiket Makan dicabut dari ${guest.name} (Hanya Photobooth).`,
+        );
+        await fetchData();
+      } else if (d.error) {
+        setActionBanner(d.error);
+      }
+    } finally {
+      setProcessingGuestId(null);
+    }
+  }
+
   async function handleAddOtsGuest(e: React.FormEvent) {
     e.preventDefault();
     if (!otsName.trim()) return;
@@ -357,6 +403,7 @@ export function DashboardClient({ isTvMode: propTvMode }: { isTvMode?: boolean }
           contact: otsContact.trim() || null,
           allergies: otsAllergies.trim() || null,
           payment_status: otsPayment,
+          include_meal: otsIncludeMeal,
           auto_checkin: otsPayment === "lunas" && otsAutoCheckin,
         }),
       });
@@ -364,15 +411,23 @@ export function DashboardClient({ isTvMode: propTvMode }: { isTvMode?: boolean }
       if (res.ok && d.ok) {
         const vCode = d.guest?.voucher_code ? ` (${d.guest.voucher_code})` : "";
         const checkinNote = d.guest?.checked_in_at ? " & langsung Check-In" : "";
-        setActionBanner(`Tamu OTS "${otsName.trim()}" ditambahkan${checkinNote}${vCode}.`);
+        const mealNote = d.guest?.meal_eligible
+          ? " · +Tiket Makan & Photobooth"
+          : " · Hanya Tiket Photobooth";
+        setActionBanner(
+          `Tamu OTS "${otsName.trim()}" ditambahkan${checkinNote}${vCode}${mealNote}.`,
+        );
         setShowOtsModal(false);
         setOtsName("");
         setOtsCategory("");
         setOtsContact("");
         setOtsAllergies("");
         setOtsPayment("lunas");
+        setOtsIncludeMeal(false);
         setOtsAutoCheckin(true);
         await fetchData();
+      } else if (d.error) {
+        setActionBanner(d.error);
       }
     } finally {
       setIsAddingOts(false);
@@ -403,6 +458,13 @@ export function DashboardClient({ isTvMode: propTvMode }: { isTvMode?: boolean }
 
   const unpaidList = data?.unpaidGuests || [];
   const allergyList = data?.allergyGuests || [];
+  const tamuMealQuota: TamuMealQuota = data?.tamuMealQuota || {
+    maxSlots: 50,
+    usedSlots: 0,
+    remainingSlots: 50,
+    totalTamuCount: 0,
+    canAddOtsMeal: true,
+  };
 
   // Mode Layar Besar (TV Mode)
   if (isTvMode) {
@@ -615,6 +677,11 @@ export function DashboardClient({ isTvMode: propTvMode }: { isTvMode?: boolean }
                       </div>
                       <div className="flex flex-wrap items-center gap-1 text-[11px] text-ink-muted">
                         <span>{g.category || "Panitia"}</span>
+                        {g.mealEligible === false ? (
+                          <span className="rounded bg-neutral-200 px-1.5 py-0.2 font-bold text-ink-muted">
+                            OTS: Hanya Foto
+                          </span>
+                        ) : null}
                         {g.allergies ? (
                           <span className="rounded bg-warning/15 px-1.5 py-0.2 font-extrabold text-warning">
                             Alergi: {g.allergies}
@@ -623,7 +690,24 @@ export function DashboardClient({ isTvMode: propTvMode }: { isTvMode?: boolean }
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {g.mealEligible === false ? (
+                        <button
+                          type="button"
+                          disabled={processingGuestId === g.id || !tamuMealQuota.canAddOtsMeal}
+                          onClick={() => void handleToggleMealEligible(g, true)}
+                          className="inline-flex h-7 items-center gap-1 rounded-lg bg-brand-orange px-2 text-[11px] font-black text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
+                          title={
+                            tamuMealQuota.canAddOtsMeal
+                              ? `Berikan tiket makan (Sisa slot Tamu: ${tamuMealQuota.remainingSlots}/50)`
+                              : "Slot makan Tamu Angkatan (50/50) sudah penuh"
+                          }
+                        >
+                          <Utensils className="size-3" />
+                          + Makan
+                        </button>
+                      ) : null}
+
                       {isHeld || (isUnpaid && g.status === "belum_hadir") ? (
                         <button
                           type="button"
@@ -732,6 +816,9 @@ export function DashboardClient({ isTvMode: propTvMode }: { isTvMode?: boolean }
             </span>
             <span className="text-xs font-bold text-ink-muted">/ {m.checkedIn}</span>
           </div>
+          <span className="text-[10px] font-extrabold text-ink-muted">
+            Slot Tamu: {tamuMealQuota.usedSlots}/{tamuMealQuota.maxSlots} (Sisa {tamuMealQuota.remainingSlots})
+          </span>
         </Card>
 
         <Card className="flex flex-col justify-between gap-1 rounded-2xl border-brand-purple/30 bg-brand-purple/5 p-3.5 shadow-2xs">
@@ -800,12 +887,36 @@ export function DashboardClient({ isTvMode: propTvMode }: { isTvMode?: boolean }
                         </span>
                       ) : null}
                     </div>
-                    <span className="truncate text-xs font-semibold text-ink-muted">
-                      {g.category || "Panitia"} · <span className="font-mono">{g.voucherCode}</span>
-                    </span>
+                    <div className="flex flex-wrap items-center gap-1 text-xs font-semibold text-ink-muted">
+                      <span className="truncate">
+                        {g.category || "Panitia"} · <span className="font-mono">{g.voucherCode}</span>
+                      </span>
+                      {g.mealEligible === false ? (
+                        <span className="rounded bg-neutral-200 px-1.5 py-0.2 text-[10px] font-black text-ink-muted">
+                          OTS: Hanya Foto
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {g.mealEligible === false ? (
+                      <button
+                        type="button"
+                        disabled={processingGuestId === g.id || !tamuMealQuota.canAddOtsMeal}
+                        onClick={() => void handleToggleMealEligible(g, true)}
+                        className="inline-flex h-8 items-center gap-1 rounded-xl bg-brand-orange px-2 text-xs font-black text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
+                        title={
+                          tamuMealQuota.canAddOtsMeal
+                            ? `Tambahkan Tiket Makan (Sisa slot Tamu: ${tamuMealQuota.remainingSlots}/50)`
+                            : "Slot makan Tamu Angkatan (50/50) sudah penuh"
+                        }
+                      >
+                        <Utensils className="size-3" />
+                        + Makan
+                      </button>
+                    ) : null}
+
                     <button
                       type="button"
                       disabled={processingGuestId === g.id}
@@ -1122,6 +1233,57 @@ export function DashboardClient({ isTvMode: propTvMode }: { isTvMode?: boolean }
                     onChange={(e) => setOtsContact(e.target.value)}
                   />
                 </div>
+              </div>
+
+              {/* Pengaturan Tiket Makan OTS (Sesuai Kuota 50 Slot Tamu Angkatan) */}
+              <div className="flex flex-col gap-2 rounded-2xl border border-brand-orange/30 bg-brand-orange/5 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-black text-ink">
+                    Hak Voucher OTS (Default: Hanya Photobooth)
+                  </span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                      tamuMealQuota.canAddOtsMeal
+                        ? "bg-brand-orange/15 text-brand-orange"
+                        : "bg-error/15 text-error"
+                    }`}
+                  >
+                    Slot Tamu: {tamuMealQuota.usedSlots}/{tamuMealQuota.maxSlots} (Sisa{" "}
+                    {tamuMealQuota.remainingSlots})
+                  </span>
+                </div>
+                <p className="text-[11px] font-semibold text-ink-muted">
+                  Tamu OTS / HTM di tempat normalnya hanya mendapat <strong>Tiket Photobooth</strong>.
+                  Panitia dapat menambahkan Tiket Makan selama slot Tamu Angkatan (&lt; 50) masih tersedia.
+                </p>
+                <label
+                  className={`mt-0.5 flex items-center justify-between gap-3 rounded-xl border bg-white p-2.5 ${
+                    tamuMealQuota.canAddOtsMeal
+                      ? "cursor-pointer border-brand-orange/40"
+                      : "cursor-not-allowed border-line opacity-60"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Utensils className="size-4 text-brand-orange" />
+                    <div className="flex flex-col">
+                      <span className="text-xs font-extrabold text-ink">
+                        + Tambahkan Tiket Makan untuk Tamu OTS Ini
+                      </span>
+                      <span className="text-[10px] font-semibold text-ink-muted">
+                        {tamuMealQuota.canAddOtsMeal
+                          ? `Menggunakan 1 dari sisa ${tamuMealQuota.remainingSlots} slot makan Tamu Angkatan`
+                          : "Slot makan Tamu Angkatan (50/50) sudah penuh — hanya dapat Tiket Photobooth"}
+                      </span>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={otsIncludeMeal && tamuMealQuota.canAddOtsMeal}
+                    disabled={!tamuMealQuota.canAddOtsMeal}
+                    onChange={(e) => setOtsIncludeMeal(e.target.checked)}
+                    className="size-4 rounded accent-brand-orange"
+                  />
+                </label>
               </div>
 
               {otsPayment === "lunas" ? (

@@ -1,4 +1,4 @@
-// P05.4: skema zod untuk input publik.
+// P05.4: skema zod untuk input publik & aksi panitia.
 import { z } from "zod";
 
 export const searchQuery = z.object({
@@ -25,7 +25,14 @@ export const voucherScanInput = z.object({
 
 export const htmActionInput = z.object({
   guest_id: z.string().uuid(),
-  action: z.enum(["approve_checkin", "set_payment", "set_allergies", "reset_attendance"]),
+  action: z.enum([
+    "approve_checkin",
+    "set_payment",
+    "set_allergies",
+    "reset_attendance",
+    "set_meal_eligible",
+  ]),
   payment_status: paymentStatusSchema.optional(),
   allergies: z.string().trim().max(200).nullable().optional(),
+  meal_eligible: z.boolean().optional(),
 });

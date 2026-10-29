@@ -34,6 +34,7 @@ export type SavedGuestTicket = {
   mode: Mode;
   status: "on_hold" | "active" | "checked_out";
   paymentStatus: "lunas" | "belum_lunas";
+  mealEligible?: boolean;
   scannedAt: string;
   holdAt?: string | null;
   voucherCode: string;
@@ -58,6 +59,7 @@ type DigitalTicketProps = {
   allergies?: string | null;
   scannedAt: string;
   voucherCode?: string;
+  initialMealEligible?: boolean;
   initialMealRedeemedAt?: string | null;
   initialPhotoboothRedeemedAt?: string | null;
   onFinish?: () => void;
@@ -73,6 +75,7 @@ export function DigitalTicket({
   allergies: initialAllergies = null,
   scannedAt,
   voucherCode: propVoucherCode,
+  initialMealEligible = true,
   initialMealRedeemedAt = null,
   initialPhotoboothRedeemedAt = null,
   onFinish,
@@ -86,6 +89,7 @@ export function DigitalTicket({
   const [isSyncing, setIsSyncing] = useState(false);
   const [deviceLockEnabled, setDeviceLockEnabled] = useState(true);
   const [allergies, setAllergies] = useState<string | null>(initialAllergies);
+  const [mealEligible, setMealEligible] = useState<boolean>(initialMealEligible);
   const [mealRedeemedAt, setMealRedeemedAt] = useState<string | null>(initialMealRedeemedAt);
   const [photoboothRedeemedAt, setPhotoboothRedeemedAt] = useState<string | null>(
     initialPhotoboothRedeemedAt,
@@ -141,6 +145,7 @@ export function DigitalTicket({
       nextMealAt: string | null,
       nextPhotoAt: string | null,
       nextAllergies: string | null,
+      nextMealEligible: boolean,
     ) => {
       try {
         const payload: SavedGuestTicket = {
@@ -151,6 +156,7 @@ export function DigitalTicket({
           mode,
           status: isMasuk ? "active" : "checked_out",
           paymentStatus: "lunas",
+          mealEligible: nextMealEligible,
           scannedAt,
           voucherCode: nextVoucher,
           mealRedeemedAt: nextMealAt,
@@ -175,8 +181,21 @@ export function DigitalTicket({
   );
 
   useEffect(() => {
-    persistTicketToStorage(voucherCode, mealRedeemedAt, photoboothRedeemedAt, allergies);
-  }, [voucherCode, mealRedeemedAt, photoboothRedeemedAt, allergies, persistTicketToStorage]);
+    persistTicketToStorage(
+      voucherCode,
+      mealRedeemedAt,
+      photoboothRedeemedAt,
+      allergies,
+      mealEligible,
+    );
+  }, [
+    voucherCode,
+    mealRedeemedAt,
+    photoboothRedeemedAt,
+    allergies,
+    mealEligible,
+    persistTicketToStorage,
+  ]);
 
   const syncVoucherStatus = useCallback(async () => {
     const key = guestId || voucherCode;
@@ -206,7 +225,10 @@ export function DigitalTicket({
 
         if (d.ticket.voucherCode) setVoucherCode(d.ticket.voucherCode);
         const syncedAllergies = d.ticket.allergies ?? allergies ?? null;
+        const syncedMealEligible =
+          typeof d.ticket.mealEligible === "boolean" ? d.ticket.mealEligible : mealEligible;
         setAllergies(syncedAllergies);
+        setMealEligible(syncedMealEligible);
         setMealRedeemedAt(d.ticket.mealRedeemedAt ?? null);
         setPhotoboothRedeemedAt(d.ticket.photoboothRedeemedAt ?? null);
         persistTicketToStorage(
@@ -214,6 +236,7 @@ export function DigitalTicket({
           d.ticket.mealRedeemedAt ?? null,
           d.ticket.photoboothRedeemedAt ?? null,
           syncedAllergies,
+          syncedMealEligible,
         );
       }
     } catch {
@@ -221,7 +244,15 @@ export function DigitalTicket({
     } finally {
       setIsSyncing(false);
     }
-  }, [guestId, voucherCode, allergies, persistTicketToStorage, onDeviceRecovered, onFinish]);
+  }, [
+    guestId,
+    voucherCode,
+    allergies,
+    mealEligible,
+    persistTicketToStorage,
+    onDeviceRecovered,
+    onFinish,
+  ]);
 
   useEffect(() => {
     void syncVoucherStatus();
@@ -430,14 +461,14 @@ export function DigitalTicket({
             <div className="grid grid-cols-2 gap-2.5">
               <div
                 className={`flex items-center gap-2.5 rounded-2xl border p-3 transition ${
-                  mealRedeemedAt
+                  !mealEligible || mealRedeemedAt
                     ? "border-line/70 bg-white/60 opacity-75"
                     : "border-line/90 bg-white shadow-2xs"
                 }`}
               >
                 <div
                   className={`flex size-8 shrink-0 items-center justify-center rounded-xl ${
-                    mealRedeemedAt
+                    !mealEligible || mealRedeemedAt
                       ? "bg-surface-soft text-ink-muted"
                       : "bg-brand-orange/12 text-brand-orange"
                   }`}
@@ -448,10 +479,18 @@ export function DigitalTicket({
                   <span className="text-xs font-extrabold text-ink">Makan</span>
                   <span
                     className={`truncate text-[10px] font-bold ${
-                      mealRedeemedAt ? "text-ink-muted" : "text-success"
+                      !mealEligible
+                        ? "text-ink-muted"
+                        : mealRedeemedAt
+                          ? "text-ink-muted"
+                          : "text-success"
                     }`}
                   >
-                    {mealRedeemedAt ? `Ditukar · ${formatWib(mealRedeemedAt, "HH:mm")}` : "Tersedia"}
+                    {!mealEligible
+                      ? "Tidak Termasuk (OTS)"
+                      : mealRedeemedAt
+                        ? `Ditukar · ${formatWib(mealRedeemedAt, "HH:mm")}`
+                        : "Tersedia"}
                   </span>
                 </div>
               </div>
@@ -610,10 +649,12 @@ export function DigitalTicket({
             <div className="grid w-full grid-cols-2 gap-2 text-xs font-bold">
               <div
                 className={`rounded-xl py-2 ${
-                  mealRedeemedAt ? "bg-surface-soft text-ink-muted" : "bg-success/12 text-success"
+                  !mealEligible || mealRedeemedAt
+                    ? "bg-surface-soft text-ink-muted"
+                    : "bg-success/12 text-success"
                 }`}
               >
-                Makan: {mealRedeemedAt ? "Ditukar" : "Tersedia"}
+                Makan: {!mealEligible ? "Tidak Termasuk" : mealRedeemedAt ? "Ditukar" : "Tersedia"}
               </div>
               <div
                 className={`rounded-xl py-2 ${

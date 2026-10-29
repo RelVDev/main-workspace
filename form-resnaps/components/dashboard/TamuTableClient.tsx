@@ -35,6 +35,9 @@ type GuestRow = {
   allergies: string | null;
   status: "belum_hadir" | "ditahan" | "di_dalam" | "sudah_pulang";
   paymentStatus: "lunas" | "belum_lunas";
+  isOts?: boolean;
+  mealEligible?: boolean;
+  isTamuRole?: boolean;
   holdAtWib: string;
   voucherCode: string;
   mealRedeemedAt: string | null;
@@ -45,15 +48,31 @@ type GuestRow = {
   checkedOutAtWib: string;
 };
 
+type TamuMealQuota = {
+  maxSlots: number;
+  usedSlots: number;
+  remainingSlots: number;
+  totalTamuCount: number;
+  canAddOtsMeal: boolean;
+};
+
 // Cache memori sisi klien agar perpindahan kembali ke tab Daftar Tamu langsung tampil 0ms
 let cachedAllGuests: GuestRow[] | null = null;
 let cachedCategories: string[] = [];
+let cachedTamuMealQuota: TamuMealQuota = {
+  maxSlots: 50,
+  usedSlots: 0,
+  remainingSlots: 50,
+  totalTamuCount: 0,
+  canAddOtsMeal: true,
+};
 
 const PAGE_SIZE = 50;
 
 export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
   const [allGuests, setAllGuests] = useState<GuestRow[]>(() => cachedAllGuests ?? []);
   const [categories, setCategories] = useState<string[]>(() => cachedCategories);
+  const [tamuMealQuota, setTamuMealQuota] = useState<TamuMealQuota>(() => cachedTamuMealQuota);
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(() => cachedAllGuests === null);
 
@@ -78,6 +97,7 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
   const [newContact, setNewContact] = useState("");
   const [newAllergies, setNewAllergies] = useState("");
   const [newPaymentStatus, setNewPaymentStatus] = useState<"lunas" | "belum_lunas">("lunas");
+  const [includeMealOts, setIncludeMealOts] = useState(false);
   const [autoCheckinOts, setAutoCheckinOts] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
 
@@ -108,6 +128,10 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
           const cats: string[] = d.categories || [];
           cachedAllGuests = rows;
           cachedCategories = cats;
+          if (d.tamuMealQuota) {
+            cachedTamuMealQuota = d.tamuMealQuota;
+            setTamuMealQuota(d.tamuMealQuota);
+          }
           setAllGuests(rows);
           setCategories(cats);
         }
@@ -161,8 +185,9 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
 
   async function handleHtmAction(
     guest: GuestRow,
-    action: "approve_checkin" | "set_payment" | "reset_attendance",
+    action: "approve_checkin" | "set_payment" | "reset_attendance" | "set_meal_eligible",
     nextStatus?: "lunas" | "belum_lunas",
+    nextMealEligible?: boolean,
   ) {
     if (
       action === "reset_attendance" &&
@@ -181,10 +206,15 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
           guest_id: guest.id,
           action,
           payment_status: nextStatus,
+          meal_eligible: nextMealEligible,
         }),
       });
       const data = await res.json();
       if (res.ok && data.ok) {
+        if (data.tamuMealQuota) {
+          cachedTamuMealQuota = data.tamuMealQuota;
+          setTamuMealQuota(data.tamuMealQuota);
+        }
         setFeedback({
           kind: "success",
           text:
@@ -192,9 +222,15 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
               ? `${guest.name} dilunasi & diizinkan masuk.`
               : action === "reset_attendance"
                 ? `Recovery berhasil! Kunci HP ${guest.name} telah dibuka.`
-                : `Status HTM ${guest.name} diubah ke ${
-                    data.guest?.paymentStatus === "lunas" ? "LUNAS" : "BELUM LUNAS"
-                  }.`,
+                : action === "set_meal_eligible"
+                  ? nextMealEligible
+                    ? `Tiket Makan ditambahkan untuk ${guest.name} (Sisa slot Tamu Angkatan: ${
+                        data.tamuMealQuota?.remainingSlots ?? "-"
+                      }/50).`
+                    : `Tiket Makan untuk ${guest.name} dicabut (Hanya Tiket Photobooth).`
+                  : `Status HTM ${guest.name} diubah ke ${
+                      data.guest?.paymentStatus === "lunas" ? "LUNAS" : "BELUM LUNAS"
+                    }.`,
         });
         void fetchGuests(false);
       } else {
@@ -281,18 +317,26 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
           contact: newContact.trim() || null,
           allergies: newAllergies.trim() || null,
           payment_status: newPaymentStatus,
+          include_meal: includeMealOts && tamuMealQuota.canAddOtsMeal,
           auto_checkin: newPaymentStatus === "lunas" && autoCheckinOts,
         }),
       });
       const data = await res.json();
       if (res.ok && data.ok) {
+        if (data.tamuMealQuota) {
+          cachedTamuMealQuota = data.tamuMealQuota;
+          setTamuMealQuota(data.tamuMealQuota);
+        }
         const vCode = data.guest?.voucher_code ? ` · Kode: ${data.guest.voucher_code}` : "";
+        const mealNote = data.guest?.meal_eligible
+          ? " · Dapat Tiket Makan + Photobooth"
+          : " · Hanya Tiket Photobooth (Tanpa Makan)";
         const checkinNote = data.guest?.checked_in_at
           ? " & langsung Check-In"
           : " (siap scan QR di gerbang)";
         setFeedback({
           kind: "success",
-          text: `Tamu OTS "${newName.trim()}" berhasil ditambahkan${checkinNote}${vCode}.`,
+          text: `Tamu OTS "${newName.trim()}" ditambahkan${checkinNote}${mealNote}${vCode}.`,
         });
         setShowAddModal(false);
         setNewName("");
@@ -300,6 +344,7 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
         setNewContact("");
         setNewAllergies("");
         setNewPaymentStatus("lunas");
+        setIncludeMealOts(false);
         setAutoCheckinOts(true);
         void fetchGuests(false);
       } else {
@@ -328,12 +373,25 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
         </StatusBanner>
       ) : null}
 
-      {/* Header Ringkas & Aksi OTS */}
+      {/* Header Ringkas, Kuota 50 Slot Makan Tamu Angkatan & Aksi OTS */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-black text-ink sm:text-2xl">Daftar Tamu & Panitia</h1>
-          <p className="text-xs font-semibold text-ink-muted">
-            {totalCount} ditampilkan dari {allGuests.length} terdaftar · Klik lencana HTM untuk ubah Lunas / Belum Lunas
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-xl font-black text-ink sm:text-2xl">Daftar Tamu & Panitia</h1>
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-extrabold ${
+                tamuMealQuota.canAddOtsMeal
+                  ? "bg-brand-orange/15 text-brand-orange ring-1 ring-brand-orange/30"
+                  : "bg-error/15 text-error ring-1 ring-error/30"
+              }`}
+            >
+              <Utensils className="size-3.5" />
+              Slot Makan Tamu Angkatan: {tamuMealQuota.usedSlots} / {tamuMealQuota.maxSlots} (Sisa{" "}
+              {tamuMealQuota.remainingSlots})
+            </span>
+          </div>
+          <p className="mt-0.5 text-xs font-semibold text-ink-muted">
+            {totalCount} ditampilkan dari {allGuests.length} terdaftar · OTS default hanya Photobooth (bisa ditambah Makan jika slot Tamu &lt; 50)
           </p>
         </div>
 
@@ -554,17 +612,59 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
                     </td>
 
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5 text-[11px] font-bold">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 ${
-                            g.mealRedeemedAt
-                              ? "bg-success/15 text-success"
-                              : "bg-surface-soft text-ink-muted"
-                          }`}
-                        >
-                          <Utensils className="size-3" />
-                          {g.mealRedeemedAt ? g.mealRedeemedAtWib : "Makan"}
-                        </span>
+                      <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold">
+                        {g.mealEligible === false ? (
+                          <div className="flex items-center gap-1">
+                            <span className="inline-flex items-center gap-1 rounded-lg bg-surface-soft px-2 py-0.5 text-ink-muted line-through">
+                              <Utensils className="size-3" />
+                              Tanpa Makan
+                            </span>
+                            <button
+                              type="button"
+                              disabled={!tamuMealQuota.canAddOtsMeal}
+                              onClick={() =>
+                                void handleHtmAction(g, "set_meal_eligible", undefined, true)
+                              }
+                              title={
+                                tamuMealQuota.canAddOtsMeal
+                                  ? `Beri Tiket Makan (Sisa ${tamuMealQuota.remainingSlots}/50 slot Tamu Angkatan)`
+                                  : "Kuota 50 slot Tiket Makan Tamu Angkatan sudah penuh"
+                              }
+                              className="inline-flex items-center gap-0.5 rounded-lg bg-brand-orange px-2 py-0.5 text-[10px] font-black text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              + Makan
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={Boolean(g.mealRedeemedAt)}
+                            onClick={() => {
+                              if (
+                                !g.mealRedeemedAt &&
+                                (g.isOts || g.isTamuRole) &&
+                                window.confirm(
+                                  `Cabut hak Tiket Makan untuk "${g.name}" (ubah menjadi hanya Tiket Photobooth)?`,
+                                )
+                              ) {
+                                void handleHtmAction(g, "set_meal_eligible", undefined, false);
+                              }
+                            }}
+                            title={
+                              !g.mealRedeemedAt && (g.isOts || g.isTamuRole)
+                                ? "Klik untuk mencabut Tiket Makan (kembalikan 1 slot Tamu Angkatan)"
+                                : undefined
+                            }
+                            className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 ${
+                              g.mealRedeemedAt
+                                ? "bg-success/15 text-success"
+                                : "bg-brand-orange/15 text-brand-orange"
+                            }`}
+                          >
+                            <Utensils className="size-3" />
+                            {g.mealRedeemedAt ? g.mealRedeemedAtWib : "Makan Aktif"}
+                          </button>
+                        )}
                         <span
                           className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 ${
                             g.photoboothRedeemedAt
@@ -573,7 +673,7 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
                           }`}
                         >
                           <Camera className="size-3" />
-                          {g.photoboothRedeemedAt ? g.photoboothRedeemedAtWib : "Foto"}
+                          {g.photoboothRedeemedAt ? g.photoboothRedeemedAtWib : "Foto Aktif"}
                         </span>
                       </div>
                     </td>
@@ -821,6 +921,37 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
                   />
                 </div>
               </div>
+
+              {/* Pengaturan Tiket Makan OTS (Berdasarkan Sisa Kuota 50 Slot Tamu Angkatan) */}
+              <label
+                className={`flex items-center justify-between gap-3 rounded-2xl border p-3 ${
+                  tamuMealQuota.canAddOtsMeal
+                    ? "cursor-pointer border-brand-orange/35 bg-brand-orange/5"
+                    : "cursor-not-allowed border-error/30 bg-error/5 opacity-75"
+                }`}
+              >
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <Utensils className="size-3.5 text-brand-orange" />
+                    <span className="text-xs font-extrabold text-ink">
+                      Tambahkan Tiket Makan (Slot Tamu Angkatan: {tamuMealQuota.usedSlots}/
+                      {tamuMealQuota.maxSlots})
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-ink-muted">
+                    {tamuMealQuota.canAddOtsMeal
+                      ? `Default OTS hanya dapat Tiket Photobooth. Centang untuk memberi Tiket Makan (Sisa ${tamuMealQuota.remainingSlots} slot).`
+                      : "Slot 50 Tamu Angkatan sudah penuh! Tamu OTS hanya mendapatkan Tiket Photobooth."}
+                  </span>
+                </div>
+                <input
+                  type="checkbox"
+                  disabled={!tamuMealQuota.canAddOtsMeal}
+                  checked={includeMealOts && tamuMealQuota.canAddOtsMeal}
+                  onChange={(e) => setIncludeMealOts(e.target.checked)}
+                  className="size-4 rounded accent-brand-orange"
+                />
+              </label>
 
               {newPaymentStatus === "lunas" ? (
                 <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-brand-blue/25 bg-brand-blue/5 p-3">

@@ -37,6 +37,13 @@ type VoucherStats = {
   mealRemainingCount: number;
   photoboothRedeemedCount: number;
   photoboothRemainingCount: number;
+  tamuMealQuota?: {
+    maxSlots: number;
+    usedSlots: number;
+    remainingSlots: number;
+    totalTamuCount: number;
+    canAddOtsMeal: boolean;
+  };
 };
 
 type RedemptionHistoryItem = {
@@ -56,6 +63,8 @@ type EligibleGuestItem = {
   name: string;
   category: string | null;
   allergies: string | null;
+  isOts?: boolean;
+  mealEligible?: boolean;
   voucherCode: string;
   mealRedeemedAtWib: string | null;
   photoboothRedeemedAtWib: string | null;
@@ -637,6 +646,12 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
               / {stats.eligibleCount}
             </span>
           </div>
+          {stats.tamuMealQuota ? (
+            <span className="text-[10px] font-extrabold text-ink-muted">
+              Slot Tamu: {stats.tamuMealQuota.usedSlots}/{stats.tamuMealQuota.maxSlots} (Sisa{" "}
+              {stats.tamuMealQuota.remainingSlots})
+            </span>
+          ) : null}
         </Card>
 
         <Card className="flex flex-col justify-between gap-1 rounded-2xl border-brand-purple/35 bg-brand-purple/5 p-3 sm:p-4">
@@ -1011,7 +1026,11 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
                           ) : null}
                         </div>
 
-                        {isUsed ? (
+                        {kind === "meal" && g.mealEligible === false ? (
+                          <Badge tone="warning">
+                            OTS: Hanya Photobooth (Tanpa Makan)
+                          </Badge>
+                        ) : isUsed ? (
                           <Badge tone="neutral" icon={Clock}>
                             Sudah Dipakai ({usedTime})
                           </Badge>

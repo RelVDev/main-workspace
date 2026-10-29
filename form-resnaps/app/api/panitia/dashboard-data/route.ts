@@ -1,8 +1,9 @@
-// P10.1–P10.4 / P17: Data ringkasan dashboard panitia yang dieksekusi secara paralel (Promise.all).
+// P10.1–P10.4 / P17: Data ringkasan dashboard panitia yang dieksekusi secara paralel (Promise.all),
+// lengkap dengan informasi kuota 50 slot Tiket Makan Tamu Angkatan & status OTS.
 import { NextRequest } from "next/server";
 import { getCommitteeAuth } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { fetchEnrichedGuests } from "@/lib/guest-extras";
+import { computeTamuMealQuota, fetchEnrichedGuests } from "@/lib/guest-extras";
 import { formatWib } from "@/lib/time";
 import { fail, ok } from "@/lib/api";
 
@@ -13,19 +14,21 @@ export async function GET(req: NextRequest) {
 
   const db = createAdminClient();
 
-  // Eksekusi seluruh pembacaan secara paralel (Promise.all) untuk memangkas waktu tunggu hingga 70%
+  // Eksekusi seluruh pembacaan secara paralel (Promise.all)
   const [rows, recentLogsRes, settingsRes] = await Promise.all([
     fetchEnrichedGuests(db),
     db
       .from("attendance_logs")
       .select("id, type, source, scanned_at, guest_id, guests(full_name, category)")
       .order("scanned_at", { ascending: false })
-      .limit(20),
+      .limit(25),
     db
       .from("event_settings")
       .select("key, value")
       .in("key", ["checkin_open", "checkout_open", "device_lock_enabled", "verification_mode"]),
   ]);
+
+  const tamuMealQuota = computeTamuMealQuota(rows);
 
   const total = rows.length;
   let checkedIn = 0;
@@ -79,6 +82,8 @@ export async function GET(req: NextRequest) {
       allergies: r.allergies,
       status: r.status,
       paymentStatus: r.payment_status,
+      isOts: r.is_ots,
+      mealEligible: r.meal_eligible,
       holdAt: r.hold_at,
       holdAtWib: r.hold_at ? formatWib(r.hold_at) : null,
       voucherCode: r.voucher_code,
@@ -106,6 +111,9 @@ export async function GET(req: NextRequest) {
     allergies: r.allergies,
     status: r.status,
     paymentStatus: r.payment_status,
+    isOts: r.is_ots,
+    mealEligible: r.meal_eligible,
+    isTamuRole: r.is_tamu_role,
     voucherCode: r.voucher_code,
   }));
 
@@ -172,6 +180,7 @@ export async function GET(req: NextRequest) {
       mealRedeemedCount,
       photoboothRedeemedCount,
     },
+    tamuMealQuota,
     unpaidGuests,
     allergyGuests,
     quickGuests,

@@ -1,5 +1,5 @@
 // P05.8 / P17: Simpan absen sesuai mode sesi, tahan absen (on_hold) bila HTM belum_lunas,
-// serta kembalikan kode voucher terpadu (Makan & Photobooth 2-in-1) saat absen sukses.
+// serta kembalikan kode voucher & status hak kupon (mealEligible) saat absen sukses.
 import { NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { lookupSession } from "@/lib/scan-session";
@@ -33,7 +33,6 @@ export async function POST(req: NextRequest) {
 
     if (boundGuestId && boundGuestId !== targetId) {
       const boundGuest = await findEnrichedGuest(db, boundGuestId);
-      // Jika tamu sebelumnya pada perangkat ini masih berstatus hadir / ditahan (belum di-recovery Admin), tolak!
       if (boundGuest && boundGuest.status !== "belum_hadir") {
         return fail("device_locked");
       }
@@ -50,6 +49,8 @@ export async function POST(req: NextRequest) {
     const holdAt = enriched.hold_at || new Date().toISOString();
     await updateGuestExtra(db, targetId, {
       paymentStatus: "belum_lunas",
+      isOts: enriched.is_ots,
+      mealEligible: enriched.meal_eligible,
       holdAt,
       voucherCode,
     });
@@ -66,12 +67,14 @@ export async function POST(req: NextRequest) {
       mode: "in",
       holdAt,
       voucherCode,
+      mealEligible: enriched.meal_eligible,
       guest: {
         id: enriched.guest_id,
         name: enriched.full_name,
         category: enriched.category,
         allergies: enriched.allergies,
         paymentStatus: "belum_lunas",
+        mealEligible: enriched.meal_eligible,
       },
     });
   }
@@ -85,12 +88,19 @@ export async function POST(req: NextRequest) {
   });
   if (error || !data) return fail("internal");
 
-  const payload = data as { code: string; scanned_at?: string; hold_at?: string; voucher_code?: string };
+  const payload = data as {
+    code: string;
+    scanned_at?: string;
+    hold_at?: string;
+    voucher_code?: string;
+  };
 
   if (payload.code === "payment_hold") {
     const holdAt = payload.hold_at || new Date().toISOString();
     await updateGuestExtra(db, targetId, {
       paymentStatus: "belum_lunas",
+      isOts: enriched.is_ots,
+      mealEligible: enriched.meal_eligible,
       holdAt,
       voucherCode: payload.voucher_code || voucherCode,
     });
@@ -101,12 +111,14 @@ export async function POST(req: NextRequest) {
       mode: "in",
       holdAt,
       voucherCode: payload.voucher_code || voucherCode,
+      mealEligible: enriched.meal_eligible,
       guest: {
         id: enriched.guest_id,
         name: enriched.full_name,
         category: enriched.category,
         allergies: enriched.allergies,
         paymentStatus: "belum_lunas",
+        mealEligible: enriched.meal_eligible,
       },
     });
   }
@@ -127,6 +139,7 @@ export async function POST(req: NextRequest) {
     scannedAt: payload.scanned_at,
     voucherCode: payload.voucher_code || voucherCode,
     allergies: enriched.allergies,
+    mealEligible: enriched.meal_eligible,
     mealRedeemedAt: enriched.meal_redeemed_at,
     photoboothRedeemedAt: enriched.photobooth_redeemed_at,
     guest: {
@@ -135,6 +148,7 @@ export async function POST(req: NextRequest) {
       category: enriched.category,
       allergies: enriched.allergies,
       paymentStatus: enriched.payment_status,
+      mealEligible: enriched.meal_eligible,
     },
   });
 }

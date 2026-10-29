@@ -1,5 +1,5 @@
 // Endpoint publik bagi browser tamu untuk menyinkronkan status Hold HTM, Tiket Digital,
-// serta status pemakaian Voucher Makan & Photobooth (1x pakai) secara real-time.
+// status hak Tiket Makan (mealEligible), serta pemakaian Voucher Makan & Photobooth secara real-time.
 import { NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { findEnrichedGuest, isDeviceLockEnabled } from "@/lib/guest-extras";
@@ -43,6 +43,8 @@ export async function GET(req: NextRequest) {
       allergies: guest.allergies,
       status: guest.status, // "belum_hadir" | "ditahan" | "di_dalam" | "sudah_pulang"
       paymentStatus: guest.payment_status, // "lunas" | "belum_lunas"
+      isOts: guest.is_ots,
+      mealEligible: guest.meal_eligible,
       holdAt: guest.hold_at,
       holdAtWib: guest.hold_at ? formatWib(guest.hold_at) : null,
       checkedInAt: guest.checked_in_at,

@@ -85,6 +85,10 @@ function formatAuditAction(action: string, meta: Record<string, unknown> | null)
       return { label: "RECOVERY / RESET ABSEN", tone: "bg-error text-white" };
     case "add_guest_ots":
       return { label: "INPUT TAMU OTS", tone: "bg-brand-blue text-white" };
+    case "grant_ots_meal_ticket":
+      return { label: "+ TIKET MAKAN OTS", tone: "bg-brand-orange text-white" };
+    case "revoke_ots_meal_ticket":
+      return { label: "CABUT MAKAN OTS", tone: "bg-warning text-white" };
     case "update_qr_settings":
       return { label: "UBAH PENGATURAN QR", tone: "bg-ink text-white" };
     case "revoke_all_sessions":

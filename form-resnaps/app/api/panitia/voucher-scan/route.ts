@@ -1,9 +1,15 @@
 // Endpoint panitia untuk memindai (scan) & menukarkan Barcode/QR Voucher Tamu
 // (Kupon Makan & Kupon Photobooth terintegrasi, masing-masing hanya dapat di-scan 1 kali).
+// Menolak scan Makan bagi tamu OTS / HTM di tempat yang tidak mendapat kuota makan (meal_eligible = false).
 import { NextRequest, NextResponse } from "next/server";
 import { getCommitteeAuth } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { fetchEnrichedGuests, findEnrichedGuest, updateGuestExtra } from "@/lib/guest-extras";
+import {
+  computeTamuMealQuota,
+  fetchEnrichedGuests,
+  findEnrichedGuest,
+  updateGuestExtra,
+} from "@/lib/guest-extras";
 import { voucherScanInput } from "@/lib/validation/schemas";
 import { formatWib } from "@/lib/time";
 import { fail, NO_STORE, ok } from "@/lib/api";
@@ -15,10 +21,12 @@ export async function GET(req: NextRequest) {
 
   const db = createAdminClient();
   const guests = await fetchEnrichedGuests(db);
+  const tamuMealQuota = computeTamuMealQuota(guests);
 
   const eligible = guests.filter(
     (g) => (g.status === "di_dalam" || g.status === "sudah_pulang") && g.payment_status === "lunas",
   );
+  const mealEligiblePresent = eligible.filter((g) => g.meal_eligible);
   const mealRedeemed = guests.filter((g) => Boolean(g.meal_redeemed_at));
   const photoboothRedeemed = guests.filter((g) => Boolean(g.photobooth_redeemed_at));
 
@@ -71,10 +79,12 @@ export async function GET(req: NextRequest) {
     stats: {
       totalGuests: guests.length,
       eligibleCount: eligible.length,
+      mealEligiblePresentCount: mealEligiblePresent.length,
       mealRedeemedCount: mealRedeemed.length,
-      mealRemainingCount: Math.max(0, eligible.length - mealRedeemed.length),
+      mealRemainingCount: Math.max(0, mealEligiblePresent.length - mealRedeemed.length),
       photoboothRedeemedCount: photoboothRedeemed.length,
       photoboothRemainingCount: Math.max(0, eligible.length - photoboothRedeemed.length),
+      tamuMealQuota,
     },
     recentRedemptions: history.slice(0, 120),
     eligibleGuests: eligible.map((g) => ({
@@ -82,6 +92,8 @@ export async function GET(req: NextRequest) {
       name: g.full_name,
       category: g.category,
       allergies: g.allergies,
+      isOts: g.is_ots,
+      mealEligible: g.meal_eligible,
       voucherCode: g.voucher_code,
       mealRedeemedAtWib: g.meal_redeemed_at ? formatWib(g.meal_redeemed_at) : null,
       photoboothRedeemedAtWib: g.photobooth_redeemed_at
@@ -144,6 +156,30 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Aturan OTS / HTM di tempat: Jika scan di Booth MAKAN tetapi tamu tidak berhak tiket makan (meal_eligible === false) -> TOLAK!
+  if (kind === "meal" && !guest.meal_eligible) {
+    return NextResponse.json(
+      {
+        ok: false,
+        code: "meal_not_eligible",
+        message: `TIDAK MENDAPAT TIKET MAKAN: ${guest.full_name} terdaftar sebagai OTS / HTM di tempat dan hanya berhak atas Tiket Photobooth.`,
+        guest: {
+          id: guest.guest_id,
+          name: guest.full_name,
+          category: guest.category,
+          allergies: guest.allergies,
+          voucherCode: guest.voucher_code,
+          mealEligible: false,
+          mealRedeemedAtWib: null,
+          photoboothRedeemedAtWib: guest.photobooth_redeemed_at
+            ? formatWib(guest.photobooth_redeemed_at)
+            : null,
+        },
+      },
+      { status: 403, headers: NO_STORE },
+    );
+  }
+
   const labelKind = kind === "meal" ? "Kupon Makan" : "Kupon Photobooth";
   const alreadyAt = kind === "meal" ? guest.meal_redeemed_at : guest.photobooth_redeemed_at;
 
@@ -161,6 +197,7 @@ export async function POST(req: NextRequest) {
           category: guest.category,
           allergies: guest.allergies,
           voucherCode: guest.voucher_code,
+          mealEligible: guest.meal_eligible,
           redeemedAt: alreadyAt,
           redeemedAtWib: usedWib,
           mealRedeemedAtWib: guest.meal_redeemed_at ? formatWib(guest.meal_redeemed_at) : null,
@@ -211,6 +248,7 @@ export async function POST(req: NextRequest) {
       category: guest.category,
       allergies: guest.allergies,
       voucherCode: guest.voucher_code,
+      mealEligible: guest.meal_eligible,
       redeemedAt: nowIso,
       redeemedAtWib: nowWib,
       mealRedeemedAtWib:

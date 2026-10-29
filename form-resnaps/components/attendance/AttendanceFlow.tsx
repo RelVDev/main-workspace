@@ -101,6 +101,7 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
     allergies?: string | null;
     scannedAt: string;
     voucherCode?: string;
+    mealEligible?: boolean;
     mealRedeemedAt?: string | null;
     photoboothRedeemedAt?: string | null;
   } | null>(null);
@@ -172,6 +173,7 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
         allergies: stored.allergies ?? null,
         scannedAt: stored.scannedAt,
         voucherCode: stored.voucherCode,
+        mealEligible: stored.mealEligible ?? true,
         mealRedeemedAt: stored.mealRedeemedAt,
         photoboothRedeemedAt: stored.photoboothRedeemedAt,
       });
@@ -227,6 +229,7 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
                         ? "checked_out"
                         : "active",
                   paymentStatus: t.paymentStatus,
+                  mealEligible: typeof t.mealEligible === "boolean" ? t.mealEligible : true,
                   scannedAt: t.checkedOutAt || t.checkedInAt || stored.scannedAt,
                   holdAt: t.holdAt,
                   voucherCode: t.voucherCode,
@@ -447,6 +450,7 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
             allergies: t.allergies ?? null,
             scannedAt,
             voucherCode: t.voucherCode,
+            mealEligible: typeof t.mealEligible === "boolean" ? t.mealEligible : true,
             mealRedeemedAt: t.mealRedeemedAt,
             photoboothRedeemedAt: t.photoboothRedeemedAt,
           });
@@ -589,6 +593,7 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
           allergies: data.allergies ?? null,
           scannedAt,
           voucherCode: data.voucherCode,
+          mealEligible: typeof data.mealEligible === "boolean" ? data.mealEligible : true,
           mealRedeemedAt: data.mealRedeemedAt ?? null,
           photoboothRedeemedAt: data.photoboothRedeemedAt ?? null,
         });
@@ -967,6 +972,7 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
             allergies={successData.allergies}
             scannedAt={successData.scannedAt}
             voucherCode={successData.voucherCode}
+            initialMealEligible={successData.mealEligible}
             initialMealRedeemedAt={successData.mealRedeemedAt}
             initialPhotoboothRedeemedAt={successData.photoboothRedeemedAt}
             onDeviceRecovered={() => {
