@@ -36,32 +36,36 @@ export type EnrichedGuestRow = {
 
 const EXTRAS_SETTING_KEY = "guest_extras_v1";
 
-// Daftar nama Kating/Tamu pada seed data yang secara default memiliki status HTM 'belum_lunas'
+// Daftar nama Panitia/Peserta pada data Gladi Bersih Chrysalis 2026 yang disimulasikan memiliki status HTM 'belum_lunas'
 export const DEFAULT_UNPAID_NAMES = new Set([
-  "citra lestari",
-  "eko prasetyo",
-  "joko susilo",
-  "lukas hartono",
-  "nicolas chandra",
-  "putu ardana wirawan",
-  "vincentius adi nugraha putra hadiwijaya",
-  "dimas aditya",
+  "raditiya putra pratama",
+  "siti mawardah",
+  "muhammad faiq asyraf",
+  "brian rayanata surya",
+  "devin ogya adhigana",
+  "ibnata rasya syarief",
+  "michael tinon christiano",
+  "muhammad athar reivansyah",
+  "mazida an'um ummi hirza",
+  "steven kornelius saputra",
 ]);
 
-// Data alergi makanan default untuk tamu/kating pada database
+// Data alergi makanan simulasi untuk Panitia/Peserta Chrysalis 2026 pada Gladi Bersih
 export const DEFAULT_ALLERGY_MAP: Record<string, string> = {
-  "anindya putri maharani": "Seafood (Udang & Kepiting)",
-  "citra lestari": "Kacang Tanah & Kacang Mede",
-  "dewi anggraini": "Susu Sapi / Olahan Dairy (Intoleransi Laktosa)",
-  "eko prasetyo": "Telur Ayam",
-  "gita ayu saraswati": "Seafood (Cumi & Kerang)",
-  "joko susilo": "Makanan Pedas / Cabai (Maag Kronis)",
-  "maya safitri": "Gluten / Tepung Terigu",
-  "nicolas chandra": "Seafood (Ikan Laut & Udang)",
-  "qonita azzahra": "Kacang-kacangan & Wijen",
-  "vincentius adi nugraha putra hadiwijaya": "Susu & Keju (Dairy)",
-  "zahra amelia": "Seafood (Udang)",
-  "dimas aditya": "Daging Kambing",
+  "athif nasiruddin yusuf": "Seafood (Udang & Kepiting)",
+  "shafira fauziatuz zahra": "Susu Sapi / Olahan Dairy (Intoleransi Laktosa)",
+  "ayushita ahmad": "Kacang Tanah & Kacang Mede",
+  "naurah alya mukhbita": "Telur Ayam & Olahan Mayo",
+  "nazwa azzahra ramadhani": "Seafood (Cumi & Kerang)",
+  "agatha samantha putri": "Makanan Pedas / Cabai (Maag Kronis)",
+  "annisa shafa nuridha": "Gluten / Tepung Terigu",
+  "calya annora paramartha": "Seafood (Ikan Laut & Udang)",
+  "ghaitsa razqi satyaputri": "Kacang-kacangan & Wijen",
+  "dhinda cahyani febrine": "Susu & Keju (Dairy)",
+  "rayyan fadli": "Daging Kambing",
+  "raditiya putra pratama": "Seafood (Udang & Kepiting)",
+  "brian rayanata surya": "Kacang Tanah & Kacang Mede",
+  "mazida an'um ummi hirza": "Susu Sapi / Olahan Dairy (Intoleransi Laktosa)",
 };
 
 export type StoredExtraRecord = {
