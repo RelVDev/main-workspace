@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
     guestId: string;
     guestName: string;
     category: string | null;
+    allergies: string | null;
     voucherCode: string;
     kind: "meal" | "photobooth";
     redeemedAt: string;
@@ -42,6 +43,7 @@ export async function GET(req: NextRequest) {
         guestId: g.guest_id,
         guestName: g.full_name,
         category: g.category,
+        allergies: g.allergies,
         voucherCode: g.voucher_code,
         kind: "meal",
         redeemedAt: g.meal_redeemed_at,
@@ -54,6 +56,7 @@ export async function GET(req: NextRequest) {
         guestId: g.guest_id,
         guestName: g.full_name,
         category: g.category,
+        allergies: g.allergies,
         voucherCode: g.voucher_code,
         kind: "photobooth",
         redeemedAt: g.photobooth_redeemed_at,
@@ -73,7 +76,7 @@ export async function GET(req: NextRequest) {
       photoboothRedeemedCount: photoboothRedeemed.length,
       photoboothRemainingCount: Math.max(0, eligible.length - photoboothRedeemed.length),
     },
-    recentRedemptions: history.slice(0, 25),
+    recentRedemptions: history.slice(0, 120),
     eligibleGuests: eligible.map((g) => ({
       id: g.guest_id,
       name: g.full_name,

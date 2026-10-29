@@ -1,7 +1,9 @@
-// P11.6: Riwayat absensi & audit logs untuk halaman /panitia/log (diparalelkan dengan Promise.all).
+// P11.6: Riwayat absensi (Masuk/Pulang), riwayat scanner voucher (Makan/Photobooth),
+// & audit logs panitia secara real-time untuk halaman /panitia/log.
 import { NextRequest } from "next/server";
 import { getCommitteeAuth } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchEnrichedGuests } from "@/lib/guest-extras";
 import { formatWib } from "@/lib/time";
 import { fail, ok } from "@/lib/api";
 
@@ -12,18 +14,19 @@ export async function GET(req: NextRequest) {
 
   const db = createAdminClient();
 
-  // Ambil 50 log kehadiran & 50 log audit secara paralel
-  const [{ data: attendanceLogs }, { data: auditLogs }] = await Promise.all([
+  // Ambil 100 log kehadiran, 80 log audit, & data voucher tamu secara paralel
+  const [{ data: attendanceLogs }, { data: auditLogs }, enrichedGuests] = await Promise.all([
     db
       .from("attendance_logs")
       .select("id, type, source, scanned_at, guest_id, guests(full_name, category)")
       .order("scanned_at", { ascending: false })
-      .limit(50),
+      .limit(100),
     db
       .from("audit_logs")
       .select("id, actor, action, meta, created_at, target_guest, guests(full_name)")
       .order("created_at", { ascending: false })
-      .limit(50),
+      .limit(80),
+    fetchEnrichedGuests(db),
   ]);
 
   type AttendanceRow = {
@@ -44,6 +47,50 @@ export async function GET(req: NextRequest) {
     scannedAtWib: formatWib(l.scanned_at),
   }));
 
+  type VoucherLogRow = {
+    id: string;
+    guestId: string;
+    guestName: string;
+    category: string | null;
+    allergies: string | null;
+    voucherCode: string;
+    kind: "meal" | "photobooth";
+    redeemedAt: string;
+    redeemedAtWib: string;
+  };
+
+  const vouchers: VoucherLogRow[] = [];
+  for (const g of enrichedGuests) {
+    if (g.meal_redeemed_at) {
+      vouchers.push({
+        id: `${g.guest_id}_meal`,
+        guestId: g.guest_id,
+        guestName: g.full_name,
+        category: g.category,
+        allergies: g.allergies,
+        voucherCode: g.voucher_code,
+        kind: "meal",
+        redeemedAt: g.meal_redeemed_at,
+        redeemedAtWib: formatWib(g.meal_redeemed_at),
+      });
+    }
+    if (g.photobooth_redeemed_at) {
+      vouchers.push({
+        id: `${g.guest_id}_photobooth`,
+        guestId: g.guest_id,
+        guestName: g.full_name,
+        category: g.category,
+        allergies: g.allergies,
+        voucherCode: g.voucher_code,
+        kind: "photobooth",
+        redeemedAt: g.photobooth_redeemed_at,
+        redeemedAtWib: formatWib(g.photobooth_redeemed_at),
+      });
+    }
+  }
+
+  vouchers.sort((a, b) => new Date(b.redeemedAt).getTime() - new Date(a.redeemedAt).getTime());
+
   type AuditRow = {
     id: string;
     action: string;
@@ -61,5 +108,10 @@ export async function GET(req: NextRequest) {
     createdAtWib: formatWib(a.created_at),
   }));
 
-  return ok({ attendance, audits });
+  return ok({
+    attendance,
+    vouchers,
+    audits,
+    updatedAtWib: formatWib(new Date().toISOString()),
+  });
 }

@@ -1,9 +1,9 @@
 // Scanner Barcode & QR Voucher Terpadu Panitia (Mode Konsumsi/Makan & Mode Photobooth).
 // Setiap voucher tamu hanya dapat di-scan 1 kali untuk Makan dan 1 kali untuk Photobooth.
-// Mendukung pemindaian otomatis di Kamera Laptop (Webcam), iPad/Tablet, iPhone (iOS Safari), dan HP Android.
+// Dilengkapi Log Hasil Scanner Real-Time otomatis (tanpa refresh manual) & filter terpisah Makan vs Photobooth.
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Camera,
   CameraOff,
@@ -18,6 +18,7 @@ import {
   Loader2,
   SwitchCamera,
   FlipHorizontal,
+  Radio,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -26,6 +27,7 @@ import { Input } from "@/components/ui/Input";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { playSuccessChime, playWarningTone, playScanBlip } from "@/lib/sound";
 import { scanImageDataForCode128 } from "@/lib/barcode-scanner";
+import { createClient } from "@/lib/supabase/client";
 import type { VoucherKind } from "@/lib/voucher";
 
 type VoucherStats = {
@@ -42,6 +44,7 @@ type RedemptionHistoryItem = {
   guestId: string;
   guestName: string;
   category: string | null;
+  allergies?: string | null;
   voucherCode: string;
   kind: VoucherKind;
   redeemedAt: string;
@@ -93,6 +96,10 @@ interface WindowWithBarcodeDetector extends Window {
 
 export function VoucherScannerClient({ compact = false }: { compact?: boolean }) {
   const [kind, setKind] = useState<VoucherKind>("meal");
+  // Filter log hasil scanner otomatis mengikuti mode booth aktif agar tidak tercampur
+  const [historyFilter, setHistoryFilter] = useState<"meal" | "photobooth" | "all">("meal");
+  const [isLive, setIsLive] = useState(false);
+
   const [cameraActive, setCameraActive] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
   const [streamVersion, setStreamVersion] = useState(0);
@@ -144,13 +151,57 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
     }
   }, []);
 
+  // Polling otomatis setiap 3 detik tanpa perlu refresh manual
   useEffect(() => {
     void fetchScannerData();
     const interval = setInterval(() => {
       void fetchScannerData();
-    }, 6000);
+    }, 3000);
     return () => clearInterval(interval);
   }, [fetchScannerData]);
+
+  // Langganan Supabase Realtime agar log scanner langsung ter-update seketika saat ada scan baru
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("voucher-scanner-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "event_settings" },
+        () => {
+          void fetchScannerData();
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "audit_logs" },
+        () => {
+          void fetchScannerData();
+        },
+      )
+      .subscribe((status) => {
+        setIsLive(status === "SUBSCRIBED");
+      });
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [fetchScannerData]);
+
+  // Filter log hasil scanner agar PIC Makan & PIC Photobooth tidak tercampur
+  const filteredHistory = useMemo(() => {
+    if (historyFilter === "all") return history;
+    return history.filter((item) => item.kind === historyFilter);
+  }, [history, historyFilter]);
+
+  const mealHistoryCount = useMemo(
+    () => history.filter((item) => item.kind === "meal").length,
+    [history],
+  );
+  const photoHistoryCount = useMemo(
+    () => history.filter((item) => item.kind === "photobooth").length,
+    [history],
+  );
 
   // Eksekusi verifikasi & klaim 1x pakai ke server
   const submitVoucherScan = useCallback(
@@ -514,15 +565,18 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
     void startCamera({ preferredFacing: nextFacing, deviceId: "" });
   }, [facingMode, selectedDeviceId, startCamera, videoDevices]);
 
-  const filteredEligible = guestSearch.trim()
-    ? eligibleGuests
-        .filter(
-          (g) =>
-            g.name.toLowerCase().includes(guestSearch.trim().toLowerCase()) ||
-            g.voucherCode.toLowerCase().includes(guestSearch.trim().toLowerCase()),
-        )
-        .slice(0, 8)
-    : [];
+  const filteredEligible = useMemo(() => {
+    const q = guestSearch.trim().toLowerCase();
+    if (!q) return [];
+    return eligibleGuests
+      .filter(
+        (g) =>
+          g.name.toLowerCase().includes(q) ||
+          g.voucherCode.toLowerCase().includes(q) ||
+          (g.category || "").toLowerCase().includes(q),
+      )
+      .slice(0, 8);
+  }, [eligibleGuests, guestSearch]);
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
@@ -530,11 +584,16 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
       {!compact ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl font-black text-ink sm:text-2xl">
-              Scanner Voucher Makan & Photobooth
-            </h1>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl font-black text-ink sm:text-2xl">
+                Scanner Voucher Makan & Photobooth
+              </h1>
+              <Badge tone={isLive ? "success" : "brand"} icon={Radio}>
+                {isLive ? "LIVE REAL-TIME" : "AUTO-SYNC"}
+              </Badge>
+            </div>
             <p className="text-xs font-semibold text-ink-muted">
-              1 Barcode berlaku untuk 1x Makan & 1x Photobooth
+              1 Barcode berlaku untuk 1x Makan & 1x Photobooth · Riwayat scan otomatis menyegarkan tanpa refresh
             </p>
           </div>
 
@@ -606,7 +665,7 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
             {/* Mode Booth */}
             <div className="flex flex-col gap-1.5">
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-ink-muted">
-                Mode Booth
+                Mode Booth Penanggung Jawab (PIC)
               </span>
               <SegmentedControl<VoucherKind>
                 name="voucher_kind"
@@ -614,10 +673,11 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
                 value={kind}
                 onChange={(next) => {
                   setKind(next);
+                  setHistoryFilter(next);
                   setScanResult(null);
                 }}
                 options={[
-                  { value: "meal", label: "MAKAN", icon: Utensils },
+                  { value: "meal", label: "MAKAN (KONSUMSI)", icon: Utensils },
                   { value: "photobooth", label: "PHOTOBOOTH", icon: Camera },
                 ]}
               />
@@ -904,13 +964,13 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
               </div>
             </form>
 
-            {/* Pencarian Cepat Nama Tamu yang Sudah Check-In */}
+            {/* Pencarian Cepat Nama Tamu yang Sudah Check-In (Instan 0ms) */}
             <div className="flex flex-col gap-2.5 border-t border-line pt-3.5">
               <label
                 htmlFor="scanner-guest-search"
                 className="text-[11px] font-extrabold uppercase tracking-wider text-ink-muted"
               >
-                Cari Nama Tamu Hadir
+                Cari Nama Tamu Hadir (Instan)
               </label>
               <div className="relative">
                 <Input
@@ -975,54 +1035,135 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
           </Card>
         </div>
 
-        {/* Kolom Kanan: Riwayat Penukaran Voucher Terbaru */}
+        {/* Kolom Kanan: Log Hasil Scanner Real-Time dengan Filter Khusus PIC Makan vs Photobooth */}
         <div className="flex flex-col gap-4 md:col-span-5">
           <Card className="flex flex-col gap-3.5 rounded-3xl p-4 shadow-sm sm:p-5">
             <div className="flex items-center justify-between border-b border-line pb-3">
               <div>
-                <h2 className="text-sm font-extrabold text-ink sm:text-base">
-                  Riwayat Scan Voucher Terakhir
-                </h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-extrabold text-ink sm:text-base">
+                    Log Hasil Scanner
+                  </h2>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-black text-success">
+                    <span className="size-1.5 animate-pulse rounded-full bg-success" />
+                    REAL-TIME
+                  </span>
+                </div>
                 <p className="text-xs text-ink-muted">
-                  Catatan klaim Makan & Photobooth secara real-time
+                  Terpisah per booth agar tidak bercampur
                 </p>
               </div>
-              <Badge tone="brand">{history.length}</Badge>
+              <Badge tone="brand">{filteredHistory.length}</Badge>
             </div>
 
-            {history.length === 0 ? (
+            {/* Filter Tab: Khusus Makan, Khusus Photobooth, atau Semua */}
+            <div className="grid grid-cols-3 gap-1.5 rounded-2xl bg-surface-soft p-1">
+              <button
+                type="button"
+                onClick={() => setHistoryFilter("meal")}
+                className={`flex items-center justify-center gap-1 rounded-xl py-1.5 text-[11px] font-extrabold transition ${
+                  historyFilter === "meal"
+                    ? "bg-brand-orange text-white shadow-xs"
+                    : "text-ink-muted hover:text-ink"
+                }`}
+              >
+                <Utensils className="size-3" />
+                <span>Makan ({mealHistoryCount})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setHistoryFilter("photobooth")}
+                className={`flex items-center justify-center gap-1 rounded-xl py-1.5 text-[11px] font-extrabold transition ${
+                  historyFilter === "photobooth"
+                    ? "bg-brand-purple text-white shadow-xs"
+                    : "text-ink-muted hover:text-ink"
+                }`}
+              >
+                <Camera className="size-3" />
+                <span>Foto ({photoHistoryCount})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setHistoryFilter("all")}
+                className={`flex items-center justify-center rounded-xl py-1.5 text-[11px] font-extrabold transition ${
+                  historyFilter === "all"
+                    ? "bg-ink text-white shadow-xs"
+                    : "text-ink-muted hover:text-ink"
+                }`}
+              >
+                Semua ({history.length})
+              </button>
+            </div>
+
+            {filteredHistory.length === 0 ? (
               <p className="py-8 text-center text-xs font-semibold text-ink-muted">
-                Belum ada voucher makan atau photobooth yang di-scan.
+                {historyFilter === "meal"
+                  ? "Belum ada hasil scan Voucher Makan."
+                  : historyFilter === "photobooth"
+                    ? "Belum ada hasil scan Voucher Photobooth."
+                    : "Belum ada voucher yang di-scan."}
               </p>
             ) : (
               <div className="flex max-h-[380px] flex-col divide-y divide-line overflow-y-auto pr-1 text-xs sm:max-h-[460px]">
-                {history.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between gap-2 py-2.5">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <div
-                        className={`flex size-8 shrink-0 items-center justify-center rounded-xl text-white ${
-                          item.kind === "meal" ? "bg-brand-orange" : "bg-brand-purple"
-                        }`}
-                      >
-                        {item.kind === "meal" ? (
-                          <Utensils className="size-4" />
-                        ) : (
-                          <Camera className="size-4" />
-                        )}
+                {filteredHistory.map((item, idx) => {
+                  const isNewest = idx === 0;
+                  return (
+                    <div
+                      key={item.id}
+                      className={`flex items-center justify-between gap-2 rounded-xl px-2 py-2.5 transition ${
+                        isNewest ? "bg-success/8 ring-1 ring-success/25" : ""
+                      }`}
+                    >
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <div
+                          className={`flex size-8 shrink-0 items-center justify-center rounded-xl text-white ${
+                            item.kind === "meal" ? "bg-brand-orange" : "bg-brand-purple"
+                          }`}
+                        >
+                          {item.kind === "meal" ? (
+                            <Utensils className="size-4" />
+                          ) : (
+                            <Camera className="size-4" />
+                          )}
+                        </div>
+                        <div className="flex min-w-0 flex-col">
+                          <div className="flex items-center gap-1.5">
+                            <span className="truncate font-black text-ink">{item.guestName}</span>
+                            {isNewest ? (
+                              <span className="shrink-0 rounded-full bg-success px-1.5 py-0.2 text-[9px] font-black uppercase text-white">
+                                Terbaru
+                              </span>
+                            ) : null}
+                          </div>
+                          <span className="truncate text-[11px] text-ink-muted">
+                            {item.category || "Panitia"} ·{" "}
+                            <span className="font-mono font-bold text-brand-purple">
+                              {item.voucherCode}
+                            </span>
+                          </span>
+                          {item.kind === "meal" && item.allergies ? (
+                            <span className="mt-0.5 inline-flex w-fit items-center gap-1 rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-extrabold text-warning">
+                              <AlertTriangle className="size-2.5" />
+                              Alergi: {item.allergies}
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
-                      <div className="flex min-w-0 flex-col">
-                        <span className="truncate font-bold text-ink">{item.guestName}</span>
-                        <span className="truncate text-[11px] text-ink-muted">
-                          {item.kind === "meal" ? "Voucher Makan" : "Photobooth"} ·{" "}
-                          <span className="font-mono">{item.voucherCode}</span>
+                      <div className="flex shrink-0 flex-col items-end gap-0.5">
+                        <span
+                          className={`rounded-md px-1.5 py-0.5 text-[10px] font-black uppercase text-white ${
+                            item.kind === "meal" ? "bg-brand-orange" : "bg-brand-purple"
+                          }`}
+                        >
+                          {item.kind === "meal" ? "MAKAN" : "FOTO"}
+                        </span>
+                        <span className="font-bold tabular-nums text-ink">
+                          {item.redeemedAtWib}
                         </span>
                       </div>
                     </div>
-                    <span className="shrink-0 font-bold tabular-nums text-ink">
-                      {item.redeemedAtWib}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </Card>

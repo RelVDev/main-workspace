@@ -148,8 +148,9 @@ export function DashboardClient({ isTvMode: propTvMode }: { isTvMode?: boolean }
   const [showScannerModal, setShowScannerModal] = useState(false);
   const [actionBanner, setActionBanner] = useState<string | null>(null);
 
-  // Pencarian Cepat 0ms di Dashboard
+  // Pencarian Cepat 0ms di Dashboard & Filter Aktivitas
   const [quickQuery, setQuickQuery] = useState("");
+  const [activityFilter, setActivityFilter] = useState<"all" | "in" | "out">("all");
 
   // Modal Cepat Input Tamu OTS dari Dashboard
   const [showOtsModal, setShowOtsModal] = useState(false);
@@ -224,7 +225,7 @@ export function DashboardClient({ isTvMode: propTvMode }: { isTvMode?: boolean }
 
     const dataInterval = setInterval(() => {
       if (mounted) void fetchData();
-    }, 6000);
+    }, 3000);
 
     const liveInterval = setInterval(() => {
       if (mounted) void fetchLiveActivity();
@@ -243,10 +244,24 @@ export function DashboardClient({ isTvMode: propTvMode }: { isTvMode?: boolean }
       .channel("dashboard-live-channel")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "attendance_logs" },
+        { event: "*", schema: "public", table: "attendance_logs" },
         () => {
           void fetchData();
           void fetchLiveActivity();
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "event_settings" },
+        () => {
+          void fetchData();
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "audit_logs" },
+        () => {
+          void fetchData();
         },
       )
       .subscribe((status) => {
@@ -914,49 +929,105 @@ export function DashboardClient({ isTvMode: propTvMode }: { isTvMode?: boolean }
           </Card>
 
           <Card className="flex flex-col gap-3 rounded-2xl p-4 shadow-2xs sm:p-5">
-            <div className="flex items-center justify-between border-b border-line pb-2.5">
-              <h2 className="text-sm font-black text-ink sm:text-base">Aktivitas Terakhir</h2>
-              <Link
-                href="/panitia/log"
-                className="text-xs font-bold text-brand-blue hover:underline"
-              >
-                Semua Log
-              </Link>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-2.5">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-black text-ink sm:text-base">
+                  Log Aktivitas Gerbang
+                </h2>
+                <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-black text-success">
+                  <span className="size-1.5 animate-pulse rounded-full bg-success" />
+                  REAL-TIME
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setActivityFilter("all")}
+                  className={`rounded-lg px-2 py-1 text-[11px] font-black transition ${
+                    activityFilter === "all"
+                      ? "bg-ink text-white"
+                      : "bg-surface-soft text-ink-muted hover:text-ink"
+                  }`}
+                >
+                  Semua
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActivityFilter("in")}
+                  className={`rounded-lg px-2 py-1 text-[11px] font-black transition ${
+                    activityFilter === "in"
+                      ? "bg-success text-white"
+                      : "bg-success/10 text-success hover:bg-success/15"
+                  }`}
+                >
+                  Masuk
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActivityFilter("out")}
+                  className={`rounded-lg px-2 py-1 text-[11px] font-black transition ${
+                    activityFilter === "out"
+                      ? "bg-brand-purple text-white"
+                      : "bg-brand-purple/10 text-brand-purple hover:bg-brand-purple/15"
+                  }`}
+                >
+                  Pulang
+                </button>
+                <Link
+                  href="/panitia/log"
+                  className="ml-1 text-xs font-bold text-brand-blue hover:underline"
+                >
+                  Semua Log
+                </Link>
+              </div>
             </div>
 
             {data?.activities && data.activities.length > 0 ? (
               <div className="flex flex-col divide-y divide-line text-sm">
-                {data.activities.slice(0, 6).map((act) => (
-                  <div key={act.id} className="flex items-center justify-between py-2">
-                    <div className="flex items-center gap-2.5">
-                      <div
-                        className={`flex size-7 items-center justify-center rounded-lg text-xs font-bold ${
-                          act.type === "in"
-                            ? "bg-brand-blue/10 text-brand-blue"
-                            : "bg-brand-purple/10 text-brand-purple"
-                        }`}
-                      >
-                        {act.type === "in" ? (
-                          <LogIn className="size-3.5" />
-                        ) : (
-                          <LogOut className="size-3.5" />
-                        )}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-ink sm:text-sm">
-                          {act.guestName}
-                        </span>
-                        {act.category ? (
-                          <span className="text-[11px] text-ink-muted">{act.category}</span>
-                        ) : null}
-                      </div>
-                    </div>
+                {data.activities
+                  .filter((act) => (activityFilter === "all" ? true : act.type === activityFilter))
+                  .slice(0, 7)
+                  .map((act) => {
+                    const isMasuk = act.type === "in";
+                    return (
+                      <div key={act.id} className="flex items-center justify-between gap-2 py-2.5">
+                        <div className="flex min-w-0 items-center gap-2.5">
+                          <span
+                            className={`inline-flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-white shadow-2xs ${
+                              isMasuk ? "bg-success" : "bg-brand-purple"
+                            }`}
+                          >
+                            {isMasuk ? (
+                              <>
+                                <LogIn className="size-3" />
+                                MASUK
+                              </>
+                            ) : (
+                              <>
+                                <LogOut className="size-3" />
+                                PULANG
+                              </>
+                            )}
+                          </span>
+                          <div className="flex min-w-0 flex-col">
+                            <span className="truncate text-xs font-black text-ink sm:text-sm">
+                              {act.guestName}
+                            </span>
+                            {act.category ? (
+                              <span className="truncate text-[11px] font-semibold text-ink-muted">
+                                {act.category}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
 
-                    <span className="text-xs font-bold tabular-nums text-ink">
-                      {act.scannedAtWib}
-                    </span>
-                  </div>
-                ))}
+                        <span className="shrink-0 text-xs font-bold tabular-nums text-ink">
+                          {act.scannedAtWib}
+                        </span>
+                      </div>
+                    );
+                  })}
               </div>
             ) : (
               <p className="py-6 text-center text-xs text-ink-muted">Belum ada aktivitas.</p>
