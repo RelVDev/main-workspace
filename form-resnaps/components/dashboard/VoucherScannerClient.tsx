@@ -13,7 +13,6 @@ import {
   Search,
   ScanLine,
   RefreshCw,
-  Sparkles,
   UserCheck,
   Clock,
   Loader2,
@@ -529,103 +528,85 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
     <div className="flex flex-col gap-4 sm:gap-6">
       {/* Header & Pemilih Mode Booth (Makan vs Photobooth) */}
       {!compact ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-brand-purple/10 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-brand-purple">
-              <Sparkles className="size-3 text-brand-gold" />
-              <span>Scanner Voucher Terpadu 2-in-1</span>
-            </div>
-            <h1 className="mt-1 text-xl font-black text-ink sm:text-2xl lg:text-3xl">
-              Scanner Barcode Makan & Photobooth
+            <h1 className="text-xl font-black text-ink sm:text-2xl">
+              Scanner Voucher Makan & Photobooth
             </h1>
-            <p className="text-xs text-ink-muted sm:text-sm">
-              1 Barcode tamu berlaku untuk <strong>1x Makan</strong> dan{" "}
-              <strong>1x Photobooth</strong> secara terpisah.
+            <p className="text-xs font-semibold text-ink-muted">
+              1 Barcode berlaku untuk 1x Makan & 1x Photobooth
             </p>
           </div>
 
           <button
             type="button"
             onClick={() => void fetchScannerData()}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-surface px-3.5 py-2 text-xs font-bold text-ink shadow-2xs hover:bg-surface-soft"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-line bg-surface px-3 text-xs font-bold text-ink shadow-2xs hover:bg-surface-soft"
           >
             <RefreshCw className="size-3.5" />
-            Segarkan Kuota
+            Segarkan
           </button>
         </div>
       ) : null}
 
       {/* Kartu Ringkasan Kuota Voucher (Responsif HP, iPad, Laptop) */}
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3.5">
-        <Card className="flex flex-col justify-between gap-1 rounded-2xl border-line p-3.5 sm:p-4">
+      <div className="grid grid-cols-3 gap-2.5 sm:gap-3.5">
+        <Card className="flex flex-col justify-between gap-1 rounded-2xl border-line p-3 sm:p-4">
           <div className="flex items-center justify-between text-brand-blue">
-            <span className="text-[11px] font-black uppercase tracking-wider sm:text-xs">
-              Tamu Check-In
+            <span className="text-[10px] font-black uppercase tracking-wider sm:text-xs">
+              Hadir
             </span>
-            <UserCheck className="size-4 shrink-0" />
+            <UserCheck className="size-3.5 shrink-0 sm:size-4" />
           </div>
-          <div>
-            <span className="text-2xl font-black text-ink sm:text-3xl">
-              {stats.eligibleCount}
-            </span>
-            <p className="text-[11px] font-semibold text-ink-muted">Berhak klaim voucher</p>
-          </div>
+          <span className="text-xl font-black text-ink sm:text-3xl">
+            {stats.eligibleCount}
+          </span>
         </Card>
 
-        <Card className="flex flex-col justify-between gap-1 rounded-2xl border-brand-orange/35 bg-gradient-to-br from-white to-brand-orange/10 p-3.5 sm:p-4">
+        <Card className="flex flex-col justify-between gap-1 rounded-2xl border-brand-orange/35 bg-brand-orange/5 p-3 sm:p-4">
           <div className="flex items-center justify-between text-brand-orange">
-            <span className="text-[11px] font-black uppercase tracking-wider sm:text-xs">
-              Kupon Makan
+            <span className="text-[10px] font-black uppercase tracking-wider sm:text-xs">
+              Makan
             </span>
-            <Utensils className="size-4 shrink-0" />
+            <Utensils className="size-3.5 shrink-0 sm:size-4" />
           </div>
-          <div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black text-brand-orange sm:text-3xl">
-                {stats.mealRedeemedCount}
-              </span>
-              <span className="text-[11px] font-bold text-ink-muted sm:text-xs">
-                / {stats.eligibleCount}
-              </span>
-            </div>
-            <p className="text-[11px] font-semibold text-ink-muted">
-              Sisa {stats.mealRemainingCount} belum klaim
-            </p>
+          <div className="flex items-baseline gap-1">
+            <span className="text-xl font-black text-brand-orange sm:text-3xl">
+              {stats.mealRedeemedCount}
+            </span>
+            <span className="text-[11px] font-bold text-ink-muted">
+              / {stats.eligibleCount}
+            </span>
           </div>
         </Card>
 
-        <Card className="col-span-2 flex flex-col justify-between gap-1 rounded-2xl border-brand-purple/35 bg-gradient-to-br from-white to-brand-purple/10 p-3.5 sm:col-span-1 sm:p-4">
+        <Card className="flex flex-col justify-between gap-1 rounded-2xl border-brand-purple/35 bg-brand-purple/5 p-3 sm:p-4">
           <div className="flex items-center justify-between text-brand-purple">
-            <span className="text-[11px] font-black uppercase tracking-wider sm:text-xs">
+            <span className="text-[10px] font-black uppercase tracking-wider sm:text-xs">
               Photobooth
             </span>
-            <Camera className="size-4 shrink-0" />
+            <Camera className="size-3.5 shrink-0 sm:size-4" />
           </div>
-          <div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black text-brand-purple sm:text-3xl">
-                {stats.photoboothRedeemedCount}
-              </span>
-              <span className="text-[11px] font-bold text-ink-muted sm:text-xs">
-                / {stats.eligibleCount} dipakai
-              </span>
-            </div>
-            <p className="text-[11px] font-semibold text-ink-muted">
-              Sisa {stats.photoboothRemainingCount} belum sesi foto
-            </p>
+          <div className="flex items-baseline gap-1">
+            <span className="text-xl font-black text-brand-purple sm:text-3xl">
+              {stats.photoboothRedeemedCount}
+            </span>
+            <span className="text-[11px] font-bold text-ink-muted">
+              / {stats.eligibleCount}
+            </span>
           </div>
         </Card>
       </div>
 
       {/* Area Utama: Responsif di HP (1 kolom), iPad (12 kolom proporsional), dan Laptop */}
-      <div className="grid grid-cols-1 items-start gap-4 sm:gap-6 md:grid-cols-12">
+      <div className="grid grid-cols-1 items-start gap-4 sm:gap-5 md:grid-cols-12">
         {/* Kolom Kiri: Kontrol Scanner */}
         <div className="flex flex-col gap-4 md:col-span-7">
-          <Card className="flex flex-col gap-4 rounded-3xl border-white/80 bg-white/95 p-4 shadow-lg sm:gap-5 sm:p-6">
-            {/* Langkah 1: Pilih Mode Booth */}
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-black uppercase tracking-wider text-ink-muted">
-                1. Pilih Mode Booth Saat Ini
+          <Card className="flex flex-col gap-4 rounded-3xl border-white/80 bg-white/95 p-4 shadow-md sm:p-5">
+            {/* Mode Booth */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-ink-muted">
+                Mode Booth
               </span>
               <SegmentedControl<VoucherKind>
                 name="voucher_kind"
@@ -636,8 +617,8 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
                   setScanResult(null);
                 }}
                 options={[
-                  { value: "meal", label: "BOOTH MAKAN (1x)", icon: Utensils },
-                  { value: "photobooth", label: "PHOTOBOOTH (1x)", icon: Camera },
+                  { value: "meal", label: "MAKAN", icon: Utensils },
+                  { value: "photobooth", label: "PHOTOBOOTH", icon: Camera },
                 ]}
               />
             </div>
@@ -725,11 +706,11 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
               </div>
             ) : null}
 
-            {/* Langkah 2: Kamera Pemindai Otomatis (Responsif HP, iPad, dan Laptop) */}
+            {/* Kamera Pemindai Otomatis */}
             <div className="flex flex-col gap-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs font-black uppercase tracking-wider text-ink-muted">
-                  2. Kamera Pemindai Barcode / QR
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-ink-muted">
+                  Kamera Scanner
                 </span>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {cameraActive ? (
@@ -884,19 +865,19 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
               ) : null}
             </div>
 
-            {/* Langkah 3: Input Kode Barcode / Hardware Barcode Gun */}
+            {/* Input Kode Barcode / Hardware Barcode Gun */}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 void submitVoucherScan(manualCode, kind);
               }}
-              className="flex flex-col gap-2 border-t border-line pt-4"
+              className="flex flex-col gap-2 border-t border-line pt-3.5"
             >
               <label
                 htmlFor="manual-voucher-input"
-                className="text-xs font-black uppercase tracking-wider text-ink"
+                className="text-[11px] font-extrabold uppercase tracking-wider text-ink-muted"
               >
-                3. Ketik Kode Barcode / Gunakan Alat Scanner USB
+                Input Kode Manual / Scanner USB
               </label>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Input
@@ -923,13 +904,13 @@ export function VoucherScannerClient({ compact = false }: { compact?: boolean })
               </div>
             </form>
 
-            {/* Langkah 4: Pencarian Cepat Nama Tamu yang Sudah Check-In */}
-            <div className="flex flex-col gap-2.5 border-t border-line pt-4">
+            {/* Pencarian Cepat Nama Tamu yang Sudah Check-In */}
+            <div className="flex flex-col gap-2.5 border-t border-line pt-3.5">
               <label
                 htmlFor="scanner-guest-search"
-                className="text-xs font-black uppercase tracking-wider text-ink"
+                className="text-[11px] font-extrabold uppercase tracking-wider text-ink-muted"
               >
-                4. Atau Cari Nama Tamu yang Sudah Check-In
+                Cari Nama Tamu Hadir
               </label>
               <div className="relative">
                 <Input

@@ -1,4 +1,5 @@
-// P11.5 / P17: Tambah tamu on-the-spot (khusus Admin) beserta status pembayaran HTM & kode voucher.
+// P11.5 / P17: Input langsung tamu On-The-Spot (OTS) oleh Panitia/Admin,
+// lengkap dengan status HTM, alergi makanan, kode voucher, dan opsi langsung Check-In.
 import { NextRequest } from "next/server";
 import { getCommitteeAuth } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -11,18 +12,19 @@ export async function POST(req: NextRequest) {
   const bearer = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   const auth = await getCommitteeAuth(bearer);
 
-  // Hanya admin yang diizinkan menambah tamu on-the-spot (P11.5)
-  if (!auth || auth.role !== "admin") {
+  // Seluruh akun Panitia maupun Admin terautentikasi dapat menginput tamu OTS di meja registrasi
+  if (!auth) {
     return fail("session_invalid");
   }
 
   const body = await req.json().catch(() => null);
   const fullName = body?.full_name?.trim();
-  const category = body?.category?.trim() || null;
+  const category = body?.category?.trim() || "OTS · Tamu";
   const contact = body?.contact?.trim() || null;
   const allergies = body?.allergies?.trim() || null;
   const paymentStatus: PaymentStatus =
     body?.payment_status === "belum_lunas" ? "belum_lunas" : "lunas";
+  const autoCheckin = Boolean(body?.auto_checkin) && paymentStatus === "lunas";
 
   if (!fullName || fullName.length > 120) {
     return fail("invalid_input");
@@ -56,7 +58,23 @@ export async function POST(req: NextRequest) {
     voucherCode,
   });
 
-  // Catat ke audit_logs (P11.5)
+  // Bila opsi "Langsung Check-In" dipilih dan HTM lunas, langsung catat kehadiran masuk
+  let checkedInAt: string | null = null;
+  if (autoCheckin) {
+    const nowIso = new Date().toISOString();
+    const { error: logErr } = await db.from("attendance_logs").insert({
+      guest_id: newGuest.id,
+      type: "in",
+      scanned_at: nowIso,
+      source: "manual",
+      actor: auth.userId,
+    });
+    if (!logErr) {
+      checkedInAt = nowIso;
+    }
+  }
+
+  // Catat ke audit_logs
   await db.from("audit_logs").insert({
     actor: auth.userId,
     action: "add_guest_onthespot",
@@ -66,6 +84,7 @@ export async function POST(req: NextRequest) {
       category,
       allergies,
       payment_status: paymentStatus,
+      auto_checkin: autoCheckin,
       voucher_code: voucherCode,
       created_by: auth.email,
     },
@@ -77,6 +96,7 @@ export async function POST(req: NextRequest) {
       allergies,
       payment_status: paymentStatus,
       voucher_code: voucherCode,
+      checked_in_at: checkedInAt,
     },
   });
 }

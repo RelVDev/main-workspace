@@ -491,22 +491,15 @@ export function QrDisplay({ compact = false }: { compact?: boolean }) {
         </div>
       </div>
 
-      {/* Judul Besar Closing Party & Penegasan Kehadiran Tamu */}
+      {/* Judul Ringkas & Elegan */}
       <div className="flex flex-col items-center text-center">
-        {/* Lencana Identitas Closing Party (Bukan absensi kantor/sekolah) */}
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-brand-purple/20 bg-gradient-to-r from-brand-blue/10 via-brand-purple/10 to-brand-gold/10 px-4 py-1 text-xs font-black uppercase tracking-wider text-brand-purple shadow-2xs">
-          <Sparkles className="size-3.5 text-brand-gold" />
-          <span>CHECK-IN GUEST · CLOSING PARTY CHRYSALIS</span>
-        </div>
-
-        <h1 className="mt-2 text-2xl font-black uppercase tracking-tight text-ink sm:text-3xl">
-          {isMasuk ? "SCAN UNTUK CHECK-IN TAMU" : "SCAN UNTUK CHECK-OUT TAMU"}
+        <span className="inline-flex items-center gap-1 rounded-full bg-brand-purple/10 px-3 py-0.5 text-[10px] font-black uppercase tracking-widest text-brand-purple">
+          <Sparkles className="size-3 text-brand-gold" />
+          <span>Closing Party CHRYSALIS</span>
+        </span>
+        <h1 className="mt-1.5 text-xl font-black uppercase tracking-tight text-ink sm:text-2xl">
+          {isMasuk ? "Scan QR Check-In" : "Scan QR Check-Out"}
         </h1>
-        <p className="mt-1 text-xs font-bold text-ink-muted">
-          {isMasuk
-            ? "Arahkan kamera ponsel Anda ke kode QR untuk mengambil Tiket Masuk"
-            : "Arahkan kamera ponsel Anda sebelum meninggalkan venue"}
-        </p>
       </div>
 
       {/* Area Tampilan QR dengan Frame Gradien Perayaan & Kontras Hitam-Putih Maksimal */}
@@ -591,33 +584,17 @@ export function QrDisplay({ compact = false }: { compact?: boolean }) {
         )}
       </div>
 
-      {/* 3 Langkah Petunjuk Tamu Bergaya Festival */}
-      <div className="grid w-full grid-cols-3 gap-2 border-y border-line/70 py-3 text-center text-xs text-ink-muted">
-        <div className="flex flex-col items-center gap-0.5">
-          <span className="font-black text-brand-blue">1. Buka Kamera HP</span>
-          <span className="text-[10px]">Arahkan ke kode QR</span>
-        </div>
-        <div className="flex flex-col items-center gap-0.5 border-x border-line/70 px-1">
-          <span className="font-black text-brand-purple">2. Cari Namamu</span>
-          <span className="text-[10px]">Pilih dari daftar tamu</span>
-        </div>
-        <div className="flex flex-col items-center gap-0.5">
-          <span className="font-black text-success">3. Ambil Gala Pass</span>
-          <span className="text-[10px]">Nikmati acaranya!</span>
-        </div>
-      </div>
-
       {/* Counter Ringkas di Bawah QR */}
       {counter ? (
-        <div className="flex w-full items-center justify-center gap-3 rounded-2xl bg-surface-soft/80 px-4 py-2.5 text-center text-xs font-bold text-ink shadow-inner">
-          <Ticket className="size-4 text-brand-blue shrink-0" />
+        <div className="flex w-full items-center justify-center gap-2 rounded-2xl bg-surface-soft/80 px-4 py-2 text-center text-xs font-bold text-ink">
+          <Ticket className="size-3.5 shrink-0 text-brand-blue" />
           {isMasuk ? (
             <span>
-              Tamu Hadir: <strong className="text-brand-blue">{counter.checkedIn}</strong> / {counter.total} Orang · Di Dalam Venue: <strong className="text-success">{counter.inside}</strong>
+              Hadir: <strong className="text-brand-blue">{counter.checkedIn}</strong> / {counter.total} · Di Dalam: <strong className="text-success">{counter.inside}</strong>
             </span>
           ) : (
             <span>
-              Tamu Pulang: <strong className="text-brand-purple">{counter.checkedOut}</strong> · Masih di Venue: <strong className="text-success">{counter.inside}</strong>
+              Pulang: <strong className="text-brand-purple">{counter.checkedOut}</strong> · Di Dalam: <strong className="text-success">{counter.inside}</strong>
             </span>
           )}
         </div>

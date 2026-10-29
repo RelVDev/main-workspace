@@ -1,5 +1,5 @@
-// P10.5 / P11.1 / P11.2 / P11.5 / P17: Tabel tamu interaktif dengan filter Status HTM (Lunas/Belum Lunas),
-// persetujuan Hold Absensi, status Voucher Makan & Photobooth, absensi manual, undo, dan tambah tamu.
+// P10.5 / P11.1 / P11.2 / P11.5 / P17: Tabel tamu bersih & minimalis dengan filter HTM,
+// persetujuan Hold, status Voucher, absensi manual, recovery HP, dan Input Tamu OTS langsung.
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
@@ -45,7 +45,7 @@ type GuestRow = {
   checkedOutAtWib: string;
 };
 
-export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
+export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
   const [guests, setGuests] = useState<GuestRow[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -67,13 +67,14 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
   const [undoReason, setUndoReason] = useState("");
   const [isUndoing, setIsUndoing] = useState(false);
 
-  // Modal Tambah Tamu
+  // Modal Input Tamu OTS
   const [showAddModal, setShowAddModal] = useState(false);
   const [newName, setNewName] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [newContact, setNewContact] = useState("");
   const [newAllergies, setNewAllergies] = useState("");
   const [newPaymentStatus, setNewPaymentStatus] = useState<"lunas" | "belum_lunas">("lunas");
+  const [autoCheckinOts, setAutoCheckinOts] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
 
   // Pesan feedback
@@ -116,7 +117,6 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
     }
   }, [query, statusFilter, paymentFilter, categoryFilter, page]);
 
-  // Shortcut keyboard: tombol '/' atau 'Ctrl+K' langsung memfokuskan pencarian
   useEffect(() => {
     function handleGlobalKey(e: KeyboardEvent) {
       if (
@@ -138,7 +138,6 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
     return () => clearTimeout(timer);
   }, [fetchGuests]);
 
-  // Setujui masuk tamu yang ditahan (Hold), ubah status pembayaran HTM, atau recovery salah absen
   async function handleHtmAction(
     guest: GuestRow,
     action: "approve_checkin" | "set_payment" | "reset_attendance",
@@ -147,7 +146,7 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
     if (
       action === "reset_attendance" &&
       !window.confirm(
-        `Recovery Salah Absen untuk "${guest.name}"?\n\nStatus kehadiran akan dikembalikan ke Belum Hadir dan kunci perangkat (HP) tamu akan langsung dibuka agar dapat memilih nama yang benar.`,
+        `Recovery Salah Absen untuk "${guest.name}"?\n\nStatus dikembalikan ke Belum Hadir dan kunci HP dibuka.`,
       )
     ) {
       return;
@@ -169,10 +168,10 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
           kind: "success",
           text:
             action === "approve_checkin"
-              ? `HTM ${guest.name} dilunasi & diizinkan masuk. Barcode Voucher telah aktif di HP tamu.`
+              ? `${guest.name} dilunasi & diizinkan masuk.`
               : action === "reset_attendance"
-                ? `Recovery berhasil! Status ${guest.name} telah di-reset ke Belum Hadir dan kunci perangkat HP tamu telah dibuka.`
-                : `Status HTM ${guest.name} diubah menjadi ${
+                ? `Recovery berhasil! Kunci HP ${guest.name} telah dibuka.`
+                : `Status HTM ${guest.name} diubah ke ${
                     data.guest?.paymentStatus === "lunas" ? "LUNAS" : "BELUM LUNAS"
                   }.`,
         });
@@ -185,10 +184,9 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
     }
   }
 
-  // Absensi manual (P11.1)
   async function handleManualAttendance(guest: GuestRow, type: "in" | "out") {
     const actionLabel = type === "in" ? "MASUK" : "PULANG";
-    if (!window.confirm(`Catat absensi ${actionLabel} secara manual untuk ${guest.name}?`)) {
+    if (!window.confirm(`Catat absen ${actionLabel} manual untuk ${guest.name}?`)) {
       return;
     }
 
@@ -202,18 +200,17 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
       if (res.ok && data.ok) {
         setFeedback({
           kind: "success",
-          text: `Absensi ${actionLabel} untuk ${guest.name} berhasil dicatat.`,
+          text: `Absen ${actionLabel} untuk ${guest.name} tercatat.`,
         });
         void fetchGuests();
       } else {
-        setFeedback({ kind: "error", text: data.message || "Gagal mencatat absensi manual." });
+        setFeedback({ kind: "error", text: data.message || "Gagal mencatat absensi." });
       }
     } catch {
       setFeedback({ kind: "error", text: "Terjadi kesalahan jaringan." });
     }
   }
 
-  // Batalkan absensi (P11.2)
   async function handleConfirmUndo() {
     if (!undoModal || !undoReason.trim()) return;
 
@@ -232,9 +229,9 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
       if (res.ok && data.ok) {
         setFeedback({
           kind: "success",
-          text: `Absensi ${
+          text: `Absen ${
             undoModal.type === "in" ? "masuk" : "pulang"
-          } untuk ${undoModal.guest.name} telah dibatalkan.`,
+          } ${undoModal.guest.name} dibatalkan & kunci HP dibuka.`,
         });
         setUndoModal(null);
         setUndoReason("");
@@ -247,8 +244,9 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
     }
   }
 
-  // Tambah tamu on-the-spot (P11.5)
-  async function handleAddGuest() {
+  // Input Tamu On-The-Spot (OTS)
+  async function handleAddGuest(e: React.FormEvent) {
+    e.preventDefault();
     if (!newName.trim()) return;
 
     setIsAdding(true);
@@ -258,19 +256,22 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           full_name: newName.trim(),
-          category: newCategory.trim() || null,
+          category: newCategory.trim() || "OTS · Tamu",
           contact: newContact.trim() || null,
           allergies: newAllergies.trim() || null,
           payment_status: newPaymentStatus,
+          auto_checkin: newPaymentStatus === "lunas" && autoCheckinOts,
         }),
       });
       const data = await res.json();
       if (res.ok && data.ok) {
+        const vCode = data.guest?.voucher_code ? ` · Kode: ${data.guest.voucher_code}` : "";
+        const checkinNote = data.guest?.checked_in_at
+          ? " & langsung Check-In"
+          : " (siap scan QR di gerbang)";
         setFeedback({
           kind: "success",
-          text: `Tamu "${newName}" (${
-            newPaymentStatus === "lunas" ? "HTM Lunas" : "HTM Belum Lunas"
-          }) berhasil ditambahkan.`,
+          text: `Tamu OTS "${newName.trim()}" berhasil ditambahkan${checkinNote}${vCode}.`,
         });
         setShowAddModal(false);
         setNewName("");
@@ -278,9 +279,10 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
         setNewContact("");
         setNewAllergies("");
         setNewPaymentStatus("lunas");
+        setAutoCheckinOts(true);
         void fetchGuests();
       } else {
-        setFeedback({ kind: "error", text: data.message || "Gagal menambahkan tamu." });
+        setFeedback({ kind: "error", text: data.message || "Gagal menambahkan tamu OTS." });
       }
     } finally {
       setIsAdding(false);
@@ -288,65 +290,64 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       {/* Banner Feedback */}
       {feedback ? (
-        <div className="relative">
-          <StatusBanner kind={feedback.kind}>
-            <div className="flex items-center justify-between pr-4">
-              <span>{feedback.text}</span>
-              <button
-                type="button"
-                onClick={() => setFeedback(null)}
-                className="text-xs font-bold underline"
-              >
-                Tutup
-              </button>
-            </div>
-          </StatusBanner>
-        </div>
+        <StatusBanner kind={feedback.kind}>
+          <div className="flex items-center justify-between gap-3">
+            <span>{feedback.text}</span>
+            <button
+              type="button"
+              onClick={() => setFeedback(null)}
+              className="shrink-0 text-xs font-bold underline"
+            >
+              Tutup
+            </button>
+          </div>
+        </StatusBanner>
       ) : null}
 
-      {/* Header & Aksi Atas */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      {/* Header Ringkas & Aksi OTS */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black text-ink">Daftar Tamu, Status HTM, & Voucher</h1>
-          <p className="text-sm text-ink-muted">
-            Total {totalCount} tamu sesuai filter saat ini.
+          <h1 className="text-xl font-black text-ink sm:text-2xl">Daftar Tamu & Panitia</h1>
+          <p className="text-xs font-semibold text-ink-muted">
+            {totalCount} terdaftar · Klik lencana HTM untuk ubah Lunas / Belum Lunas
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          {isAdmin ? (
-            <Button onClick={() => setShowAddModal(true)} className="h-10 text-xs font-semibold">
-              <UserPlus className="size-4" />
-              Tambah Tamu
-            </Button>
-          ) : null}
+          <Button
+            onClick={() => setShowAddModal(true)}
+            className="h-10 rounded-xl px-3.5 text-xs font-black"
+          >
+            <UserPlus className="size-4" />
+            + Input Tamu OTS
+          </Button>
 
           <a
             href="/api/export"
             download
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-control border border-line bg-surface px-3 py-2 text-xs font-semibold text-brand-blue hover:bg-surface-soft"
+            className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-line bg-surface px-3 text-xs font-bold text-brand-blue hover:bg-surface-soft"
           >
             <FileDown className="size-4" />
-            Ekspor CSV
+            CSV
           </a>
         </div>
       </div>
 
-      {/* Baris Filter & Pencarian */}
-      <Card className="flex flex-wrap items-center gap-3 p-4">
-        <div className="relative min-w-56 flex-1">
+      {/* Baris Filter & Pencarian Bersih */}
+      <Card className="flex flex-wrap items-center gap-2.5 rounded-2xl p-3.5">
+        <div className="relative min-w-52 flex-1">
           <Input
             id="tamu-search-input"
-            placeholder="Cari nama tamu atau kode RSNP-XXXX... (Tekan / untuk fokus)"
+            placeholder="Cari nama atau kode RSNP-XXXX..."
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
               setPage(1);
             }}
-            className="h-10 pr-9 text-sm"
+            className="h-10 rounded-xl pr-9 text-sm"
           />
           <Search className="pointer-events-none absolute inset-y-0 right-3 my-auto size-4 text-ink-muted" />
         </div>
@@ -358,11 +359,11 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
               setPaymentFilter(e.target.value);
               setPage(1);
             }}
-            className="min-h-10 rounded-control border border-line bg-surface px-3 text-xs font-bold text-ink focus:outline-none"
+            className="h-10 rounded-xl border border-line bg-surface px-3 text-xs font-bold text-ink focus:outline-none"
           >
-            <option value="">Semua Status HTM</option>
-            <option value="belum_lunas">HTM Belum Lunas</option>
-            <option value="lunas">HTM Lunas</option>
+            <option value="">Semua HTM</option>
+            <option value="belum_lunas">Belum Lunas</option>
+            <option value="lunas">Lunas</option>
           </select>
 
           <select
@@ -371,10 +372,10 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
               setStatusFilter(e.target.value);
               setPage(1);
             }}
-            className="min-h-10 rounded-control border border-line bg-surface px-3 text-xs font-semibold text-ink focus:outline-none"
+            className="h-10 rounded-xl border border-line bg-surface px-3 text-xs font-semibold text-ink focus:outline-none"
           >
-            <option value="">Semua Kehadiran</option>
-            <option value="ditahan">Ditahan (Hold HTM)</option>
+            <option value="">Semua Status</option>
+            <option value="ditahan">Ditahan (Hold)</option>
             <option value="belum_hadir">Belum Hadir</option>
             <option value="di_dalam">Di Dalam</option>
             <option value="sudah_pulang">Sudah Pulang</option>
@@ -386,9 +387,9 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
               setCategoryFilter(e.target.value);
               setPage(1);
             }}
-            className="min-h-10 rounded-control border border-line bg-surface px-3 text-xs font-semibold text-ink focus:outline-none"
+            className="h-10 max-w-48 truncate rounded-xl border border-line bg-surface px-3 text-xs font-semibold text-ink focus:outline-none"
           >
-            <option value="">Semua Kategori</option>
+            <option value="">Semua Divisi</option>
             {categories.map((c) => (
               <option key={c} value={c}>
                 {c}
@@ -406,41 +407,38 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
                 setCategoryFilter("");
                 setPage(1);
               }}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-brand-blue hover:underline"
+              className="px-1.5 text-xs font-bold text-brand-blue hover:underline"
             >
-              Reset Filter
+              Reset
             </button>
           ) : null}
         </div>
       </Card>
 
-      {/* Tabel Tamu Responsif */}
-      <Card className="overflow-x-auto p-0 shadow-sm">
-        <table className="w-full min-w-[880px] border-collapse text-left text-sm">
+      {/* Tabel Tamu Bersih (5 Kolom Fokus) */}
+      <Card className="overflow-x-auto rounded-2xl p-0 shadow-sm">
+        <table className="w-full min-w-[740px] border-collapse text-left text-sm">
           <thead>
-            <tr className="border-b border-line bg-surface-soft text-xs font-bold uppercase tracking-wider text-ink-muted">
-              <th className="px-4 py-3">Nama & Kode Voucher</th>
-              <th className="px-4 py-3">Kategori & Alergi Makanan</th>
-              <th className="px-4 py-3">Status HTM</th>
-              <th className="px-4 py-3">Status Hadir</th>
-              <th className="px-4 py-3">Voucher 2-in-1</th>
-              <th className="px-4 py-3">Masuk / Pulang</th>
-              <th className="px-4 py-3 text-right">Tindakan</th>
+            <tr className="border-b border-line bg-surface-soft text-[11px] font-extrabold uppercase tracking-wider text-ink-muted">
+              <th className="px-4 py-3">Nama & Kode</th>
+              <th className="px-4 py-3">Divisi / Kategori</th>
+              <th className="px-4 py-3">HTM & Kehadiran</th>
+              <th className="px-4 py-3">Voucher</th>
+              <th className="px-4 py-3 text-right">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
             {isLoading ? (
               <tr>
-                <td colSpan={7} className="py-12 text-center text-ink-muted">
+                <td colSpan={5} className="py-12 text-center text-ink-muted">
                   <Loader2 className="mx-auto size-6 animate-spin text-brand-blue" />
-                  <p className="mt-2 text-xs font-semibold">Memuat data tamu...</p>
                 </td>
               </tr>
             ) : guests.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-12 text-center">
-                  <EmptyState icon={Users} title="Tamu tidak ditemukan">
-                    Tidak ada data tamu yang cocok dengan filter pencarian saat ini.
+                <td colSpan={5} className="py-10 text-center">
+                  <EmptyState icon={Users} title="Data tidak ditemukan">
+                    Tidak ada tamu yang cocok dengan filter saat ini.
                   </EmptyState>
                 </td>
               </tr>
@@ -452,110 +450,106 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
                   <tr
                     key={g.id}
                     className={`transition ${
-                      isHeld ? "bg-warning/10 hover:bg-warning/15" : "hover:bg-surface-soft/60"
+                      isHeld ? "bg-warning/10 hover:bg-warning/15" : "hover:bg-surface-soft/50"
                     }`}
                   >
                     <td className="px-4 py-3">
                       <div className="flex flex-col">
                         <span className="font-bold text-ink">{g.name}</span>
-                        <span className="font-mono text-[11px] font-bold text-brand-purple">
+                        <span className="font-mono text-[11px] font-semibold text-brand-purple">
                           {g.voucherCode}
                         </span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-xs font-semibold text-ink-muted">
+
+                    <td className="px-4 py-3 text-xs">
                       <div className="flex flex-col gap-1">
-                        <span>{g.category || "-"}</span>
+                        <span className="font-semibold text-ink-muted">{g.category || "-"}</span>
                         {g.allergies ? (
                           <span className="inline-flex w-fit items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-extrabold text-warning">
                             <AlertTriangle className="size-3" />
-                            Alergi: {g.allergies}
+                            {g.allergies}
                           </span>
+                        ) : null}
+                      </div>
+                    </td>
+
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void handleHtmAction(
+                              g,
+                              "set_payment",
+                              isUnpaid ? "lunas" : "belum_lunas",
+                            )
+                          }
+                          title="Klik untuk ubah Lunas / Belum Lunas"
+                        >
+                          {isUnpaid ? (
+                            <Badge tone="warning" icon={Wallet}>
+                              Belum Lunas
+                            </Badge>
+                          ) : (
+                            <Badge tone="success" icon={CheckCircle2}>
+                              Lunas
+                            </Badge>
+                          )}
+                        </button>
+
+                        {isHeld ? (
+                          <Badge tone="warning" icon={AlertTriangle}>
+                            Hold ({g.holdAtWib})
+                          </Badge>
+                        ) : g.status === "belum_hadir" ? (
+                          <Badge tone="neutral" icon={Clock}>
+                            Belum Hadir
+                          </Badge>
+                        ) : g.status === "di_dalam" ? (
+                          <Badge tone="success" icon={Radio}>
+                            Hadir ({g.checkedInAtWib})
+                          </Badge>
                         ) : (
-                          <span className="text-[11px] font-normal text-ink-muted/70">
-                            Alergi: Tidak Ada
-                          </span>
+                          <Badge tone="info" icon={CheckCircle2}>
+                            Pulang ({g.checkedOutAtWib})
+                          </Badge>
                         )}
                       </div>
                     </td>
+
                     <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void handleHtmAction(
-                            g,
-                            "set_payment",
-                            isUnpaid ? "lunas" : "belum_lunas",
-                          )
-                        }
-                        className="group inline-flex items-center"
-                        title="Klik untuk mengubah status pembayaran HTM (Lunas / Belum Lunas)"
-                      >
-                        {isUnpaid ? (
-                          <Badge tone="warning" icon={Wallet}>
-                            Belum Lunas
-                          </Badge>
-                        ) : (
-                          <Badge tone="success" icon={CheckCircle2}>
-                            Lunas
-                          </Badge>
-                        )}
-                      </button>
-                    </td>
-                    <td className="px-4 py-3">
-                      {isHeld ? (
-                        <Badge tone="warning" icon={AlertTriangle}>
-                          Ditahan (Hold)
-                        </Badge>
-                      ) : g.status === "belum_hadir" ? (
-                        <Badge tone="neutral" icon={Clock}>
-                          Belum Hadir
-                        </Badge>
-                      ) : g.status === "di_dalam" ? (
-                        <Badge tone="success" icon={Radio}>
-                          Di Dalam
-                        </Badge>
-                      ) : (
-                        <Badge tone="info" icon={CheckCircle2}>
-                          Sudah Pulang
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col gap-1 text-[11px]">
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold">
                         <span
-                          className={`inline-flex items-center gap-1 font-bold ${
-                            g.mealRedeemedAt ? "text-success" : "text-ink-muted"
+                          className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 ${
+                            g.mealRedeemedAt
+                              ? "bg-success/15 text-success"
+                              : "bg-surface-soft text-ink-muted"
                           }`}
                         >
                           <Utensils className="size-3" />
-                          Makan: {g.mealRedeemedAt ? `Ditukar (${g.mealRedeemedAtWib})` : "Belum"}
+                          {g.mealRedeemedAt ? g.mealRedeemedAtWib : "Makan"}
                         </span>
                         <span
-                          className={`inline-flex items-center gap-1 font-bold ${
-                            g.photoboothRedeemedAt ? "text-brand-purple" : "text-ink-muted"
+                          className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 ${
+                            g.photoboothRedeemedAt
+                              ? "bg-brand-purple/15 text-brand-purple"
+                              : "bg-surface-soft text-ink-muted"
                           }`}
                         >
                           <Camera className="size-3" />
-                          Foto:{" "}
-                          {g.photoboothRedeemedAt
-                            ? `Dipakai (${g.photoboothRedeemedAtWib})`
-                            : "Belum"}
+                          {g.photoboothRedeemedAt ? g.photoboothRedeemedAtWib : "Foto"}
                         </span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-xs tabular-nums text-ink">
-                      <div>Masuk: {g.checkedInAtWib}</div>
-                      <div className="text-ink-muted">Pulang: {g.checkedOutAtWib}</div>
-                    </td>
+
                     <td className="px-4 py-3 text-right">
                       <div className="flex flex-wrap items-center justify-end gap-1.5">
                         {isHeld || (isUnpaid && g.status === "belum_hadir") ? (
                           <button
                             type="button"
                             onClick={() => void handleHtmAction(g, "approve_checkin")}
-                            className="inline-flex items-center gap-1 rounded-control bg-success px-2.5 py-1 text-xs font-black text-white shadow-2xs hover:brightness-95"
-                            title="Lunasi HTM dan izinkan masuk"
+                            className="inline-flex items-center gap-1 rounded-xl bg-success px-2.5 py-1 text-xs font-black text-white hover:brightness-95"
                           >
                             <CheckCircle2 className="size-3" />
                             {isHeld ? "Izinkan Masuk" : "Lunasi & Masuk"}
@@ -566,8 +560,7 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
                           <button
                             type="button"
                             onClick={() => void handleHtmAction(g, "reset_attendance")}
-                            className="inline-flex items-center gap-1 rounded-control border border-error px-2 py-1 text-xs font-semibold text-error hover:bg-error/10"
-                            title="Recovery salah absen & buka kunci HP tamu"
+                            className="inline-flex items-center gap-1 rounded-xl border border-error/40 px-2 py-1 text-xs font-bold text-error hover:bg-error/10"
                           >
                             <RotateCcw className="size-3" />
                             Recovery HP
@@ -578,8 +571,7 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
                           <button
                             type="button"
                             onClick={() => void handleManualAttendance(g, "in")}
-                            className="inline-flex items-center gap-1 rounded-control bg-brand-blue px-2.5 py-1 text-xs font-bold text-white hover:brightness-95"
-                            title="Absen masuk manual"
+                            className="inline-flex items-center gap-1 rounded-xl bg-brand-blue px-2.5 py-1 text-xs font-bold text-white hover:brightness-95"
                           >
                             <LogIn className="size-3" />
                             Masuk
@@ -591,8 +583,7 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
                             <button
                               type="button"
                               onClick={() => void handleManualAttendance(g, "out")}
-                              className="inline-flex items-center gap-1 rounded-control bg-brand-purple px-2.5 py-1 text-xs font-bold text-white hover:brightness-95"
-                              title="Absen pulang manual"
+                              className="inline-flex items-center gap-1 rounded-xl bg-brand-purple px-2.5 py-1 text-xs font-bold text-white hover:brightness-95"
                             >
                               <LogOut className="size-3" />
                               Pulang
@@ -600,11 +591,11 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
                             <button
                               type="button"
                               onClick={() => setUndoModal({ guest: g, type: "in" })}
-                              className="inline-flex items-center gap-1 rounded-control border border-error px-2 py-1 text-xs font-semibold text-error hover:bg-error/10"
-                              title="Batalkan absen masuk & buka kunci HP tamu (Recovery Salah Absen)"
+                              className="inline-flex items-center gap-1 rounded-xl border border-error/40 px-2 py-1 text-xs font-bold text-error hover:bg-error/10"
+                              title="Batalkan absen & buka kunci HP"
                             >
                               <RotateCcw className="size-3" />
-                              Batal / Recovery HP
+                              Recovery
                             </button>
                           </>
                         ) : null}
@@ -613,8 +604,7 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
                           <button
                             type="button"
                             onClick={() => setUndoModal({ guest: g, type: "out" })}
-                            className="inline-flex items-center gap-1 rounded-control border border-error px-2 py-1 text-xs font-semibold text-error hover:bg-error/10"
-                            title="Batalkan absen pulang"
+                            className="inline-flex items-center gap-1 rounded-xl border border-error/40 px-2 py-1 text-xs font-bold text-error hover:bg-error/10"
                           >
                             <RotateCcw className="size-3" />
                             Batal Pulang
@@ -634,14 +624,14 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
       {totalPages > 1 ? (
         <div className="flex items-center justify-between text-xs text-ink-muted">
           <span>
-            Halaman {page} dari {totalPages}
+            Halaman {page} / {totalPages}
           </span>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="rounded-control border border-line bg-surface px-2.5 py-1 font-semibold text-ink disabled:opacity-40"
+              className="rounded-xl border border-line bg-surface px-3 py-1 font-semibold text-ink disabled:opacity-40"
             >
               Sebelumnya
             </button>
@@ -649,7 +639,7 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
               type="button"
               disabled={page >= totalPages}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="rounded-control border border-line bg-surface px-2.5 py-1 font-semibold text-ink disabled:opacity-40"
+              className="rounded-xl border border-line bg-surface px-3 py-1 font-semibold text-ink disabled:opacity-40"
             >
               Selanjutnya
             </button>
@@ -657,12 +647,12 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
         </div>
       ) : null}
 
-      {/* Modal Batalkan Absen (P11.2) */}
+      {/* Modal Batalkan Absen / Recovery HP */}
       {undoModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <Card className="flex w-full max-w-md flex-col gap-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-xs">
+          <Card className="flex w-full max-w-md flex-col gap-4 rounded-3xl p-5">
             <div className="flex items-center justify-between border-b border-line pb-3">
-              <span className="text-sm font-bold text-ink">Batalkan Absensi</span>
+              <span className="text-sm font-black text-ink">Recovery / Batalkan Absen</span>
               <button
                 type="button"
                 onClick={() => setUndoModal(null)}
@@ -672,28 +662,21 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
               </button>
             </div>
 
-            <p className="text-sm text-ink-muted">
-              Batalkan catatan absen {undoModal.type === "in" ? "MASUK" : "PULANG"} untuk{" "}
-              <strong className="text-ink">{undoModal.guest.name}</strong>?{" "}
-              {undoModal.type === "in"
-                ? "Tindakan ini juga akan otomatis me-recovery & membuka kunci perangkat (HP) tamu yang salah absen agar dapat memilih nama yang benar."
-                : "Tindakan ini akan dicatat di log audit panitia."}
+            <p className="text-xs leading-relaxed text-ink-muted">
+              Batalkan absen {undoModal.type === "in" ? "MASUK" : "PULANG"} untuk{" "}
+              <strong className="text-ink">{undoModal.guest.name}</strong>? Kunci perangkat (HP)
+              tamu akan otomatis dibuka kembali.
             </p>
 
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="undo-reason" className="text-xs font-bold text-ink">
-                Alasan Pembatalan (Wajib)
-              </label>
-              <Input
-                id="undo-reason"
-                placeholder="Contoh: Salah klik oleh panitia / tamu salah nama"
-                value={undoReason}
-                onChange={(e) => setUndoReason(e.target.value)}
-                autoFocus
-              />
-            </div>
+            <Input
+              id="undo-reason"
+              placeholder="Catatan singkat (mis. Salah klik nama)"
+              value={undoReason}
+              onChange={(e) => setUndoReason(e.target.value)}
+              autoFocus
+            />
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2">
               <Button
                 variant="secondary"
                 onClick={() => setUndoModal(null)}
@@ -705,21 +688,24 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
                 variant="danger"
                 onClick={handleConfirmUndo}
                 disabled={!undoReason.trim() || isUndoing}
-                className="h-10 text-xs"
+                className="h-10 text-xs font-bold"
               >
-                {isUndoing ? "Memproses..." : "Ya, Batalkan Absen"}
+                {isUndoing ? "Memproses..." : "Reset & Buka Kunci HP"}
               </Button>
             </div>
           </Card>
         </div>
       ) : null}
 
-      {/* Modal Tambah Tamu On-The-Spot (P11.5 / P17) */}
+      {/* Modal Input Tamu On-The-Spot (OTS) */}
       {showAddModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <Card className="flex w-full max-w-md flex-col gap-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-xs">
+          <Card className="flex w-full max-w-md flex-col gap-4 rounded-3xl p-5 sm:p-6">
             <div className="flex items-center justify-between border-b border-line pb-3">
-              <span className="text-sm font-bold text-ink">Tambah Tamu / Kating On-the-Spot</span>
+              <div className="flex items-center gap-2">
+                <UserPlus className="size-4 text-brand-blue" />
+                <span className="text-sm font-black text-ink">Input Tamu On-The-Spot (OTS)</span>
+              </div>
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}
@@ -729,92 +715,115 @@ export function TamuTableClient({ isAdmin }: { isAdmin: boolean }) {
               </button>
             </div>
 
-            <div className="flex flex-col gap-3">
+            <form onSubmit={handleAddGuest} className="flex flex-col gap-3.5">
               <div className="flex flex-col gap-1">
                 <label htmlFor="guest-name" className="text-xs font-bold text-ink">
-                  Nama Lengkap (Wajib)
+                  Nama Lengkap *
                 </label>
                 <Input
                   id="guest-name"
-                  placeholder="Nama tamu / kating..."
+                  placeholder="Ketik nama lengkap tamu OTS..."
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   autoFocus
+                  required
                 />
               </div>
 
-              <div className="flex flex-col gap-1">
-                <label htmlFor="guest-cat" className="text-xs font-bold text-ink">
-                  Kategori / Angkatan / Divisi
-                </label>
-                <Input
-                  id="guest-cat"
-                  placeholder="Contoh: Kating Angkatan 2022 / VIP"
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value)}
-                />
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="guest-cat" className="text-xs font-bold text-ink">
+                    Kategori / Divisi
+                  </label>
+                  <Input
+                    id="guest-cat"
+                    placeholder="OTS · Tamu / Kating"
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="guest-htm" className="text-xs font-bold text-ink">
+                    Status HTM
+                  </label>
+                  <select
+                    id="guest-htm"
+                    value={newPaymentStatus}
+                    onChange={(e) =>
+                      setNewPaymentStatus(e.target.value as "lunas" | "belum_lunas")
+                    }
+                    className="h-11 rounded-control border border-line bg-surface px-3 text-xs font-bold text-ink focus:outline-none"
+                  >
+                    <option value="lunas">Sudah Lunas</option>
+                    <option value="belum_lunas">Belum Lunas (Hold)</option>
+                  </select>
+                </div>
               </div>
 
-              <div className="flex flex-col gap-1">
-                <label htmlFor="guest-htm" className="text-xs font-bold text-ink">
-                  Status Pembayaran HTM
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="guest-allergies" className="text-xs font-bold text-ink">
+                    Alergi Makanan (Opsional)
+                  </label>
+                  <Input
+                    id="guest-allergies"
+                    placeholder="Mis. Seafood / Kacang"
+                    value={newAllergies}
+                    onChange={(e) => setNewAllergies(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="guest-contact" className="text-xs font-bold text-ink">
+                    No. WhatsApp (Opsional)
+                  </label>
+                  <Input
+                    id="guest-contact"
+                    placeholder="08xxxxxxxxxx"
+                    value={newContact}
+                    onChange={(e) => setNewContact(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {newPaymentStatus === "lunas" ? (
+                <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-brand-blue/25 bg-brand-blue/5 p-3">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-extrabold text-ink">
+                      Langsung Check-In (Hadir) Sekarang
+                    </span>
+                    <span className="text-[11px] text-ink-muted">
+                      Matikan centang bila tamu ingin scan QR gerbang dari HP sendiri
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={autoCheckinOts}
+                    onChange={(e) => setAutoCheckinOts(e.target.checked)}
+                    className="size-4 rounded accent-brand-blue"
+                  />
                 </label>
-                <select
-                  id="guest-htm"
-                  value={newPaymentStatus}
-                  onChange={(e) =>
-                    setNewPaymentStatus(e.target.value as "lunas" | "belum_lunas")
-                  }
-                  className="min-h-11 rounded-control border border-line bg-surface px-3 text-sm font-semibold text-ink focus:outline-none"
+              ) : null}
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setShowAddModal(false)}
+                  className="h-10 text-xs"
                 >
-                  <option value="lunas">Sudah Lunas (Langsung Aktif Saat Scan)</option>
-                  <option value="belum_lunas">
-                    Belum Lunas (Ditahan / Hold Saat Scan Sampai Diizinkan)
-                  </option>
-                </select>
+                  Batal
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={!newName.trim() || isAdding}
+                  className="h-10 px-4 text-xs font-black"
+                >
+                  {isAdding ? "Menyimpan..." : "Simpan Tamu OTS"}
+                </Button>
               </div>
-
-              <div className="flex flex-col gap-1">
-                <label htmlFor="guest-allergies" className="text-xs font-bold text-ink">
-                  Alergi Makanan (Opsional)
-                </label>
-                <Input
-                  id="guest-allergies"
-                  placeholder="Contoh: Seafood (Udang), Kacang, Susu Sapi, atau kosongkan bila tidak ada"
-                  value={newAllergies}
-                  onChange={(e) => setNewAllergies(e.target.value)}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label htmlFor="guest-contact" className="text-xs font-bold text-ink">
-                  Kontak (Opsional)
-                </label>
-                <Input
-                  id="guest-contact"
-                  placeholder="0812xxxxxxxx"
-                  value={newContact}
-                  onChange={(e) => setNewContact(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                variant="secondary"
-                onClick={() => setShowAddModal(false)}
-                className="h-10 text-xs"
-              >
-                Batal
-              </Button>
-              <Button
-                onClick={handleAddGuest}
-                disabled={!newName.trim() || isAdding}
-                className="h-10 text-xs"
-              >
-                {isAdding ? "Menyimpan..." : "Simpan Tamu"}
-              </Button>
-            </div>
+            </form>
           </Card>
         </div>
       ) : null}
