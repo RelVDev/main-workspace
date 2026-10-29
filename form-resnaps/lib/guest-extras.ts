@@ -1,10 +1,8 @@
 // Layer pengelolaan data tambahan tamu: Status Pembayaran HTM (lunas/belum_lunas),
 // Data Alergi Makanan (allergies), Status Hold Absensi (hold_at), serta Voucher Makan & Photobooth (1x pakai).
-// Mendukung kolom tabel `guests` (migrasi 0008) SEKALIGUS fallback otomatis ke `event_settings`
-// ("guest_extras_v1") bila migrasi 0008 belum dijalankan di database remote.
+// Dioptimalkan dengan query paralel (Promise.all) & in-memory cache 3 detik yang di-invalidasi otomatis saat mutasi.
 import "server-only";
 import { createAdminClient } from "./supabase/admin";
-import type { TablesUpdate } from "./supabase/types";
 import { generateVoucherCode, normalizeVoucherInput, type PaymentStatus } from "./voucher";
 
 export type GuestExtraState = {
@@ -82,6 +80,16 @@ export type StoredExtraRecord = {
 
 type StoredExtrasMap = Record<string, StoredExtraRecord>;
 
+// Cache in-memory singkat (3 detik) agar pembacaan beruntun bebas latensi
+let enrichedGuestsCache: { rows: EnrichedGuestRow[]; expiresAt: number } | null = null;
+let deviceLockCache: { enabled: boolean; expiresAt: number } | null = null;
+const CACHE_TTL_MS = 3000;
+
+export function invalidateGuestsCache(): void {
+  enrichedGuestsCache = null;
+  deviceLockCache = null;
+}
+
 export async function readExtrasStore(
   db: ReturnType<typeof createAdminClient>,
 ): Promise<StoredExtrasMap> {
@@ -101,6 +109,7 @@ export async function writeExtrasStore(
   db: ReturnType<typeof createAdminClient>,
   store: StoredExtrasMap,
 ): Promise<void> {
+  invalidateGuestsCache();
   await db.from("event_settings").upsert(
     {
       key: EXTRAS_SETTING_KEY,
@@ -113,99 +122,48 @@ export async function writeExtrasStore(
 
 /**
  * Mengecek apakah fitur keamanan Kunci 1 Perangkat = 1 Tamu aktif (default: true).
- * Dapat dikontrol oleh Admin melalui Pengaturan.
  */
 export async function isDeviceLockEnabled(
   db: ReturnType<typeof createAdminClient>,
 ): Promise<boolean> {
+  const now = Date.now();
+  if (deviceLockCache && deviceLockCache.expiresAt > now) {
+    return deviceLockCache.enabled;
+  }
+
   const { data } = await db
     .from("event_settings")
     .select("value")
     .eq("key", "device_lock_enabled")
     .maybeSingle();
 
-  if (data && typeof data.value === "boolean") {
-    return data.value;
-  }
-  return true;
+  const enabled = data && typeof data.value === "boolean" ? data.value : true;
+  deviceLockCache = { enabled, expiresAt: now + CACHE_TTL_MS };
+  return enabled;
 }
 
 /**
- * Mengambil seluruh baris status tamu yang sudah diperkaya dengan `payment_status`,
- * `allergies`, `hold_at`, `voucher_code`, `meal_redeemed_at`, dan `photobooth_redeemed_at`.
+ * Mengambil seluruh baris status tamu yang sudah diperkaya secara paralel (1 roundtrip paralel).
  */
 export async function fetchEnrichedGuests(
   db: ReturnType<typeof createAdminClient>,
+  forceFresh = false,
 ): Promise<EnrichedGuestRow[]> {
-  const store = await readExtrasStore(db);
-
-  // Coba baca dari view guest_status dengan kolom baru (migrasi 0008)
-  const fullRes = await db
-    .from("guest_status")
-    .select(
-      "guest_id, full_name, category, allergies, status, checked_in_at, checked_out_at, payment_status, hold_at, voucher_code, meal_redeemed_at, photobooth_redeemed_at",
-    )
-    .order("full_name", { ascending: true });
-
-  if (!fullRes.error && fullRes.data) {
-    return fullRes.data.map((r) => {
-      const id = r.guest_id ?? "";
-      const over = store[id];
-      const nameLower = (r.full_name ?? "").trim().toLowerCase();
-      const defaultPayment: PaymentStatus = DEFAULT_UNPAID_NAMES.has(nameLower)
-        ? "belum_lunas"
-        : "lunas";
-      const defaultAllergy = DEFAULT_ALLERGY_MAP[nameLower] ?? null;
-
-      const paymentStatus: PaymentStatus =
-        over?.paymentStatus ??
-        (r.payment_status === "belum_lunas" ? "belum_lunas" : defaultPayment);
-      const allergies =
-        over?.allergies !== undefined ? over.allergies : (r.allergies ?? defaultAllergy);
-      const holdAt = over?.holdAt !== undefined ? over.holdAt : (r.hold_at ?? null);
-      const voucherCode = over?.voucherCode || r.voucher_code || generateVoucherCode(id);
-      const mealRedeemedAt =
-        over?.mealRedeemedAt !== undefined ? over.mealRedeemedAt : (r.meal_redeemed_at ?? null);
-      const photoboothRedeemedAt =
-        over?.photoboothRedeemedAt !== undefined
-          ? over.photoboothRedeemedAt
-          : (r.photobooth_redeemed_at ?? null);
-
-      let computedStatus: EnrichedGuestRow["status"] = "belum_hadir";
-      if (r.checked_out_at) {
-        computedStatus = "sudah_pulang";
-      } else if (r.checked_in_at) {
-        computedStatus = "di_dalam";
-      } else if (holdAt && paymentStatus === "belum_lunas") {
-        computedStatus = "ditahan";
-      }
-
-      return {
-        guest_id: id,
-        full_name: r.full_name ?? "Tamu",
-        category: r.category ?? null,
-        allergies: allergies || null,
-        status: computedStatus,
-        checked_in_at: r.checked_in_at ?? null,
-        checked_out_at: r.checked_out_at ?? null,
-        payment_status: paymentStatus,
-        hold_at: holdAt,
-        voucher_code: voucherCode,
-        meal_redeemed_at: mealRedeemedAt,
-        photobooth_redeemed_at: photoboothRedeemedAt,
-        device_reset_at: over?.deviceResetAt ?? null,
-      };
-    });
+  const now = Date.now();
+  if (!forceFresh && enrichedGuestsCache && enrichedGuestsCache.expiresAt > now) {
+    return enrichedGuestsCache.rows;
   }
 
-  // Fallback apabila migrasi 0008 belum dijalankan di database remote
-  const baseRes = await db
-    .from("guest_status")
-    .select("guest_id, full_name, category, status, checked_in_at, checked_out_at")
-    .order("full_name", { ascending: true });
+  const [store, baseRes] = await Promise.all([
+    readExtrasStore(db),
+    db
+      .from("guest_status")
+      .select("guest_id, full_name, category, status, checked_in_at, checked_out_at")
+      .order("full_name", { ascending: true }),
+  ]);
 
   const baseRows = baseRes.data ?? [];
-  return baseRows.map((r) => {
+  const rows: EnrichedGuestRow[] = baseRows.map((r) => {
     const id = r.guest_id ?? "";
     const over = store[id];
     const nameLower = (r.full_name ?? "").trim().toLowerCase();
@@ -246,6 +204,9 @@ export async function fetchEnrichedGuests(
       device_reset_at: over?.deviceResetAt ?? null,
     };
   });
+
+  enrichedGuestsCache = { rows, expiresAt: Date.now() + CACHE_TTL_MS };
+  return rows;
 }
 
 /**
@@ -269,7 +230,7 @@ export async function findEnrichedGuest(
 }
 
 /**
- * Memperbarui state ekstra tamu baik di kolom tabel `guests` (bila ada) maupun di `event_settings`.
+ * Memperbarui state ekstra tamu di `event_settings` dan langsung meng-invalidasi cache.
  */
 export async function updateGuestExtra(
   db: ReturnType<typeof createAdminClient>,
@@ -283,21 +244,4 @@ export async function updateGuestExtra(
     ...patch,
   };
   await writeExtrasStore(db, store);
-
-  // Upayakan update langsung ke kolom tabel guests bila migrasi 0008 sudah aktif
-  const dbPatch: TablesUpdate<"guests"> = {};
-  if (patch.paymentStatus !== undefined) dbPatch.payment_status = patch.paymentStatus;
-  if (patch.allergies !== undefined) dbPatch.allergies = patch.allergies;
-  if (patch.holdAt !== undefined) dbPatch.hold_at = patch.holdAt;
-  if (patch.voucherCode !== undefined) dbPatch.voucher_code = patch.voucherCode;
-  if (patch.mealRedeemedAt !== undefined) dbPatch.meal_redeemed_at = patch.mealRedeemedAt;
-  if (patch.mealRedeemedBy !== undefined) dbPatch.meal_redeemed_by = patch.mealRedeemedBy;
-  if (patch.photoboothRedeemedAt !== undefined)
-    dbPatch.photobooth_redeemed_at = patch.photoboothRedeemedAt;
-  if (patch.photoboothRedeemedBy !== undefined)
-    dbPatch.photobooth_redeemed_by = patch.photoboothRedeemedBy;
-
-  if (Object.keys(dbPatch).length > 0) {
-    await db.from("guests").update(dbPatch).eq("id", guestId);
-  }
 }

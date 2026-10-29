@@ -2,6 +2,7 @@
 import { NextRequest } from "next/server";
 import { getCommitteeAuth } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { invalidateGuestsCache } from "@/lib/guest-extras";
 import { fail, ok } from "@/lib/api";
 
 export async function POST(req: NextRequest) {
@@ -31,5 +32,6 @@ export async function POST(req: NextRequest) {
     return fail(payload.code);
   }
 
+  invalidateGuestsCache();
   return ok({ type, scannedAt: payload.scanned_at });
 }

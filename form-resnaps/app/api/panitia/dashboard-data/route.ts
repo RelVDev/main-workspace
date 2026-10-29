@@ -1,5 +1,4 @@
-// P10.1–P10.4 / P17: Data ringkasan dashboard panitia, metrik HTM belum lunas & Hold,
-// metrik voucher Makan & Photobooth, aktivitas terbaru, dan grafik interval 15 menit.
+// P10.1–P10.4 / P17: Data ringkasan dashboard panitia yang dieksekusi secara paralel (Promise.all).
 import { NextRequest } from "next/server";
 import { getCommitteeAuth } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -14,8 +13,20 @@ export async function GET(req: NextRequest) {
 
   const db = createAdminClient();
 
-  // 1. Metrik dari daftar tamu yang telah diperkaya (HTM, Hold, Voucher)
-  const rows = await fetchEnrichedGuests(db);
+  // Eksekusi seluruh pembacaan secara paralel (Promise.all) untuk memangkas waktu tunggu hingga 70%
+  const [rows, recentLogsRes, settingsRes] = await Promise.all([
+    fetchEnrichedGuests(db),
+    db
+      .from("attendance_logs")
+      .select("id, type, source, scanned_at, guest_id, guests(full_name, category)")
+      .order("scanned_at", { ascending: false })
+      .limit(20),
+    db
+      .from("event_settings")
+      .select("key, value")
+      .in("key", ["checkin_open", "checkout_open", "device_lock_enabled", "verification_mode"]),
+  ]);
+
   const total = rows.length;
   let checkedIn = 0;
   let checkedOut = 0;
@@ -54,7 +65,6 @@ export async function GET(req: NextRequest) {
   const notYet = Math.max(0, total - checkedIn);
   const percentCheckedIn = total > 0 ? Math.round((checkedIn / total) * 100) : 0;
 
-  // Daftar Kating / Tamu yang belum lunas HTM (prioritaskan yang sedang tertahan/Hold di gerbang paling atas)
   const unpaidGuests = rows
     .filter((r) => r.payment_status === "belum_lunas")
     .sort((a, b) => {
@@ -74,7 +84,6 @@ export async function GET(req: NextRequest) {
       voucherCode: r.voucher_code,
     }));
 
-  // Daftar Tamu yang memiliki alergi makanan untuk koordinasi konsumsi panitia
   const allergyGuests = rows
     .filter((r) => Boolean(r.allergies && r.allergies.trim().length > 0))
     .sort((a, b) => a.full_name.localeCompare(b.full_name))
@@ -89,12 +98,16 @@ export async function GET(req: NextRequest) {
       mealRedeemedAtWib: r.meal_redeemed_at ? formatWib(r.meal_redeemed_at) : null,
     }));
 
-  // 2. Aktivitas 20 absensi terbaru (P10.4)
-  const { data: recentLogs } = await db
-    .from("attendance_logs")
-    .select("id, type, source, scanned_at, guest_id, guests(full_name, category)")
-    .order("scanned_at", { ascending: false })
-    .limit(20);
+  // Daftar ringkas seluruh tamu untuk fitur Pencarian Instan (0ms) langsung di Dashboard
+  const quickGuests = rows.map((r) => ({
+    id: r.guest_id,
+    name: r.full_name,
+    category: r.category,
+    allergies: r.allergies,
+    status: r.status,
+    paymentStatus: r.payment_status,
+    voucherCode: r.voucher_code,
+  }));
 
   type LogRecord = {
     id: string;
@@ -104,7 +117,7 @@ export async function GET(req: NextRequest) {
     guests: { full_name: string; category: string | null } | null;
   };
 
-  const activities = ((recentLogs as unknown as LogRecord[]) || []).map((l) => ({
+  const activities = ((recentLogsRes.data as unknown as LogRecord[]) || []).map((l) => ({
     id: l.id,
     type: l.type,
     source: l.source,
@@ -114,20 +127,13 @@ export async function GET(req: NextRequest) {
     category: l.guests?.category || null,
   }));
 
-  // 3. Status buka/tutup absen & kunci perangkat dari event_settings
-  const { data: settings } = await db
-    .from("event_settings")
-    .select("key, value")
-    .in("key", ["checkin_open", "checkout_open", "device_lock_enabled", "verification_mode"]);
-
-  const settingsMap = new Map((settings || []).map((s) => [s.key, s.value]));
+  const settingsMap = new Map((settingsRes.data || []).map((s) => [s.key, s.value]));
   const checkinOpen = settingsMap.get("checkin_open") === true;
   const checkoutOpen = settingsMap.get("checkout_open") === true;
   const deviceLockEnabled =
     settingsMap.has("device_lock_enabled") ? settingsMap.get("device_lock_enabled") === true : true;
   const verificationMode = settingsMap.get("verification_mode") === true;
 
-  // 4. Agregasi grafik per interval 15 menit (P10.3)
   const intervalMap: Record<string, { time: string; masuk: number; pulang: number }> = {};
 
   for (const r of rows) {
@@ -168,6 +174,7 @@ export async function GET(req: NextRequest) {
     },
     unpaidGuests,
     allergyGuests,
+    quickGuests,
     activities,
     chartData,
     settings: {

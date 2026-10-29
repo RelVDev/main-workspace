@@ -1,4 +1,4 @@
-// P11.6: Tampilan log aktivitas kehadiran dan audit operasional panitia.
+// P11.6: Tampilan log aktivitas kehadiran dan audit operasional panitia (dengan cache memori klien).
 "use client";
 
 import { useEffect, useState } from "react";
@@ -25,11 +25,14 @@ type AuditLogRow = {
   createdAtWib: string;
 };
 
+let cachedAttendance: AttendanceLogRow[] | null = null;
+let cachedAudits: AuditLogRow[] | null = null;
+
 export function LogsClient() {
   const [tab, setTab] = useState<"attendance" | "audit">("attendance");
-  const [attendance, setAttendance] = useState<AttendanceLogRow[]>([]);
-  const [audits, setAudits] = useState<AuditLogRow[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [attendance, setAttendance] = useState<AttendanceLogRow[]>(() => cachedAttendance ?? []);
+  const [audits, setAudits] = useState<AuditLogRow[]>(() => cachedAudits ?? []);
+  const [isLoading, setIsLoading] = useState(() => cachedAttendance === null);
 
   const fetchLogs = async () => {
     setIsLoading(true);
@@ -38,8 +41,10 @@ export function LogsClient() {
       if (res.ok) {
         const d = await res.json();
         if (d.ok) {
-          setAttendance(d.attendance || []);
-          setAudits(d.audits || []);
+          cachedAttendance = d.attendance || [];
+          cachedAudits = d.audits || [];
+          setAttendance(cachedAttendance!);
+          setAudits(cachedAudits!);
         }
       }
     } finally {
@@ -55,8 +60,10 @@ export function LogsClient() {
         if (res.ok) {
           const d = await res.json();
           if (d.ok && mounted) {
-            setAttendance(d.attendance || []);
-            setAudits(d.audits || []);
+            cachedAttendance = d.attendance || [];
+            cachedAudits = d.audits || [];
+            setAttendance(cachedAttendance!);
+            setAudits(cachedAudits!);
           }
         }
       } finally {

@@ -4,7 +4,7 @@ import { NextRequest } from "next/server";
 import { getCommitteeAuth } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeNameJs } from "@/lib/normalize";
-import { updateGuestExtra } from "@/lib/guest-extras";
+import { invalidateGuestsCache, updateGuestExtra } from "@/lib/guest-extras";
 import { generateVoucherCode, type PaymentStatus } from "@/lib/voucher";
 import { fail, ok } from "@/lib/api";
 
@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
     });
     if (!logErr) {
       checkedInAt = nowIso;
+      invalidateGuestsCache();
     }
   }
 

@@ -2,7 +2,7 @@
 import { NextRequest } from "next/server";
 import { getCommitteeAuth } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { updateGuestExtra } from "@/lib/guest-extras";
+import { invalidateGuestsCache, updateGuestExtra } from "@/lib/guest-extras";
 import { fail, ok } from "@/lib/api";
 
 export async function POST(req: NextRequest) {
@@ -44,6 +44,8 @@ export async function POST(req: NextRequest) {
       photoboothRedeemedBy: null,
       deviceResetAt: new Date().toISOString(),
     });
+  } else {
+    invalidateGuestsCache();
   }
 
   return ok({ undone: true, type, guestId, deviceRecovered: type === "in" });

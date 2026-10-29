@@ -8,17 +8,29 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { StatusBanner } from "@/components/ui/StatusBanner";
 
-export function PengaturanClient() {
-  const [windowSec, setWindowSec] = useState(30);
-  const [graceWindows, setGraceWindows] = useState(1);
-  const [ttlSec, setTtlSec] = useState(600);
-  const [verificationMode, setVerificationMode] = useState(false);
-  const [deviceLockEnabled, setDeviceLockEnabled] = useState(true);
+let cachedSettings: {
+  windowSec: number;
+  graceWindows: number;
+  ttlSec: number;
+  verificationMode: boolean;
+  deviceLockEnabled: boolean;
+} | null = null;
 
-  const [isLoading, setIsLoading] = useState(true);
+export function PengaturanClient() {
+  const [windowSec, setWindowSec] = useState(() => cachedSettings?.windowSec ?? 30);
+  const [graceWindows, setGraceWindows] = useState(() => cachedSettings?.graceWindows ?? 1);
+  const [ttlSec, setTtlSec] = useState(() => cachedSettings?.ttlSec ?? 600);
+  const [verificationMode, setVerificationMode] = useState(
+    () => cachedSettings?.verificationMode ?? false,
+  );
+  const [deviceLockEnabled, setDeviceLockEnabled] = useState(
+    () => cachedSettings?.deviceLockEnabled ?? true,
+  );
+
+  const [isLoading, setIsLoading] = useState(() => cachedSettings === null);
   const [isSaving, setIsSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; text: string } | null>(
-    null
+    null,
   );
 
   // Modal darurat cabut sesi (P11.8)
@@ -29,29 +41,49 @@ export function PengaturanClient() {
   useEffect(() => {
     async function loadSettings() {
       try {
-        const res = await fetch("/api/panitia/dashboard-data");
+        const [res, qrRes] = await Promise.all([
+          fetch("/api/panitia/dashboard-data"),
+          fetch("/api/panitia/qr-token?mode=in&ahead=0"),
+        ]);
+
+        let nextWindow = windowSec;
+        let nextDeviceLock = deviceLockEnabled;
+        let nextVerification = verificationMode;
+
         if (res.ok) {
           const dash = await res.json();
           if (dash.settings) {
             if (typeof dash.settings.deviceLockEnabled === "boolean") {
-              setDeviceLockEnabled(dash.settings.deviceLockEnabled);
+              nextDeviceLock = dash.settings.deviceLockEnabled;
+              setDeviceLockEnabled(nextDeviceLock);
             }
             if (typeof dash.settings.verificationMode === "boolean") {
-              setVerificationMode(dash.settings.verificationMode);
+              nextVerification = dash.settings.verificationMode;
+              setVerificationMode(nextVerification);
             }
           }
-          // Ambil pengaturan via GET qr-token config
-          const qrRes = await fetch("/api/panitia/qr-token?mode=in&ahead=0");
-          if (qrRes.ok) {
-            const d = await qrRes.json();
-            if (d.windowSeconds) setWindowSec(d.windowSeconds);
+        }
+        if (qrRes.ok) {
+          const d = await qrRes.json();
+          if (d.windowSeconds) {
+            nextWindow = d.windowSeconds;
+            setWindowSec(nextWindow);
           }
         }
+
+        cachedSettings = {
+          windowSec: nextWindow,
+          graceWindows,
+          ttlSec,
+          verificationMode: nextVerification,
+          deviceLockEnabled: nextDeviceLock,
+        };
       } finally {
         setIsLoading(false);
       }
     }
     void loadSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleSaveSettings(e: React.FormEvent) {
@@ -73,7 +105,17 @@ export function PengaturanClient() {
       });
       const data = await res.json();
       if (res.ok && data.ok) {
-        setFeedback({ kind: "success", text: "Pengaturan rotasi QR berhasil disimpan dan dicatat di log audit." });
+        cachedSettings = {
+          windowSec,
+          graceWindows,
+          ttlSec,
+          verificationMode,
+          deviceLockEnabled,
+        };
+        setFeedback({
+          kind: "success",
+          text: "Pengaturan rotasi QR berhasil disimpan dan dicatat di log audit.",
+        });
       } else {
         setFeedback({ kind: "error", text: data.message || "Gagal menyimpan pengaturan." });
       }

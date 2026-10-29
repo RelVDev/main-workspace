@@ -1,9 +1,9 @@
-// P08 / P09 / P17: Alur absensi tamu dengan dukungan Hold HTM Belum Lunas (auto-polling),
-// penyimpanan permanen Tiket & Barcode Voucher (Makan + Photobooth) di localStorage,
-// serta branding RE:SNAPS penuh.
+// P08 / P09 / P17: Alur absensi tamu dengan pencarian nama instan 0ms (in-memory preload),
+// dukungan Hold HTM Belum Lunas (auto-polling), penyimpanan permanen Tiket & Barcode Voucher
+// (Makan + Photobooth) di localStorage, serta branding RE:SNAPS penuh.
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Search,
@@ -53,6 +53,13 @@ type Stage =
   | "on_hold"
   | "success";
 
+function normalizeSearchText(str: string): string {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
 export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
   const router = useRouter();
 
@@ -61,10 +68,13 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
   const [sessionExpiresAt, setSessionExpiresAt] = useState<number | null>(null);
   const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
 
+  // Daftar tamu preload untuk pencarian instan 0ms
+  const [preloadedGuests, setPreloadedGuests] = useState<GuestItem[]>([]);
+
   // Pencarian
   const [query, setQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<GuestItem[]>([]);
+  const [remoteResults, setRemoteResults] = useState<GuestItem[]>([]);
   const [selectedGuest, setSelectedGuest] = useState<GuestItem | null>(null);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
@@ -101,7 +111,31 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
   const title = isMasuk ? "Check-In" : "Check-Out";
   const subtitle = isMasuk ? "Gerbang Masuk" : "Gerbang Pulang";
 
-  const displayedResults = query.trim().length >= 2 ? searchResults : [];
+  // Pencarian Instan 0ms di Memori Klien (dimulai sejak 1 huruf)
+  const localMatches = useMemo(() => {
+    const q = normalizeSearchText(query.trim());
+    if (!q || preloadedGuests.length === 0) return [];
+    const startsWith: GuestItem[] = [];
+    const contains: GuestItem[] = [];
+    for (const g of preloadedGuests) {
+      const nameNorm = normalizeSearchText(g.name);
+      const catNorm = g.category ? normalizeSearchText(g.category) : "";
+      if (nameNorm.startsWith(q) || nameNorm.split(/\s+/).some((w) => w.startsWith(q))) {
+        startsWith.push(g);
+      } else if (nameNorm.includes(q) || catNorm.includes(q)) {
+        contains.push(g);
+      }
+      if (startsWith.length + contains.length >= 16) break;
+    }
+    return [...startsWith, ...contains].slice(0, 8);
+  }, [query, preloadedGuests]);
+
+  const displayedResults = useMemo(() => {
+    const trimmed = query.trim();
+    if (!trimmed) return [];
+    if (localMatches.length > 0) return localMatches;
+    return trimmed.length >= 2 ? remoteResults : [];
+  }, [query, localMatches, remoteResults]);
 
   // Baca tiket tersimpan dari localStorage saat komponen dimuat
   const loadSavedTicketFromStorage = useCallback((): SavedGuestTicket | null => {
@@ -266,6 +300,9 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
           }
 
           if (mounted) {
+            if (Array.isArray(data.guests)) {
+              setPreloadedGuests(data.guests);
+            }
             const expMs = new Date(data.expiresAt).getTime();
             setSessionExpiresAt(expMs);
             // Bila mode /keluar dan perangkat sudah terikat ke tamu yang sedang di_dalam, kunci pilihan hanya ke tamu tersebut
@@ -297,6 +334,9 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
                 return;
               }
               if (mounted) {
+                if (Array.isArray(data.guests)) {
+                  setPreloadedGuests(data.guests);
+                }
                 setSessionExpiresAt(new Date(data.expiresAt).getTime());
                 if (!isMasuk && activeStored && lockActive && activeStored.guestId) {
                   setSelectedGuest({
@@ -429,10 +469,20 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
     return () => clearInterval(timer);
   }, [stage, holdData, checkHoldApproval]);
 
-  // 4. Pencarian tamu dengan debounce 250ms dan AbortController
+  // 4. Fallback pencarian jaringan hanya bila daftar preload belum ada atau tidak menemukan hasil lokal (mis. tamu OTS baru)
   useEffect(() => {
     const trimmed = query.trim();
-    if (trimmed.length < 2) return;
+    if (trimmed.length < 2) {
+      setRemoteResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    // Jika hasil lokal sudah ditemukan, langsung tampilkan 0ms tanpa perlu panggil API!
+    if (localMatches.length > 0) {
+      setIsSearching(false);
+      return;
+    }
 
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -448,7 +498,7 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
         });
         const data = await res.json();
         if (res.ok && data.ok) {
-          setSearchResults(data.items || []);
+          setRemoteResults(data.items || []);
           setHighlightedIndex(0);
         } else if (data.code === "session_expired" || data.code === "session_invalid") {
           try {
@@ -461,18 +511,18 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
         }
       } catch (err: unknown) {
         if ((err as Error).name !== "AbortError") {
-          setSearchResults([]);
+          setRemoteResults([]);
         }
       } finally {
         setIsSearching(false);
       }
-    }, 250);
+    }, 150);
 
     return () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query]);
+  }, [query, localMatches.length]);
 
   // 5. Submit Absensi
   async function handleSubmitAttendance() {
@@ -689,7 +739,7 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
           </div>
         ) : null}
 
-        {/* STAGE 4: Aktif - Pencarian Nama Tamu */}
+        {/* STAGE 4: Aktif - Pencarian Nama Tamu (Instan 0ms) */}
         {stage === "active" || stage === "confirming" || stage === "submitting" ? (
           <div className="flex w-full flex-col gap-4">
             <div className="flex flex-col gap-2.5 rounded-[26px] border border-white/90 bg-white/95 p-5 shadow-md backdrop-blur-xl">
@@ -709,7 +759,10 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
                   autoFocus
                   placeholder="Ketik nama lengkap..."
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    setHighlightedIndex(0);
+                  }}
                   onKeyDown={handleKeyDown}
                   className="h-12 rounded-2xl border-line bg-white pr-11 text-base font-bold focus:border-brand-blue"
                 />
@@ -723,16 +776,16 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
               </div>
             </div>
 
-            {/* Loading Skeleton */}
-            {isSearching ? (
+            {/* Loading Skeleton (hanya bila mencari tamu OTS baru via jaringan) */}
+            {isSearching && displayedResults.length === 0 ? (
               <div className="flex flex-col gap-2">
                 <Skeleton className="h-15 w-full rounded-2xl" />
                 <Skeleton className="h-15 w-full rounded-2xl" />
               </div>
             ) : null}
 
-            {/* Hasil Pencarian (role="listbox") */}
-            {!isSearching && query.trim().length >= 2 ? (
+            {/* Hasil Pencarian Instan (role="listbox") */}
+            {query.trim().length >= 1 && !isSearching ? (
               displayedResults.length > 0 ? (
                 <div
                   role="listbox"
@@ -772,11 +825,11 @@ export function AttendanceFlow({ expectedMode }: { expectedMode: Mode }) {
                     );
                   })}
                 </div>
-              ) : (
+              ) : query.trim().length >= 2 ? (
                 <EmptyState icon={Users} title="Nama tidak ditemukan">
                   Periksa ejaan nama atau hubungi panitia di meja registrasi.
                 </EmptyState>
-              )
+              ) : null
             ) : null}
           </div>
         ) : null}

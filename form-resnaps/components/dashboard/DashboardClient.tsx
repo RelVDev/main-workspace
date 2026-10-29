@@ -1,13 +1,15 @@
-// P10 / P17: Dashboard Panitia yang bersih, minimalis, dan elegan:
+// P10 / P17: Dashboard Panitia yang bersih, minimalis, dan berkecepatan tinggi (0ms pencarian cepat):
+// - Pencarian Nama & Barcode Instan (0ms) langsung dari Dashboard + Aksi Cepat 1-Klik
 // - Ringkasan Kehadiran, HTM, & Voucher
 // - Input Tamu On-The-Spot (OTS) langsung dari Dashboard
 // - Panel Persetujuan Hold HTM & Recovery HP
 // - Panel Ringkas Catatan Alergi Konsumsi
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import {
   Users,
   LogIn,
@@ -30,6 +32,7 @@ import {
   X,
   RotateCcw,
   UserPlus,
+  Search,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -67,6 +70,18 @@ type UnpaidGuestItem = {
   voucherCode: string;
 };
 
+type QuickGuestItem = {
+  id: string;
+  name: string;
+  category: string | null;
+  allergies: string | null;
+  status: "belum_hadir" | "ditahan" | "di_dalam" | "sudah_pulang";
+  paymentStatus: "lunas" | "belum_lunas";
+  voucherCode: string;
+  mealRedeemedAtWib: string | null;
+  photoboothRedeemedAtWib: string | null;
+};
+
 type AllergyGuestItem = {
   id: string;
   name: string;
@@ -97,6 +112,7 @@ type IntervalChartItem = {
 type DashboardData = {
   metrics: DashboardMetrics;
   unpaidGuests: UnpaidGuestItem[];
+  quickGuests?: QuickGuestItem[];
   allergyGuests?: AllergyGuestItem[];
   activities: ActivityItem[];
   chartData: IntervalChartItem[];
@@ -117,14 +133,23 @@ type LiveScanEvent = {
   elapsedSec: number;
 };
 
-export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
-  const [data, setData] = useState<DashboardData | null>(null);
+// Cache memori sisi klien agar perpindahan kembali ke tab Dashboard langsung tampil 0ms
+let cachedDashboardData: DashboardData | null = null;
+
+export function DashboardClient({ isTvMode: propTvMode }: { isTvMode?: boolean }) {
+  const searchParams = useSearchParams();
+  const isTvMode = propTvMode ?? searchParams.get("tv") === "1";
+
+  const [data, setData] = useState<DashboardData | null>(() => cachedDashboardData);
   const [isLive, setIsLive] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => cachedDashboardData === null);
   const [liveStream, setLiveStream] = useState<LiveScanEvent | null>(null);
   const [processingGuestId, setProcessingGuestId] = useState<string | null>(null);
   const [showScannerModal, setShowScannerModal] = useState(false);
   const [actionBanner, setActionBanner] = useState<string | null>(null);
+
+  // Pencarian Cepat 0ms di Dashboard
+  const [quickQuery, setQuickQuery] = useState("");
 
   // Modal Cepat Input Tamu OTS dari Dashboard
   const [showOtsModal, setShowOtsModal] = useState(false);
@@ -142,6 +167,7 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
       if (res.ok) {
         const payload = await res.json();
         if (payload.ok) {
+          cachedDashboardData = payload;
           setData(payload);
         }
       }
@@ -192,8 +218,7 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
     let mounted = true;
     void (async () => {
       if (mounted) {
-        await fetchData();
-        await fetchLiveActivity();
+        await Promise.all([fetchData(), fetchLiveActivity()]);
       }
     })();
 
@@ -233,8 +258,20 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
     };
   }, [fetchData, fetchLiveActivity]);
 
+  // Hasil Pencarian Cepat 0ms di Memori Klien
+  const quickSearchResults = useMemo(() => {
+    const q = quickQuery.trim().toLowerCase();
+    if (!q || !data?.quickGuests) return [];
+    return data.quickGuests
+      .filter((g) => {
+        const hay = `${g.name} ${g.voucherCode} ${g.category || ""} ${g.allergies || ""}`.toLowerCase();
+        return hay.includes(q);
+      })
+      .slice(0, 6);
+  }, [quickQuery, data?.quickGuests]);
+
   async function handleApproveOrMarkPaid(
-    guest: UnpaidGuestItem,
+    guest: { id: string; name: string },
     action: "approve_checkin" | "set_payment" | "reset_attendance",
   ) {
     setProcessingGuestId(guest.id);
@@ -255,8 +292,32 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
           action === "approve_checkin"
             ? `HTM ${guest.name} dilunasi & diizinkan masuk. Tiket otomatis aktif di HP tamu.`
             : action === "reset_attendance"
-              ? `Recovery berhasil: Status Hold ${guest.name} di-reset & kunci HP dibuka.`
+              ? `Recovery berhasil: Status ${guest.name} di-reset & kunci HP dibuka.`
               : `Status HTM ${guest.name} ditandai LUNAS.`,
+        );
+        await fetchData();
+      }
+    } finally {
+      setProcessingGuestId(null);
+    }
+  }
+
+  async function handleQuickManualAttendance(
+    guest: { id: string; name: string },
+    type: "in" | "out",
+  ) {
+    setProcessingGuestId(guest.id);
+    setActionBanner(null);
+    try {
+      const res = await fetch("/api/panitia/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ guest_id: guest.id, type }),
+      });
+      const d = await res.json();
+      if (res.ok && d.ok) {
+        setActionBanner(
+          `Absen ${type === "in" ? "MASUK" : "PULANG"} untuk ${guest.name} berhasil dicatat.`,
         );
         await fetchData();
       }
@@ -492,6 +553,122 @@ export function DashboardClient({ isTvMode = false }: { isTvMode?: boolean }) {
           </button>
         </div>
       </div>
+
+      {/* Kotak Pencarian Cepat Instan (0ms) langsung dari Dashboard */}
+      <Card className="flex flex-col gap-3 rounded-2xl p-3.5 shadow-2xs">
+        <div className="relative">
+          <Input
+            id="dashboard-quick-search"
+            placeholder="Cari cepat nama panitia / tamu / kode RSNP-XXXX untuk aksi instan..."
+            value={quickQuery}
+            onChange={(e) => setQuickQuery(e.target.value)}
+            className="h-10 rounded-xl pr-9 text-sm"
+          />
+          {quickQuery ? (
+            <button
+              type="button"
+              onClick={() => setQuickQuery("")}
+              className="absolute inset-y-0 right-2.5 my-auto flex size-6 items-center justify-center rounded-full text-ink-muted hover:bg-surface-soft hover:text-ink"
+              title="Hapus pencarian"
+            >
+              <X className="size-3.5" />
+            </button>
+          ) : (
+            <Search className="pointer-events-none absolute inset-y-0 right-3 my-auto size-4 text-ink-muted" />
+          )}
+        </div>
+
+        {quickQuery.trim() ? (
+          quickSearchResults.length > 0 ? (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {quickSearchResults.map((g) => {
+                const isHeld = g.status === "ditahan";
+                const isUnpaid = g.paymentStatus === "belum_lunas";
+                return (
+                  <div
+                    key={g.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-white p-2.5"
+                  >
+                    <div className="flex min-w-0 flex-col">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate text-xs font-black text-ink sm:text-sm">
+                          {g.name}
+                        </span>
+                        <span className="font-mono text-[11px] font-bold text-brand-purple">
+                          {g.voucherCode}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1 text-[11px] text-ink-muted">
+                        <span>{g.category || "Panitia"}</span>
+                        {g.allergies ? (
+                          <span className="rounded bg-warning/15 px-1.5 py-0.2 font-extrabold text-warning">
+                            Alergi: {g.allergies}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      {isHeld || (isUnpaid && g.status === "belum_hadir") ? (
+                        <button
+                          type="button"
+                          disabled={processingGuestId === g.id}
+                          onClick={() => void handleApproveOrMarkPaid(g, "approve_checkin")}
+                          className="inline-flex h-7 items-center gap-1 rounded-lg bg-success px-2 text-[11px] font-black text-white hover:brightness-95 disabled:opacity-50"
+                        >
+                          <CheckCircle2 className="size-3" />
+                          {isHeld ? "Izinkan" : "Lunasi & Masuk"}
+                        </button>
+                      ) : null}
+
+                      {g.status === "belum_hadir" && !isUnpaid ? (
+                        <button
+                          type="button"
+                          disabled={processingGuestId === g.id}
+                          onClick={() => void handleQuickManualAttendance(g, "in")}
+                          className="inline-flex h-7 items-center gap-1 rounded-lg bg-brand-blue px-2.5 text-[11px] font-bold text-white hover:brightness-95 disabled:opacity-50"
+                        >
+                          <LogIn className="size-3" />
+                          Masuk
+                        </button>
+                      ) : null}
+
+                      {g.status === "di_dalam" ? (
+                        <button
+                          type="button"
+                          disabled={processingGuestId === g.id}
+                          onClick={() => void handleQuickManualAttendance(g, "out")}
+                          className="inline-flex h-7 items-center gap-1 rounded-lg bg-brand-purple px-2.5 text-[11px] font-bold text-white hover:brightness-95 disabled:opacity-50"
+                        >
+                          <LogOut className="size-3" />
+                          Pulang
+                        </button>
+                      ) : null}
+
+                      {g.status !== "belum_hadir" ? (
+                        <button
+                          type="button"
+                          disabled={processingGuestId === g.id}
+                          onClick={() => void handleApproveOrMarkPaid(g, "reset_attendance")}
+                          className="inline-flex h-7 items-center gap-1 rounded-lg border border-error/40 px-2 text-[11px] font-bold text-error hover:bg-error/10 disabled:opacity-50"
+                          title="Reset & buka kunci HP"
+                        >
+                          <RotateCcw className="size-3" />
+                          Recovery
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="px-1 text-xs font-semibold text-ink-muted">
+              Tidak ditemukan nama/kode untuk &ldquo;{quickQuery}&rdquo;.
+            </p>
+          )
+        ) : null}
+      </Card>
 
       {/* 6 Kartu Metrik Bersih & Ringkas */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">

@@ -3,6 +3,8 @@ import { NextRequest } from "next/server";
 import { getCommitteeAuth } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/supabase/types";
+import { invalidateGuestsCache } from "@/lib/guest-extras";
+import { invalidateQrConfigCache } from "@/lib/settings";
 import { fail, ok } from "@/lib/api";
 
 export async function POST(req: NextRequest) {
@@ -36,24 +38,20 @@ export async function POST(req: NextRequest) {
   }
 
   const db = createAdminClient();
-  const updates = [
-    { key: "qr_window_seconds", value: windowSec as unknown as Json },
-    { key: "qr_grace_windows", value: graceWindows as unknown as Json },
-    { key: "session_ttl_seconds", value: ttlSec as unknown as Json },
-    { key: "verification_mode", value: verificationMode as unknown as Json },
-    { key: "device_lock_enabled", value: deviceLockEnabled as unknown as Json },
-  ];
+  const nowIso = new Date().toISOString();
+  await db.from("event_settings").upsert(
+    [
+      { key: "qr_window_seconds", value: windowSec as NonNullable<Json>, updated_at: nowIso },
+      { key: "qr_grace_windows", value: graceWindows as NonNullable<Json>, updated_at: nowIso },
+      { key: "session_ttl_seconds", value: ttlSec as NonNullable<Json>, updated_at: nowIso },
+      { key: "verification_mode", value: verificationMode as NonNullable<Json>, updated_at: nowIso },
+      { key: "device_lock_enabled", value: deviceLockEnabled as NonNullable<Json>, updated_at: nowIso },
+    ],
+    { onConflict: "key" },
+  );
 
-  for (const u of updates) {
-    await db.from("event_settings").upsert(
-      {
-        key: u.key,
-        value: u.value as NonNullable<Json>,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "key" },
-    );
-  }
+  invalidateQrConfigCache();
+  invalidateGuestsCache();
 
   await db.from("audit_logs").insert({
     actor: auth.userId,

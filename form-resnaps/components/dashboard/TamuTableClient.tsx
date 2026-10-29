@@ -1,8 +1,8 @@
-// P10.5 / P11.1 / P11.2 / P11.5 / P17: Tabel tamu bersih & minimalis dengan filter HTM,
-// persetujuan Hold, status Voucher, absensi manual, recovery HP, dan Input Tamu OTS langsung.
+// P10.5 / P11.1 / P11.2 / P11.5 / P17: Tabel tamu berkecepatan tinggi (0ms pencarian & filter lokal)
+// dengan filter HTM, persetujuan Hold, status Voucher, absensi manual, recovery HP, dan Input Tamu OTS.
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Search,
   LogIn,
@@ -45,15 +45,19 @@ type GuestRow = {
   checkedOutAtWib: string;
 };
 
-export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
-  const [guests, setGuests] = useState<GuestRow[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [isLoading, setIsLoading] = useState(true);
+// Cache memori sisi klien agar perpindahan kembali ke tab Daftar Tamu langsung tampil 0ms
+let cachedAllGuests: GuestRow[] | null = null;
+let cachedCategories: string[] = [];
 
-  // Filter
+const PAGE_SIZE = 50;
+
+export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
+  const [allGuests, setAllGuests] = useState<GuestRow[]>(() => cachedAllGuests ?? []);
+  const [categories, setCategories] = useState<string[]>(() => cachedCategories);
+  const [page, setPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(() => cachedAllGuests === null);
+
+  // Filter instan (0ms di memori klien)
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("");
@@ -91,31 +95,31 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
     }
   }, []);
 
-  const fetchGuests = useCallback(async () => {
-    setIsLoading(true);
+  const fetchGuests = useCallback(async (showSpinner = false) => {
+    if (showSpinner && !cachedAllGuests) {
+      setIsLoading(true);
+    }
     try {
-      const sp = new URLSearchParams();
-      if (query.trim()) sp.set("q", query.trim());
-      if (statusFilter) sp.set("status", statusFilter);
-      if (paymentFilter) sp.set("payment", paymentFilter);
-      if (categoryFilter) sp.set("category", categoryFilter);
-      sp.set("page", String(page));
-      sp.set("limit", "50");
-
-      const res = await fetch(`/api/panitia/tamu-list?${sp.toString()}`);
+      const res = await fetch("/api/panitia/tamu-list?limit=500");
       if (res.ok) {
         const d = await res.json();
         if (d.ok) {
-          setGuests(d.guests || []);
-          setTotalCount(d.total || 0);
-          setTotalPages(d.totalPages || 1);
-          setCategories(d.categories || []);
+          const rows: GuestRow[] = d.guests || [];
+          const cats: string[] = d.categories || [];
+          cachedAllGuests = rows;
+          cachedCategories = cats;
+          setAllGuests(rows);
+          setCategories(cats);
         }
       }
     } finally {
       setIsLoading(false);
     }
-  }, [query, statusFilter, paymentFilter, categoryFilter, page]);
+  }, []);
+
+  useEffect(() => {
+    void fetchGuests(true);
+  }, [fetchGuests]);
 
   useEffect(() => {
     function handleGlobalKey(e: KeyboardEvent) {
@@ -131,12 +135,29 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
     return () => window.removeEventListener("keydown", handleGlobalKey);
   }, []);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      void fetchGuests();
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [fetchGuests]);
+  // Filter & Pencarian Instan 0ms di Memori Klien
+  const filteredGuests = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return allGuests.filter((g) => {
+      if (statusFilter && g.status !== statusFilter) return false;
+      if (paymentFilter && g.paymentStatus !== paymentFilter) return false;
+      if (categoryFilter && (g.category || "") !== categoryFilter) return false;
+      if (q) {
+        const hay = `${g.name} ${g.voucherCode} ${g.category || ""} ${g.allergies || ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [allGuests, query, statusFilter, paymentFilter, categoryFilter]);
+
+  const totalCount = filteredGuests.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+
+  const pagedGuests = useMemo(() => {
+    const start = (safePage - 1) * PAGE_SIZE;
+    return filteredGuests.slice(start, start + PAGE_SIZE);
+  }, [filteredGuests, safePage]);
 
   async function handleHtmAction(
     guest: GuestRow,
@@ -175,7 +196,7 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
                     data.guest?.paymentStatus === "lunas" ? "LUNAS" : "BELUM LUNAS"
                   }.`,
         });
-        void fetchGuests();
+        void fetchGuests(false);
       } else {
         setFeedback({ kind: "error", text: data.message || "Gagal memperbarui status." });
       }
@@ -202,7 +223,7 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
           kind: "success",
           text: `Absen ${actionLabel} untuk ${guest.name} tercatat.`,
         });
-        void fetchGuests();
+        void fetchGuests(false);
       } else {
         setFeedback({ kind: "error", text: data.message || "Gagal mencatat absensi." });
       }
@@ -235,7 +256,7 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
         });
         setUndoModal(null);
         setUndoReason("");
-        void fetchGuests();
+        void fetchGuests(false);
       } else {
         setFeedback({ kind: "error", text: data.message || "Gagal membatalkan absensi." });
       }
@@ -280,7 +301,7 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
         setNewAllergies("");
         setNewPaymentStatus("lunas");
         setAutoCheckinOts(true);
-        void fetchGuests();
+        void fetchGuests(false);
       } else {
         setFeedback({ kind: "error", text: data.message || "Gagal menambahkan tamu OTS." });
       }
@@ -312,7 +333,7 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
         <div>
           <h1 className="text-xl font-black text-ink sm:text-2xl">Daftar Tamu & Panitia</h1>
           <p className="text-xs font-semibold text-ink-muted">
-            {totalCount} terdaftar · Klik lencana HTM untuk ubah Lunas / Belum Lunas
+            {totalCount} ditampilkan dari {allGuests.length} terdaftar · Klik lencana HTM untuk ubah Lunas / Belum Lunas
           </p>
         </div>
 
@@ -336,12 +357,12 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
         </div>
       </div>
 
-      {/* Baris Filter & Pencarian Bersih */}
+      {/* Baris Filter & Pencarian Instan (0ms) */}
       <Card className="flex flex-wrap items-center gap-2.5 rounded-2xl p-3.5">
         <div className="relative min-w-52 flex-1">
           <Input
             id="tamu-search-input"
-            placeholder="Cari nama atau kode RSNP-XXXX..."
+            placeholder="Ketik nama, divisi, atau kode RSNP-XXXX (instan)..."
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -349,7 +370,21 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
             }}
             className="h-10 rounded-xl pr-9 text-sm"
           />
-          <Search className="pointer-events-none absolute inset-y-0 right-3 my-auto size-4 text-ink-muted" />
+          {query ? (
+            <button
+              type="button"
+              onClick={() => {
+                setQuery("");
+                setPage(1);
+              }}
+              className="absolute inset-y-0 right-2.5 my-auto flex size-6 items-center justify-center rounded-full text-ink-muted hover:bg-surface-soft hover:text-ink"
+              title="Hapus pencarian"
+            >
+              <X className="size-3.5" />
+            </button>
+          ) : (
+            <Search className="pointer-events-none absolute inset-y-0 right-3 my-auto size-4 text-ink-muted" />
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -434,7 +469,7 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
                   <Loader2 className="mx-auto size-6 animate-spin text-brand-blue" />
                 </td>
               </tr>
-            ) : guests.length === 0 ? (
+            ) : pagedGuests.length === 0 ? (
               <tr>
                 <td colSpan={5} className="py-10 text-center">
                   <EmptyState icon={Users} title="Data tidak ditemukan">
@@ -443,7 +478,7 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
                 </td>
               </tr>
             ) : (
-              guests.map((g) => {
+              pagedGuests.map((g) => {
                 const isHeld = g.status === "ditahan";
                 const isUnpaid = g.paymentStatus === "belum_lunas";
                 return (
@@ -624,12 +659,12 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
       {totalPages > 1 ? (
         <div className="flex items-center justify-between text-xs text-ink-muted">
           <span>
-            Halaman {page} / {totalPages}
+            Halaman {safePage} / {totalPages}
           </span>
           <div className="flex items-center gap-1.5">
             <button
               type="button"
-              disabled={page <= 1}
+              disabled={safePage <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               className="rounded-xl border border-line bg-surface px-3 py-1 font-semibold text-ink disabled:opacity-40"
             >
@@ -637,7 +672,7 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
             </button>
             <button
               type="button"
-              disabled={page >= totalPages}
+              disabled={safePage >= totalPages}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               className="rounded-xl border border-line bg-surface px-3 py-1 font-semibold text-ink disabled:opacity-40"
             >

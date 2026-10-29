@@ -1,4 +1,4 @@
-// P11.6: Riwayat absensi & audit logs untuk halaman /panitia/log.
+// P11.6: Riwayat absensi & audit logs untuk halaman /panitia/log (diparalelkan dengan Promise.all).
 import { NextRequest } from "next/server";
 import { getCommitteeAuth } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -12,12 +12,19 @@ export async function GET(req: NextRequest) {
 
   const db = createAdminClient();
 
-  // 1. Ambil 50 log kehadiran terbaru
-  const { data: attendanceLogs } = await db
-    .from("attendance_logs")
-    .select("id, type, source, scanned_at, guest_id, guests(full_name, category)")
-    .order("scanned_at", { ascending: false })
-    .limit(50);
+  // Ambil 50 log kehadiran & 50 log audit secara paralel
+  const [{ data: attendanceLogs }, { data: auditLogs }] = await Promise.all([
+    db
+      .from("attendance_logs")
+      .select("id, type, source, scanned_at, guest_id, guests(full_name, category)")
+      .order("scanned_at", { ascending: false })
+      .limit(50),
+    db
+      .from("audit_logs")
+      .select("id, actor, action, meta, created_at, target_guest, guests(full_name)")
+      .order("created_at", { ascending: false })
+      .limit(50),
+  ]);
 
   type AttendanceRow = {
     id: string;
@@ -36,13 +43,6 @@ export async function GET(req: NextRequest) {
     scannedAt: l.scanned_at,
     scannedAtWib: formatWib(l.scanned_at),
   }));
-
-  // 2. Ambil 50 log audit panitia terbaru
-  const { data: auditLogs } = await db
-    .from("audit_logs")
-    .select("id, actor, action, meta, created_at, target_guest, guests(full_name)")
-    .order("created_at", { ascending: false })
-    .limit(50);
 
   type AuditRow = {
     id: string;

@@ -1,17 +1,38 @@
-// P06.3: Next.js 16 Proxy (pengganti middleware) untuk proteksi rute panitia.
+// P06.3: Next.js 16 Proxy untuk proteksi rute panitia dengan cache sesi 60 detik agar navigasi antar menu instan.
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/lib/supabase/types";
 
+const verifiedProxyCache = new Map<string, number>();
+const PROXY_CACHE_TTL_MS = 60_000;
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Hanya periksa rute /panitia dan API panitia / export
   const isPanitiaPage = pathname.startsWith("/panitia") && pathname !== "/panitia/login";
   const isPanitiaApi = pathname.startsWith("/api/panitia") || pathname.startsWith("/api/export");
 
   if (!isPanitiaPage && !isPanitiaApi) {
     return NextResponse.next();
+  }
+
+  const authHeader = request.headers.get("authorization");
+  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined;
+  const sbCookies = request.cookies
+    .getAll()
+    .filter((c) => c.name.includes("auth-token"))
+    .map((c) => `${c.name}=${c.value}`)
+    .join(";");
+
+  const tokenKey = bearerToken || sbCookies;
+
+  // Fast-path: bila sesi sudah diverifikasi dalam 60 detik terakhir, langsung teruskan tanpa roundtrip jaringan
+  const now = Date.now();
+  if (tokenKey) {
+    const exp = verifiedProxyCache.get(tokenKey);
+    if (exp && exp > now) {
+      return NextResponse.next();
+    }
   }
 
   let response = NextResponse.next({
@@ -32,31 +53,31 @@ export async function proxy(request: NextRequest) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         response = NextResponse.next({ request });
         cookiesToSet.forEach(({ name, value, options }) =>
-          response.cookies.set(name, value, options)
+          response.cookies.set(name, value, options),
         );
       },
     },
   });
 
-  // Ambil token dari header Authorization bila ada (misal dari API client / tools)
-  const authHeader = request.headers.get("authorization");
-  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined;
-
-  // Ambil user dan refresh sesi auth bila mendekati kedaluwarsa (P06.7)
   const {
     data: { user },
   } = bearerToken ? await supabase.auth.getUser(bearerToken) : await supabase.auth.getUser();
 
   if (!user) {
+    if (tokenKey) verifiedProxyCache.delete(tokenKey);
     if (isPanitiaApi) {
       return NextResponse.json(
         { ok: false, code: "unauthorized", message: "Sesi login panitia diperlukan." },
-        { status: 401, headers: { "Cache-Control": "no-store" } }
+        { status: 401, headers: { "Cache-Control": "no-store" } },
       );
     }
     const loginUrl = new URL("/panitia/login", request.url);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  if (tokenKey) {
+    verifiedProxyCache.set(tokenKey, now + PROXY_CACHE_TTL_MS);
   }
 
   return response;
