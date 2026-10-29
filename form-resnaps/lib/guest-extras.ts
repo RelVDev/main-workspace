@@ -8,6 +8,12 @@ import { generateVoucherCode, normalizeVoucherInput, type PaymentStatus } from "
 
 export const TAMU_ANGKATAN_MEAL_MAX_SLOTS = 50;
 
+export const TAMU_ANGKATAN_DIVISIONS = [
+  "Angkatan 2025",
+  "Angkatan 2024",
+  "Angkatan 2023",
+] as const;
+
 export type GuestExtraState = {
   paymentStatus: PaymentStatus;
   isOts: boolean;
@@ -109,15 +115,28 @@ export function invalidateGuestsCache(): void {
 }
 
 /**
- * Menentukan apakah kategori/role tamu merupakan kelompok "Tamu / Tamu Angkatan / OTS" (bukan Panitia reguler).
+ * Menentukan apakah kategori/divisi tamu merupakan Tamu Angkatan spesifik:
+ * - "Angkatan 2025"
+ * - "Angkatan 2024"
+ * - "Angkatan 2023"
+ * atau tamu OTS.
+ * Seluruh 101 Panitia (BPI & Divisi KORLAP/ACARA/PERDEK/MEDCRE/SPONSORSHIP/HUMZIN/KONSUMSI)
+ * bukan merupakan Tamu Angkatan sehingga TIDAK memotong kuota 50 slot Tamu Angkatan.
  */
 export function isCategoryTamuRole(category: string | null, isOts = false): boolean {
   if (isOts) return true;
   const c = (category || "").trim().toLowerCase();
-  if (!c) return true;
-  if (c.includes("ots")) return true;
-  if (c.startsWith("panitia")) return false;
-  return true;
+  if (!c) return false;
+  if (
+    c.includes("angkatan 2025") ||
+    c.includes("angkatan 2024") ||
+    c.includes("angkatan 2023") ||
+    c.includes("ots") ||
+    c.startsWith("tamu")
+  ) {
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -231,17 +250,21 @@ export async function fetchEnrichedGuests(
     const defaultAllergy = DEFAULT_ALLERGY_MAP[nameLower] ?? null;
 
     const paymentStatus: PaymentStatus = over?.paymentStatus ?? defaultPayment;
-    // Tamu dikategorikan OTS / HTM di tempat bila ditandai isOts, kategorinya mengandung "ots", atau berasal dari simulasi HTM di tempat
+    const isTamuAngkatan = isCategoryTamuRole(r.category ?? null, Boolean(over?.isOts));
+    // Tamu dikategorikan OTS / HTM di tempat apabila:
+    // - Ditandai isOts secara eksplisit (mis. dari input + Tamu OTS), ATAU
+    // - Kategorinya mengandung "ots", ATAU
+    // - Merupakan Tamu Angkatan (Angkatan 2025 / 2024 / 2023) yang status pembayarannya 'belum_lunas' (HTM di tempat)
     const isOts =
       over?.isOts !== undefined
         ? over.isOts
-        : catLower.includes("ots") || isDefaultUnpaid || paymentStatus === "belum_lunas";
+        : catLower.includes("ots") || (isTamuAngkatan && paymentStatus === "belum_lunas");
     const isTamuRole = isCategoryTamuRole(r.category ?? null, isOts);
 
     // Aturan Kuota Makan:
     // - Tamu OTS / HTM di tempat secara default HANYA mendapat tiket Photobooth (mealEligible = false),
     //   kecuali panitia secara eksplisit mengaktifkan mealEligible = true (selama slot Tamu Angkatan < 50).
-    // - Panitia reguler & Tamu Angkatan reguler (bukan OTS) secara default mendapat tiket makan (mealEligible = true).
+    // - 101 Panitia & Tamu Angkatan reguler (bukan OTS) secara default mendapat tiket makan (mealEligible = true).
     const mealEligible =
       over?.mealEligible !== undefined ? over.mealEligible : isOts ? false : true;
 

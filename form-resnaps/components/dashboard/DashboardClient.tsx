@@ -168,7 +168,7 @@ export function DashboardClient({ isTvMode: propTvMode }: { isTvMode?: boolean }
   // Modal Cepat Input Tamu OTS dari Dashboard
   const [showOtsModal, setShowOtsModal] = useState(false);
   const [otsName, setOtsName] = useState("");
-  const [otsCategory, setOtsCategory] = useState("");
+  const [otsCategory, setOtsCategory] = useState("Angkatan 2025");
   const [otsContact, setOtsContact] = useState("");
   const [otsAllergies, setOtsAllergies] = useState("");
   const [otsPayment, setOtsPayment] = useState<"lunas" | "belum_lunas">("lunas");
@@ -399,7 +399,7 @@ export function DashboardClient({ isTvMode: propTvMode }: { isTvMode?: boolean }
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           full_name: otsName.trim(),
-          category: otsCategory.trim() || "OTS · Tamu",
+          category: otsCategory.trim() || "Angkatan 2025",
           contact: otsContact.trim() || null,
           allergies: otsAllergies.trim() || null,
           payment_status: otsPayment,
@@ -419,7 +419,7 @@ export function DashboardClient({ isTvMode: propTvMode }: { isTvMode?: boolean }
         );
         setShowOtsModal(false);
         setOtsName("");
-        setOtsCategory("");
+        setOtsCategory("Angkatan 2025");
         setOtsContact("");
         setOtsAllergies("");
         setOtsPayment("lunas");
@@ -1183,14 +1183,18 @@ export function DashboardClient({ isTvMode: propTvMode }: { isTvMode?: boolean }
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="flex flex-col gap-1">
                   <label htmlFor="dash-ots-cat" className="text-xs font-bold text-ink">
-                    Kategori / Divisi
+                    Divisi Tamu Angkatan
                   </label>
-                  <Input
+                  <select
                     id="dash-ots-cat"
-                    placeholder="OTS · Tamu / Kating"
                     value={otsCategory}
                     onChange={(e) => setOtsCategory(e.target.value)}
-                  />
+                    className="h-11 rounded-control border border-line bg-surface px-3 text-xs font-bold text-ink focus:outline-none"
+                  >
+                    <option value="Angkatan 2025">Angkatan 2025</option>
+                    <option value="Angkatan 2024">Angkatan 2024</option>
+                    <option value="Angkatan 2023">Angkatan 2023</option>
+                  </select>
                 </div>
 
                 <div className="flex flex-col gap-1">

@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null);
   const fullName = body?.full_name?.trim();
-  const category = body?.category?.trim() || "OTS · Tamu";
+  const category = body?.category?.trim() || "Angkatan 2025";
   const contact = body?.contact?.trim() || null;
   const allergies = body?.allergies?.trim() || null;
   const paymentStatus: PaymentStatus =

@@ -3,7 +3,11 @@
 import { NextRequest } from "next/server";
 import { getCommitteeAuth } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { computeTamuMealQuota, fetchEnrichedGuests } from "@/lib/guest-extras";
+import {
+  computeTamuMealQuota,
+  fetchEnrichedGuests,
+  TAMU_ANGKATAN_DIVISIONS,
+} from "@/lib/guest-extras";
 import { formatWib } from "@/lib/time";
 import { fail, ok } from "@/lib/api";
 
@@ -26,7 +30,10 @@ export async function GET(req: NextRequest) {
   const tamuMealQuota = computeTamuMealQuota(allGuests);
 
   const categories = Array.from(
-    new Set(allGuests.map((c) => c.category).filter((c): c is string => Boolean(c))),
+    new Set([
+      ...TAMU_ANGKATAN_DIVISIONS,
+      ...allGuests.map((c) => c.category).filter((c): c is string => Boolean(c)),
+    ]),
   ).sort();
 
   const filtered = allGuests.filter((g) => {

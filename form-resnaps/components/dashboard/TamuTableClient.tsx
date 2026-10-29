@@ -93,7 +93,7 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
   // Modal Input Tamu OTS
   const [showAddModal, setShowAddModal] = useState(false);
   const [newName, setNewName] = useState("");
-  const [newCategory, setNewCategory] = useState("");
+  const [newCategory, setNewCategory] = useState("Angkatan 2025");
   const [newContact, setNewContact] = useState("");
   const [newAllergies, setNewAllergies] = useState("");
   const [newPaymentStatus, setNewPaymentStatus] = useState<"lunas" | "belum_lunas">("lunas");
@@ -313,7 +313,7 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           full_name: newName.trim(),
-          category: newCategory.trim() || "OTS · Tamu",
+          category: newCategory.trim() || "Angkatan 2025",
           contact: newContact.trim() || null,
           allergies: newAllergies.trim() || null,
           payment_status: newPaymentStatus,
@@ -340,7 +340,7 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
         });
         setShowAddModal(false);
         setNewName("");
-        setNewCategory("");
+        setNewCategory("Angkatan 2025");
         setNewContact("");
         setNewAllergies("");
         setNewPaymentStatus("lunas");
@@ -868,14 +868,18 @@ export function TamuTableClient({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="flex flex-col gap-1">
                   <label htmlFor="guest-cat" className="text-xs font-bold text-ink">
-                    Kategori / Divisi
+                    Divisi Tamu Angkatan
                   </label>
-                  <Input
+                  <select
                     id="guest-cat"
-                    placeholder="OTS · Tamu / Kating"
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value)}
-                  />
+                    className="h-11 rounded-control border border-line bg-surface px-3 text-xs font-bold text-ink focus:outline-none"
+                  >
+                    <option value="Angkatan 2025">Angkatan 2025</option>
+                    <option value="Angkatan 2024">Angkatan 2024</option>
+                    <option value="Angkatan 2023">Angkatan 2023</option>
+                  </select>
                 </div>
 
                 <div className="flex flex-col gap-1">
