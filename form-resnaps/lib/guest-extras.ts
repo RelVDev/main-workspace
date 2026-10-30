@@ -56,37 +56,11 @@ export type TamuMealQuotaInfo = {
 
 const EXTRAS_SETTING_KEY = "guest_extras_v1";
 
-// Daftar nama pada data Gladi Bersih Chrysalis 2026 yang disimulasikan memiliki status HTM di tempat ('belum_lunas')
-export const DEFAULT_UNPAID_NAMES = new Set([
-  "raditiya putra pratama",
-  "siti mawardah",
-  "muhammad faiq asyraf",
-  "brian rayanata surya",
-  "devin ogya adhigana",
-  "ibnata rasya syarief",
-  "michael tinon christiano",
-  "muhammad athar reivansyah",
-  "mazida an'um ummi hirza",
-  "steven kornelius saputra",
-]);
+// Data simulasi Gladi Bersih (nama "belum lunas" & alergi palsu) sudah DIHAPUS untuk hari-H.
+// Seluruh status HTM & alergi kini murni berasal dari data asli yang tersimpan di `guest_extras_v1`.
+export const DEFAULT_UNPAID_NAMES = new Set<string>();
 
-// Data alergi makanan simulasi untuk Panitia/Peserta Chrysalis 2026 pada Gladi Bersih
-export const DEFAULT_ALLERGY_MAP: Record<string, string> = {
-  "athif nasiruddin yusuf": "Seafood (Udang & Kepiting)",
-  "shafira fauziatuz zahra": "Susu Sapi / Olahan Dairy (Intoleransi Laktosa)",
-  "ayushita ahmad": "Kacang Tanah & Kacang Mede",
-  "naurah alya mukhbita": "Telur Ayam & Olahan Mayo",
-  "nazwa azzahra ramadhani": "Seafood (Cumi & Kerang)",
-  "agatha samantha putri": "Makanan Pedas / Cabai (Maag Kronis)",
-  "annisa shafa nuridha": "Gluten / Tepung Terigu",
-  "calya annora paramartha": "Seafood (Ikan Laut & Udang)",
-  "ghaitsa razqi satyaputri": "Kacang-kacangan & Wijen",
-  "dhinda cahyani febrine": "Susu & Keju (Dairy)",
-  "rayyan fadli": "Daging Kambing",
-  "raditiya putra pratama": "Seafood (Udang & Kepiting)",
-  "brian rayanata surya": "Kacang Tanah & Kacang Mede",
-  "mazida an'um ummi hirza": "Susu Sapi / Olahan Dairy (Intoleransi Laktosa)",
-};
+export const DEFAULT_ALLERGY_MAP: Record<string, string> = {};
 
 export type StoredExtraRecord = {
   paymentStatus?: PaymentStatus;
