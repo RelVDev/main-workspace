@@ -9,64 +9,64 @@ export const SceneBanner: React.FC<{
   accent?: string;
   startFrame?: number;
   endFrame?: number;
-}> = ({badge, title, accent = PALETTE.amber, startFrame = 0, endFrame = 135}) => {
+}> = ({badge, title, accent = PALETTE.amber, startFrame = 0, endFrame = 108}) => {
   const frame = useCurrentFrame();
   if (frame < startFrame || frame > endFrame) return null;
 
-  const op = interpolate(frame, [startFrame, startFrame + 12, endFrame - 14, endFrame], [0, 1, 1, 0], {
+  const op = interpolate(frame, [startFrame, startFrame + 10, endFrame - 12, endFrame], [0, 1, 1, 0], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
     easing: Easing.inOut(Easing.cubic),
   });
-  const tx = interpolate(frame, [startFrame, startFrame + 14], [-36, 0], {
+  const tx = interpolate(frame, [startFrame, startFrame + 14], [-28, 0], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
     easing: Easing.out(Easing.cubic),
   });
 
+  // Compact single-row bar at top (y=26..80) so content cards below top>=112 never collide
   return (
     <div
       style={{
         position: 'absolute',
-        top: 38,
+        top: 26,
         left: 48,
         opacity: op,
         transform: `translate3d(${tx.toFixed(2)}px, 0, 0)`,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 14,
+        backgroundColor: 'rgba(27,16,32,0.92)',
+        border: `4px solid ${accent}`,
+        boxShadow: `6px 6px 0 ${PALETTE.ink}`,
+        padding: '8px 18px 8px 10px',
         pointerEvents: 'none',
       }}
     >
-      <div
+      <span
         style={{
-          display: 'inline-block',
-          alignSelf: 'flex-start',
           backgroundColor: accent,
           color: PALETTE.ink,
           fontFamily: FONT_TITLE,
-          fontSize: 16,
-          padding: '8px 14px',
-          border: `4px solid ${PALETTE.ink}`,
-          boxShadow: `4px 4px 0 ${PALETTE.ink}`,
+          fontSize: 13,
+          padding: '7px 12px',
+          border: `3px solid ${PALETTE.ink}`,
+          letterSpacing: 0.5,
         }}
       >
         {badge}
-      </div>
-      <div
+      </span>
+      <span
         style={{
-          backgroundColor: 'rgba(27,16,32,0.88)',
           color: PALETTE.cream,
           fontFamily: FONT_BODY,
-          fontSize: 32,
+          fontSize: 27,
           fontWeight: 700,
-          padding: '10px 20px',
-          border: `4px solid ${PALETTE.cream}`,
-          boxShadow: `6px 6px 0 ${PALETTE.ink}`,
+          letterSpacing: 0.3,
         }}
       >
         {title}
-      </div>
+      </span>
     </div>
   );
 };

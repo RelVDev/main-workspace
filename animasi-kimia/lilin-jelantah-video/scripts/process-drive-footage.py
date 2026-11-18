@@ -201,6 +201,10 @@ def main():
         "F06_product": [
             {"src": "produk hasil lilin.MOV", "ss": 4.2, "dur": 10.0},
         ],
+        "F07_burn_test": [
+            {"src": "proses menyalakan kompo.MOV", "ss": 2.5, "dur": 4.5},
+            {"src": "produk hasil lilin.MOV", "ss": 4.0, "dur": 7.5},
+        ],
         "F08_bts": [
             {"src": "Alat : cup, anuan lilin, dan stick kayu.MOV", "ss": 1.5, "dur": 2.0},
             {"src": "Bahan : Crayon.MOV", "ss": 1.5, "dur": 2.0},

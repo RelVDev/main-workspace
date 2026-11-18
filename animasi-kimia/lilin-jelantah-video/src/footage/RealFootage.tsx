@@ -39,8 +39,9 @@ export const RealFootage: React.FC<{
   variant?: 'natural' | 'pixel';
   compactPlaceholder?: boolean;
   loop?: boolean;
+  fit?: 'contain' | 'cover';
   style?: React.CSSProperties;
-}> = ({id, variant = 'natural', compactPlaceholder = false, loop = false, style}) => {
+}> = ({id, variant = 'natural', compactPlaceholder = false, loop, fit, style}) => {
   const {fps} = useVideoConfig();
   const entry = FOOTAGE_MAP[id];
 
@@ -53,6 +54,9 @@ export const RealFootage: React.FC<{
   const trimBefore = Math.round(entry.use.from * fps);
   const trimAfter = Math.round(entry.use.to * fps);
   const volume = entry.use.audio === 'full' ? 1 : entry.use.audio === 'duck' ? 0.25 : 0;
+  // Auto-loop silent documentation B-roll (F01..F08) so longer beat windows never fade out to black
+  const shouldLoop = loop ?? (id !== 'F00' && id !== 'F09');
+  const objectFit = fit ?? (id === 'F00' || id === 'F09' ? 'contain' : 'cover');
 
   return (
     <Video
@@ -60,10 +64,10 @@ export const RealFootage: React.FC<{
       trimBefore={trimBefore}
       trimAfter={trimAfter}
       playbackRate={playbackRate}
-      loop={loop}
+      loop={shouldLoop}
       muted={entry.use.audio === 'mute'}
       volume={volume}
-      objectFit="contain"
+      objectFit={objectFit}
       style={{
         width: '100%',
         height: '100%',

@@ -48,15 +48,16 @@ export const S05_Produk: React.FC = () => {
   const shake =
     (t >= tL6 + 0.6 && t <= tL6 + 1.0) || (t >= tL7 + 0.6 && t <= tL7 + 1.0) ? 0.85 : 0;
 
-  // Smooth zoom in & pull back — zero snap
   const camZoom = smoothKeyframes(t, [
     [0, 1.0],
-    [tL5 - 0.3, 1.0],
-    [tL5 + 1.5, 1.34],
-    [tL6 - 0.4, 1.34],
-    [tL6 + 0.9, 1.0],
-    [tL8, 1.0],
-    [tL8 + 2.5, 1.18],
+    [3.5, 1.16],
+    [tL3, 1.06],
+    [tL5 - 0.3, 1.04],
+    [tL5 + 1.5, 1.4],
+    [tL6 - 0.4, 1.4],
+    [tL6 + 0.9, 1.02],
+    [tL8, 1.04],
+    [tL8 + 2.5, 1.24],
   ]);
 
   const hud = (
@@ -66,7 +67,7 @@ export const S05_Produk: React.FC = () => {
         title="Lilin Aromatis dari Minyak Jelantah"
         accent={PALETTE.blush}
         startFrame={6}
-        endFrame={135}
+        endFrame={108}
       />
 
       {showEquation ? (
@@ -111,7 +112,7 @@ export const S05_Produk: React.FC = () => {
               <div
                 key={i}
                 style={{
-                  backgroundColor: 'rgba(27,16,32,0.92)',
+                  backgroundColor: 'rgba(27,16,32,0.93)',
                   border: `4px solid ${box.c}`,
                   boxShadow: `6px 6px 0 ${PALETTE.ink}`,
                   padding: '16px 20px',
@@ -135,7 +136,7 @@ export const S05_Produk: React.FC = () => {
         <div
           style={{
             position: 'absolute',
-            top: 90,
+            top: 112,
             left: 110,
             right: 110,
             display: 'flex',
@@ -181,7 +182,7 @@ export const S05_Produk: React.FC = () => {
         <div
           style={{
             position: 'absolute',
-            top: 96,
+            top: 112,
             left: 140,
             right: 140,
             display: 'flex',
@@ -198,7 +199,7 @@ export const S05_Produk: React.FC = () => {
             }}
           >
             <div style={{backgroundColor: PALETTE.plumDeep, padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: 16}}>
-              <div style={{fontFamily: FONT_TITLE, fontSize: 22, color: PALETTE.gold}}>
+              <div style={{fontFamily: FONT_TITLE, fontSize: 20, color: PALETTE.gold}}>
                 [!] PERINGATAN KESELAMATAN WAJIB
               </div>
               {[
@@ -219,7 +220,7 @@ export const S05_Produk: React.FC = () => {
                       border: `4px solid ${item.col}`,
                       padding: '14px 20px',
                       fontFamily: FONT_TITLE,
-                      fontSize: 16,
+                      fontSize: 15,
                       color: PALETTE.cream,
                       lineHeight: 1.5,
                     }}
@@ -233,7 +234,7 @@ export const S05_Produk: React.FC = () => {
         </div>
       ) : null}
 
-      <SceneSubtitles sceneId="S05" bottomOffset={44} />
+      <SceneSubtitles sceneId="S05" bottomOffset={40} />
     </>
   );
 
@@ -280,20 +281,21 @@ export const S05_Produk: React.FC = () => {
       <PottedPlant x={66} y={202} h={28} />
       <PottedPlant x={392} y={202} h={24} />
 
+      {/* Grounded Podium + Candle + Safety Sign */}
       <Img
         src={staticFile('sprites/props/podium.png')}
-        style={{position: 'absolute', left: 216, top: 166, width: 48, height: 40, imageRendering: 'pixelated'}}
+        style={{position: 'absolute', left: 216, top: 163, width: 48, height: 40, imageRendering: 'pixelated'}}
       />
       <Img
         src={staticFile('sprites/props/candle_unlit.png')}
-        style={{position: 'absolute', left: 224, top: 128, width: 32, height: 40, imageRendering: 'pixelated'}}
+        style={{position: 'absolute', left: 224, top: 130, width: 32, height: 40, imageRendering: 'pixelated'}}
       />
-      {candleLit ? <AnimatedFlame x={240} y={140} scale={1} /> : null}
+      {candleLit ? <AnimatedFlame x={240} y={142} scale={1} /> : null}
 
       {showSafety ? (
         <Img
           src={staticFile('sprites/props/safety_sign.png')}
-          style={{position: 'absolute', left: 160, top: 170, width: 32, height: 32, imageRendering: 'pixelated'}}
+          style={{position: 'absolute', left: 160, top: 173, width: 32, height: 32, imageRendering: 'pixelated'}}
         />
       ) : null}
 

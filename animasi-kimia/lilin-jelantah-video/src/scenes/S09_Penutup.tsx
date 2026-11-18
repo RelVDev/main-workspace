@@ -63,6 +63,18 @@ export const S09_Penutup: React.FC = () => {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
+  const closingOpacity = showClosingVideo
+    ? Math.min(
+        interpolate(t, [closingStart, closingStart + 0.45], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'}),
+        interpolate(t, [closingStart + closingDur - 0.35, closingStart + closingDur], [1, 0], {
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        }),
+      )
+    : 0;
+  const endCardOpacity = showEndCard
+    ? interpolate(t, [endCardStart, endCardStart + 0.5], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'})
+    : 0;
 
   // Smooth eased camera glide across the 9 relay members instead of jumping X per speaker!
   const camKeysX: Array<[number, number]> = [[0, 240]];
@@ -75,11 +87,12 @@ export const S09_Penutup: React.FC = () => {
     camKeysX.push([Math.max(0.1, s - 0.15), idx === 0 ? 240 : ROOF_X[idx - 1] ?? 240]);
     camKeysX.push([s + 0.45, cx]);
     camKeysX.push([e, cx]);
-    camKeysZoom.push([Math.max(0.1, s - 0.15), idx === 0 ? 1.0 : 1.28]);
-    camKeysZoom.push([s + 0.45, 1.28]);
+    camKeysZoom.push([Math.max(0.1, s - 0.15), idx === 0 ? 1.0 : 1.34]);
+    camKeysZoom.push([s + 0.45, 1.34]);
   }
   camKeysX.push([tL10, 240]);
   camKeysZoom.push([tL10, 1.0]);
+  camKeysZoom.push([closingStart, 1.06]);
 
   const targetX = smoothKeyframes(t, camKeysX);
   const camZoom = smoothKeyframes(t, camKeysZoom);
@@ -135,21 +148,24 @@ export const S09_Penutup: React.FC = () => {
           style={{
             position: 'absolute',
             inset: 0,
-            backgroundColor: 'rgba(16,10,20,0.72)',
+            backgroundColor: 'rgba(16,10,20,0.74)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             gap: 18,
+            opacity: closingOpacity,
           }}
         >
           <div
             style={{
               backgroundColor: PALETTE.gold,
               color: PALETTE.ink,
-              fontFamily: FONT_TITLE,
-              fontSize: 16,
-              padding: '10px 20px',
+              fontFamily: FONT_BODY,
+              fontSize: 22,
+              fontWeight: 700,
+              letterSpacing: 0.8,
+              padding: '8px 22px',
               border: `4px solid ${PALETTE.ink}`,
               boxShadow: `5px 5px 0 ${PALETTE.ink}`,
             }}
@@ -165,10 +181,11 @@ export const S09_Penutup: React.FC = () => {
               boxShadow: `14px 14px 0 ${PALETTE.ink}`,
               overflow: 'hidden',
               backgroundColor: PALETTE.void,
+              transform: `scale(${(0.95 + 0.05 * closingOpacity).toFixed(3)})`,
             }}
           >
             <Sequence from={Math.round(closingStart * fps)} layout="none">
-              <RealFootage id="F09" variant="natural" />
+              <RealFootage id="F09" variant="natural" fit="cover" />
             </Sequence>
           </div>
         </div>
@@ -179,13 +196,14 @@ export const S09_Penutup: React.FC = () => {
           style={{
             position: 'absolute',
             inset: 0,
-            backgroundColor: 'rgba(16,10,20,0.88)',
+            backgroundColor: 'rgba(16,10,20,0.9)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             gap: 18,
             padding: 80,
+            opacity: endCardOpacity,
           }}
         >
           <div style={{fontFamily: FONT_TITLE, fontSize: 40, color: PALETTE.gold, textShadow: `4px 4px 0 ${PALETTE.ink}`}}>
@@ -195,7 +213,7 @@ export const S09_Penutup: React.FC = () => {
             {META.judul}
           </div>
           <div style={{fontFamily: FONT_BODY, fontSize: 26, color: PALETTE.teal}}>
-            {META.matkul} · Kelompok: {META.kelompok} · Dosen: {META.dosen}
+            {META.matkul} · {META.kelompok}{META.dosen ? ` · Dosen: ${META.dosen}` : ''}
           </div>
           <div style={{fontFamily: FONT_BODY, fontSize: 24, color: PALETTE.cream, textAlign: 'center'}}>
             Anggota: {META.anggota.join(' · ')}
@@ -205,9 +223,11 @@ export const S09_Penutup: React.FC = () => {
               marginTop: 12,
               backgroundColor: PALETTE.plumDeep,
               border: `4px solid ${PALETTE.amber}`,
-              padding: '12px 24px',
-              fontFamily: FONT_TITLE,
-              fontSize: 13,
+              padding: '10px 24px',
+              fontFamily: FONT_BODY,
+              fontSize: 21,
+              fontWeight: 700,
+              letterSpacing: 0.6,
               color: PALETTE.amber,
             }}
           >
@@ -216,7 +236,7 @@ export const S09_Penutup: React.FC = () => {
         </div>
       ) : null}
 
-      {!showEndCard && !showClosingVideo ? <SceneSubtitles sceneId="S09" bottomOffset={84} /> : null}
+      {!showEndCard && !showClosingVideo ? <SceneSubtitles sceneId="S09" bottomOffset={80} /> : null}
     </>
   );
 
@@ -303,13 +323,13 @@ export const S09_Penutup: React.FC = () => {
       >
         <Img
           src={staticFile('sprites/props/podium.png')}
-          style={{position: 'absolute', left: 216, top: 174, width: 48, height: 34, imageRendering: 'pixelated'}}
+          style={{position: 'absolute', left: 216, top: 171, width: 48, height: 34, imageRendering: 'pixelated'}}
         />
         <Img
           src={staticFile('sprites/props/candle_unlit.png')}
-          style={{position: 'absolute', left: 226, top: 142, width: 28, height: 34, imageRendering: 'pixelated'}}
+          style={{position: 'absolute', left: 226, top: 141, width: 28, height: 34, imageRendering: 'pixelated'}}
         />
-        {candleLit ? <AnimatedFlame x={240} y={152} scale={1} /> : null}
+        {candleLit ? <AnimatedFlame x={240} y={151} scale={1} /> : null}
 
         {ALL_CHAR_IDS.map((cid, idx) => {
           const isMe = activeRelay?.who === cid || allSpeaking;

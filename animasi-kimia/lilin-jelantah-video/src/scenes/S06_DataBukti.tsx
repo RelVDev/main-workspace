@@ -50,15 +50,16 @@ export const S06_DataBukti: React.FC = () => {
   const showSplitBalance = t >= tL6 && t < tL7;
   const showTakeaway = t >= tL7;
 
-  // Smooth cinematic camera drift across Observatory beats
+  // Smooth cinematic camera drift & zoom across Observatory beats
   const camZoom = smoothKeyframes(t, [
     [0, 1.0],
-    [tL2, 1.08],
-    [tL3, 1.05],
-    [tL5, 1.04],
-    [tL6, 1.08],
-    [tL8, 1.16],
-    [tL9, 1.05],
+    [tL2, 1.14],
+    [tL3, 1.06],
+    [tL4, 1.12],
+    [tL5, 1.05],
+    [tL6, 1.1],
+    [tL8, 1.24],
+    [tL9, 1.06],
   ]);
   const camX = smoothKeyframes(t, [
     [0, 240],
@@ -127,15 +128,6 @@ export const S06_DataBukti: React.FC = () => {
     easing: Easing.out(Easing.cubic),
   });
 
-  // Animated balance scale tilt during L06
-  const scaleTiltDeg = showSplitBalance
-    ? interpolate(t, [tL6, tL6 + 2.5, tL6 + 4.2], [-9, 4, 0], {
-        extrapolateLeft: 'clamp',
-        extrapolateRight: 'clamp',
-        easing: Easing.out(Easing.cubic),
-      })
-    : 0;
-
   const hud = (
     <>
       <SceneBanner
@@ -143,7 +135,7 @@ export const S06_DataBukti: React.FC = () => {
         title="Memisahkan Data Pustaka & Pengamatan Kelompok"
         accent={PALETTE.teal}
         startFrame={6}
-        endFrame={135}
+        endFrame={108}
       />
 
       {/* L01-L02: 898.000 ton/year + Animated Scale Bar */}
@@ -151,16 +143,16 @@ export const S06_DataBukti: React.FC = () => {
         <div
           style={{
             position: 'absolute',
-            top: 94,
-            left: 150,
-            right: 220,
+            top: 114,
+            left: 110,
+            right: 260,
             backgroundColor: 'rgba(21,50,67,0.92)',
             border: `5px solid ${PALETTE.gold}`,
             boxShadow: `10px 10px 0 ${PALETTE.ink}`,
-            padding: '26px 34px',
+            padding: '24px 32px',
             display: 'flex',
             flexDirection: 'column',
-            gap: 14,
+            gap: 12,
           }}
         >
           <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
@@ -205,9 +197,9 @@ export const S06_DataBukti: React.FC = () => {
         <div
           style={{
             position: 'absolute',
-            top: 86,
-            left: 140,
-            right: 140,
+            top: 112,
+            left: 130,
+            right: 130,
             backgroundColor: 'rgba(21,50,67,0.94)',
             border: `5px solid ${PALETTE.gold}`,
             boxShadow: `10px 10px 0 ${PALETTE.ink}`,
@@ -296,7 +288,7 @@ export const S06_DataBukti: React.FC = () => {
         <div
           style={{
             position: 'absolute',
-            top: 86,
+            top: 112,
             left: 90,
             right: 90,
             display: 'flex',
@@ -305,9 +297,9 @@ export const S06_DataBukti: React.FC = () => {
           }}
         >
           <Sequence from={Math.round(tL5 * fps)} layout="none">
-            <EvidenceFrame footageId="F06" badge="PENGAMATAN KELOMPOK" label="Produk & Catatan Uji" width={620} height={360} />
+            <EvidenceFrame footageId="F07" badge="PENGAMATAN KELOMPOK" label="Produk & Uji Nyala" width={600} height={350} />
           </Sequence>
-          <div style={{flex: 1, display: 'flex', flexDirection: 'column', gap: 12}}>
+          <div style={{flex: 1, display: 'flex', flexDirection: 'column', gap: 10}}>
             <Tag kind="PENGAMATAN" startFrame={Math.round(tL5 * fps)} />
             {OBSERVATION_CRITERIA.map((c) => (
               <div
@@ -315,14 +307,14 @@ export const S06_DataBukti: React.FC = () => {
                 style={{
                   backgroundColor: 'rgba(27,16,32,0.92)',
                   border: `4px solid ${PALETTE.teal}`,
-                  padding: '12px 18px',
+                  padding: '10px 16px',
                 }}
               >
-                <div style={{fontFamily: FONT_TITLE, fontSize: 13, color: PALETTE.teal}}>{c.judul}</div>
-                <div style={{fontFamily: FONT_BODY, fontSize: 21, color: PALETTE.cream, marginTop: 4}}>
+                <div style={{fontFamily: FONT_BODY, fontSize: 23, fontWeight: 700, color: PALETTE.teal}}>{c.judul}</div>
+                <div style={{fontFamily: FONT_BODY, fontSize: 20, color: PALETTE.cream, marginTop: 2, lineHeight: 1.25}}>
                   {c.kriteria}
                 </div>
-                <div style={{fontFamily: FONT_BODY, fontSize: 19, color: PALETTE.gold, marginTop: 4}}>
+                <div style={{fontFamily: FONT_BODY, fontSize: 19, color: PALETTE.gold, marginTop: 3}}>
                   {c.hasilUser}
                 </div>
               </div>
@@ -331,19 +323,25 @@ export const S06_DataBukti: React.FC = () => {
         </div>
       ) : null}
 
-      {/* L06: Split Comparison with tilting Neraca Beam */}
+      {/* L06: Clean Balanced Split Comparison (No diagonal rotating bar overlapping text) */}
       {showSplitBalance ? (
-        <div style={{position: 'absolute', top: 96, left: 160, right: 160, display: 'flex', flexDirection: 'column', gap: 16}}>
+        <div style={{position: 'absolute', top: 114, left: 160, right: 160, display: 'flex', flexDirection: 'column', gap: 18, alignItems: 'center'}}>
           <div
             style={{
-              height: 14,
               backgroundColor: PALETTE.gold,
-              border: `3px solid ${PALETTE.ink}`,
-              transform: `rotate(${scaleTiltDeg.toFixed(2)}deg)`,
-              transformOrigin: 'center center',
+              color: PALETTE.ink,
+              border: `4px solid ${PALETTE.ink}`,
+              boxShadow: `6px 6px 0 ${PALETTE.ink}`,
+              padding: '8px 24px',
+              fontFamily: FONT_BODY,
+              fontSize: 23,
+              fontWeight: 700,
+              letterSpacing: 0.8,
             }}
-          />
-          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28}}>
+          >
+            ⚖ PERBANDINGAN DUA SUMBER INFORMASI
+          </div>
+          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28, width: '100%'}}>
             <div
               style={{
                 backgroundColor: 'rgba(27,16,32,0.92)',
@@ -365,7 +363,7 @@ export const S06_DataBukti: React.FC = () => {
                 boxShadow: `8px 8px 0 ${PALETTE.ink}`,
               }}
             >
-              <Tag kind="PENGAMATAN" startFrame={Math.round((tL6 + 2) * fps)} />
+              <Tag kind="PENGAMATAN" startFrame={Math.round((tL6 + 0.35) * fps)} />
               <div style={{fontFamily: FONT_BODY, fontSize: 28, color: PALETTE.cream, marginTop: 16}}>
                 Memberi <strong>bukti percobaan</strong> nyata dari tekstur, aroma & nyala lilin kelompok.
               </div>
@@ -426,7 +424,7 @@ export const S06_DataBukti: React.FC = () => {
       {t >= tL2 && t < tL4 ? (
         <>
           {[0, 1, 2].map((b) => {
-            const dropY = interpolate(t, [tL2 + b * 0.65, tL2 + 0.55 + b * 0.65], [70, 174 - (b === 2 ? 26 : 0)], {
+            const dropY = interpolate(t, [tL2 + b * 0.65, tL2 + 0.55 + b * 0.65], [70, 174 - (b === 2 ? 27 : 0)], {
               extrapolateLeft: 'clamp',
               extrapolateRight: 'clamp',
               easing: Easing.out(Easing.bounce),

@@ -12,7 +12,7 @@ import {FloorGlow, PointLight} from '../engine/Lighting';
 import {SceneShell} from '../engine/SceneShell';
 import {RealFootage} from '../footage/RealFootage';
 import {smoothKeyframes} from '../lib/easing';
-import {FONT_BODY, FONT_TITLE} from '../lib/fonts';
+import {FONT_BODY} from '../lib/fonts';
 import {ART_H, ART_W} from '../lib/pixel';
 import {lineEnd, lineStartSec} from '../lib/seconds';
 import {SceneBanner} from '../ui/SceneBanner';
@@ -34,13 +34,15 @@ export const S08_Kontribusi: React.FC = () => {
     (id) => frame >= Math.round(lineStartSec(id) * fps) && frame <= lineEnd(id),
   );
 
-  // Smooth zoom & pan across 9 members
+  // Smooth zoom & pan across 9 members and BTS TVs
   const camZoom = smoothKeyframes(t, [
     [0, 1.0],
-    [tL2, 1.04],
-    [tL3, 1.08],
-    [tL3 + 6, 1.02],
+    [tL2, 1.06],
+    [tL3, 1.14],
+    [tL3 + 6, 1.06],
   ]);
+  const btsProgress = Math.max(0, Math.min(1, (t - tL3) / 0.45));
+  const btsEase = 1 - (1 - btsProgress) ** 3;
 
   const hud = (
     <>
@@ -49,19 +51,19 @@ export const S08_Kontribusi: React.FC = () => {
         title="Kerja Sama 9 Anggota Kelompok"
         accent={PALETTE.tan}
         startFrame={6}
-        endFrame={120}
+        endFrame={105}
       />
 
       {t >= tL2 - 1 && t < tL3 ? (
         <div
           style={{
             position: 'absolute',
-            top: 86,
-            left: 88,
-            right: 88,
+            top: 112,
+            left: 84,
+            right: 84,
             display: 'grid',
             gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: 16,
+            gap: 12,
           }}
         >
           {ALL_CHAR_IDS.map((cid, i) => {
@@ -72,20 +74,20 @@ export const S08_Kontribusi: React.FC = () => {
               <div
                 key={cid}
                 style={{
-                  backgroundColor: lit ? 'rgba(27,16,32,0.92)' : 'rgba(27,16,32,0.65)',
+                  backgroundColor: lit ? 'rgba(27,16,32,0.92)' : 'rgba(27,16,32,0.68)',
                   border: `4px solid ${lit ? meta.accentColor : PALETTE.woodMid}`,
                   boxShadow: lit ? `0 0 14px ${meta.accentColor}44, 6px 6px 0 ${PALETTE.ink}` : `6px 6px 0 ${PALETTE.ink}`,
-                  padding: '12px 16px',
-                  opacity: lit ? 1 : 0.45,
+                  padding: '10px 14px',
+                  opacity: lit ? 1 : 0.48,
                 }}
               >
-                <div style={{fontFamily: FONT_TITLE, fontSize: 13, color: meta.accentColor}}>
+                <div style={{fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, color: meta.accentColor, letterSpacing: 0.4}}>
                   {meta.displayName}
                 </div>
-                <div style={{fontFamily: FONT_BODY, fontSize: 21, color: PALETTE.cream, marginTop: 4}}>
+                <div style={{fontFamily: FONT_BODY, fontSize: 19, color: PALETTE.cream, marginTop: 2, lineHeight: 1.2}}>
                   {info.tasks[0]}
                 </div>
-                <div style={{fontFamily: FONT_BODY, fontSize: 17, color: PALETTE.gold, marginTop: 2}}>
+                <div style={{fontFamily: FONT_BODY, fontSize: 17, color: PALETTE.gold, marginTop: 2, lineHeight: 1.2}}>
                   {info.tasks[1]}
                 </div>
               </div>
@@ -98,13 +100,15 @@ export const S08_Kontribusi: React.FC = () => {
         <div
           style={{
             position: 'absolute',
-            top: 94,
+            top: 112,
             left: 120,
             right: 120,
             display: 'flex',
             flexDirection: 'column',
-            gap: 20,
+            gap: 18,
             alignItems: 'center',
+            opacity: btsEase,
+            transform: `scale(${0.95 + 0.05 * btsEase})`,
           }}
         >
           <div style={{display: 'flex', gap: 24}}>
@@ -121,8 +125,8 @@ export const S08_Kontribusi: React.FC = () => {
                   overflow: 'hidden',
                 }}
               >
-                <Sequence from={Math.round((tL3 - tv * 2) * fps)} layout="none">
-                  <RealFootage id="F08" variant="natural" loop compactPlaceholder />
+                <Sequence from={Math.max(0, Math.round((tL3 - tv * 2) * fps))} layout="none">
+                  <RealFootage id="F08" variant="natural" loop fit="cover" compactPlaceholder />
                 </Sequence>
               </div>
             ))}
@@ -131,9 +135,11 @@ export const S08_Kontribusi: React.FC = () => {
             style={{
               backgroundColor: 'rgba(27,16,32,0.92)',
               border: `4px solid ${PALETTE.gold}`,
-              padding: '14px 28px',
-              fontFamily: FONT_TITLE,
-              fontSize: 16,
+              padding: '12px 26px',
+              fontFamily: FONT_BODY,
+              fontSize: 22,
+              fontWeight: 700,
+              letterSpacing: 0.8,
               color: PALETTE.cream,
             }}
           >

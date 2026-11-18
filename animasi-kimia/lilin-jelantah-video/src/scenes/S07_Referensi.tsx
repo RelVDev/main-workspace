@@ -10,7 +10,7 @@ import referencesJson from '../data/references.json';
 import {FloorGlow, PointLight, Sparkle} from '../engine/Lighting';
 import {SceneShell} from '../engine/SceneShell';
 import {smoothKeyframes} from '../lib/easing';
-import {FONT_BODY, FONT_TITLE} from '../lib/fonts';
+import {FONT_BODY} from '../lib/fonts';
 import {lineEnd, lineStartSec} from '../lib/seconds';
 import {SceneBanner} from '../ui/SceneBanner';
 import {SceneSubtitles} from '../ui/Subtitles';
@@ -45,12 +45,13 @@ export const S07_Referensi: React.FC = () => {
 
   const showBuckets = t >= tL6;
 
-  // Smooth slow zoom-in across library
+  // Smooth dynamic camera glide across library
   const camZoom = smoothKeyframes(t, [
     [0, 1.0],
-    [6.0, 1.08],
-    [tL6, 1.06],
-    [tL6 + 2.0, 1.12],
+    [4.5, 1.1],
+    [tL4, 1.06],
+    [tL6, 1.08],
+    [tL6 + 2.5, 1.16],
   ]);
   const disaX = smoothKeyframes(t, [
     [0, 240],
@@ -66,19 +67,19 @@ export const S07_Referensi: React.FC = () => {
         title="9 Pustaka Ilmiah & Pemisahan Sumber Data"
         accent={PALETTE.goldPale}
         startFrame={6}
-        endFrame={135}
+        endFrame={108}
       />
 
       {!showBuckets && t >= tL2 - 1 ? (
         <div
           style={{
             position: 'absolute',
-            top: 90,
+            top: 112,
             left: 110,
             right: 110,
             display: 'grid',
             gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: 18,
+            gap: 16,
           }}
         >
           {referencesJson.map((ref, idx) => {
@@ -91,15 +92,15 @@ export const S07_Referensi: React.FC = () => {
                   backgroundColor: isHighlighted ? 'rgba(42,21,48,0.96)' : 'rgba(27,16,32,0.82)',
                   border: `4px solid ${isHighlighted ? PALETTE.gold : PALETTE.woodLight}`,
                   boxShadow: isHighlighted ? `0 0 16px ${PALETTE.gold}55, 8px 8px 0 ${PALETTE.ink}` : `4px 4px 0 ${PALETTE.ink}`,
-                  padding: '14px 18px',
-                  opacity: revealed ? (isHighlighted ? 1 : 0.62) : 0,
+                  padding: '12px 16px',
+                  opacity: revealed ? (isHighlighted ? 1 : 0.7) : 0,
                   transform: `scale(${isHighlighted ? 1.03 : 1})`,
                 }}
               >
-                <div style={{fontFamily: FONT_TITLE, fontSize: 13, color: PALETTE.gold, marginBottom: 6}}>
+                <div style={{fontFamily: FONT_BODY, fontSize: 22, fontWeight: 700, color: PALETTE.gold, marginBottom: 4}}>
                   [{ref.id}] {ref.short}
                 </div>
-                <div style={{fontFamily: FONT_BODY, fontSize: 22, color: PALETTE.cream, lineHeight: 1.25}}>
+                <div style={{fontFamily: FONT_BODY, fontSize: 21, color: PALETTE.cream, lineHeight: 1.22}}>
                   {ref.topic}
                 </div>
               </div>
@@ -112,7 +113,7 @@ export const S07_Referensi: React.FC = () => {
         <div
           style={{
             position: 'absolute',
-            top: 110,
+            top: 114,
             left: 180,
             right: 180,
             display: 'grid',
@@ -128,10 +129,10 @@ export const S07_Referensi: React.FC = () => {
               padding: '26px 30px',
             }}
           >
-            <div style={{fontFamily: FONT_TITLE, fontSize: 18, color: PALETTE.gold, marginBottom: 12}}>
+            <div style={{fontFamily: FONT_BODY, fontSize: 24, fontWeight: 700, color: PALETTE.gold, marginBottom: 10}}>
               EMBER A · DATA PUSTAKA
             </div>
-            <div style={{fontFamily: FONT_BODY, fontSize: 26, color: PALETTE.cream}}>
+            <div style={{fontFamily: FONT_BODY, fontSize: 26, color: PALETTE.cream, lineHeight: 1.3}}>
               9 referensi jurnal, prosiding & buku ajar (898 ribu ton, 64,3%, konsep trigliserida & parafin).
             </div>
           </div>
@@ -143,10 +144,10 @@ export const S07_Referensi: React.FC = () => {
               padding: '26px 30px',
             }}
           >
-            <div style={{fontFamily: FONT_TITLE, fontSize: 18, color: PALETTE.teal, marginBottom: 12}}>
+            <div style={{fontFamily: FONT_BODY, fontSize: 24, fontWeight: 700, color: PALETTE.teal, marginBottom: 10}}>
               EMBER B · PENGAMATAN KELOMPOK
             </div>
-            <div style={{fontFamily: FONT_BODY, fontSize: 26, color: PALETTE.cream}}>
+            <div style={{fontFamily: FONT_BODY, fontSize: 26, color: PALETTE.cream, lineHeight: 1.3}}>
               Dokumentasi video praktikum & catatan pengamatan kelompok sendiri — tidak tercampur!
             </div>
           </div>

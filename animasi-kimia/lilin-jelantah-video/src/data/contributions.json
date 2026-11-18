@@ -1,47 +1,74 @@
 {
   "malika": {
     "role": "Pembuka & Identifikasi Masalah",
-    "tasks": ["Menyiapkan alat dan bahan", "TODO(user): lengkapi tugas praktikum"],
+    "tasks": [
+      "Menyiapkan alat dan bahan percobaan",
+      "Identifikasi masalah limbah minyak jelantah"
+    ],
     "prop": "strainer"
   },
   "noya": {
     "role": "Konsep & Reaksi Kimia",
-    "tasks": ["Penyusunan konsep kimia", "TODO(user): lengkapi tugas praktikum"],
+    "tasks": [
+      "Penyusunan konsep trigliserida & parafin",
+      "Menjelaskan perubahan fisika dan kimia"
+    ],
     "prop": "beaker"
   },
   "marsha": {
     "role": "Penerapan & Analisis Proses",
-    "tasks": ["Membantu pemanasan dan pencampuran", "TODO(user): lengkapi tugas praktikum"],
+    "tasks": [
+      "Pelelehan parafin & pencampuran bahan",
+      "Menganalisis setiap tahap pembuatan lilin"
+    ],
     "prop": "pot"
   },
   "ayuya": {
     "role": "Pengembangan Produk",
-    "tasks": ["Menyiapkan wadah dan pencetakan", "TODO(user): lengkapi tugas praktikum"],
+    "tasks": [
+      "Menyiapkan cup kaca dan pencetakan lilin",
+      "Mengatur pewarnaan & tampilan produk"
+    ],
     "prop": "jar"
   },
   "lovyta": {
     "role": "Finishing & Keamanan Produk",
-    "tasks": ["Memasang sumbu dan dekorasi produk", "TODO(user): lengkapi tugas praktikum"],
+    "tasks": [
+      "Memasang sumbu, stik penyangga & dekorasi",
+      "Menyusun aturan keselamatan uji produk"
+    ],
     "prop": "wick"
   },
   "farel": {
     "role": "Data Pustaka & Inovasi",
-    "tasks": ["Pengolahan data dan pengujian", "TODO(user): lengkapi tugas praktikum"],
+    "tasks": [
+      "Mengolah data kajian pustaka nasional",
+      "Merancang alur inovasi lilin aromatis"
+    ],
     "prop": "laptop"
   },
   "sofi": {
     "role": "Bukti & Evaluasi Hasil",
-    "tasks": ["Pengamatan hasil uji dan dokumentasi", "TODO(user): lengkapi tugas praktikum"],
+    "tasks": [
+      "Mengamati tekstur, aroma & kualitas lilin",
+      "Evaluasi bukti percobaan kelompok"
+    ],
     "prop": "clipboard"
   },
   "disa": {
     "role": "Kurasi Referensi Ilmiah",
-    "tasks": ["Mengumpulkan informasi pendukung", "TODO(user): lengkapi tugas praktikum"],
+    "tasks": [
+      "Mengumpulkan 9 sumber jurnal & buku ajar",
+      "Memilah data pustaka vs pengamatan tim"
+    ],
     "prop": "book"
   },
   "ais": {
     "role": "Dokumentasi & Koordinasi Tim",
-    "tasks": ["Mendokumentasikan proses praktikum", "TODO(user): lengkapi tugas praktikum"],
+    "tasks": [
+      "Merekam proses & hasil praktikum tim",
+      "Koordinasi pembagian kerja kelompok"
+    ],
     "prop": "camera"
   }
 }

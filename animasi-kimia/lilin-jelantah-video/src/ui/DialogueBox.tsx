@@ -19,7 +19,7 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
   text,
   startFrame,
   endFrame,
-  bottomOffset = 48,
+  bottomOffset = 40,
 }) => {
   const frame = useCurrentFrame();
   if (frame < startFrame || frame > endFrame) return null;
@@ -38,7 +38,7 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
     extrapolateRight: 'clamp',
     easing: Easing.inOut(Easing.cubic),
   });
-  const slideY = interpolate(frame, [startFrame, startFrame + 8], [14, 0], {
+  const slideY = interpolate(frame, [startFrame, startFrame + 8], [12, 0], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
     easing: Easing.out(Easing.cubic),
@@ -48,8 +48,8 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
     <div
       style={{
         position: 'absolute',
-        left: 160,
-        right: 160,
+        left: 140,
+        right: 140,
         bottom: bottomOffset,
         opacity: boxOpacity,
         transform: `translate3d(0, ${slideY.toFixed(2)}px, 0)`,
@@ -61,12 +61,12 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
       </div>
       <div
         style={{
-          backgroundColor: 'rgba(27, 16, 32, 0.92)',
-          border: `6px solid ${PALETTE.cream}`,
+          backgroundColor: 'rgba(27, 16, 32, 0.93)',
+          border: `5px solid ${PALETTE.cream}`,
           outline: `4px solid ${PALETTE.ink}`,
-          boxShadow: `0 12px 0 rgba(16,10,20,0.68)`,
-          padding: '26px 34px 24px 34px',
-          minHeight: 112,
+          boxShadow: `0 10px 0 rgba(16,10,20,0.68)`,
+          padding: '22px 32px 20px 32px',
+          minHeight: 98,
         }}
       >
         <p
@@ -74,9 +74,9 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
             margin: 0,
             color: PALETTE.cream,
             fontFamily: FONT_BODY,
-            fontSize: 34,
-            fontWeight: 500,
-            lineHeight: 1.32,
+            fontSize: 30,
+            fontWeight: 600,
+            lineHeight: 1.38,
             letterSpacing: 0.4,
             textShadow: `2px 2px 0 ${PALETTE.ink}`,
           }}

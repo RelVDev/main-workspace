@@ -1,6 +1,7 @@
 import React from 'react';
+import {Easing, interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
 import {PALETTE} from '../data/palette';
-import {FONT_TITLE} from '../lib/fonts';
+import {FONT_BODY} from '../lib/fonts';
 import {RealFootage} from './RealFootage';
 
 export const EvidenceFrame: React.FC<{
@@ -16,6 +17,19 @@ export const EvidenceFrame: React.FC<{
   height = 440,
   badge = 'PENGAMATAN KELOMPOK',
 }) => {
+  const frame = useCurrentFrame();
+  const {fps} = useVideoConfig();
+  const op = interpolate(frame, [0, Math.round(fps * 0.45)], [0, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+    easing: Easing.out(Easing.cubic),
+  });
+  const scale = interpolate(frame, [0, Math.round(fps * 0.5)], [0.96, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+    easing: Easing.out(Easing.cubic),
+  });
+
   return (
     <div
       style={{
@@ -28,23 +42,39 @@ export const EvidenceFrame: React.FC<{
         display: 'flex',
         flexDirection: 'column',
         gap: 12,
+        opacity: op,
+        transform: `scale(${scale.toFixed(3)})`,
       }}
     >
-      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12}}>
         <span
           style={{
             backgroundColor: PALETTE.teal,
             color: PALETTE.ink,
-            fontFamily: FONT_TITLE,
-            fontSize: 14,
-            padding: '6px 12px',
+            fontFamily: FONT_BODY,
+            fontSize: 19,
+            fontWeight: 700,
+            letterSpacing: 0.6,
+            padding: '4px 12px',
             border: `3px solid ${PALETTE.ink}`,
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
           }}
         >
           {badge}
         </span>
         {label ? (
-          <span style={{fontFamily: FONT_TITLE, fontSize: 13, color: PALETTE.cream}}>
+          <span
+            style={{
+              fontFamily: FONT_BODY,
+              fontSize: 20,
+              fontWeight: 700,
+              color: PALETTE.cream,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
             {label}
           </span>
         ) : null}
@@ -58,7 +88,7 @@ export const EvidenceFrame: React.FC<{
           overflow: 'hidden',
         }}
       >
-        <RealFootage id={footageId} variant="natural" />
+        <RealFootage id={footageId} variant="natural" loop fit="cover" />
       </div>
     </div>
   );

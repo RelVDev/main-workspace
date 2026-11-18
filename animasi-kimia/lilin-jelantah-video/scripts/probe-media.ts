@@ -137,17 +137,18 @@ const DEFAULT_FOOTAGE: Record<string, FootageEntry> = {
   },
   F07: {
     id: 'F07',
-    title: 'Uji Nyala (Aman dengan Pengawasan)',
+    title: 'Demonstrasi Nyala Api Pembakaran & Produk Siap Uji',
     scene: 'S04',
     file: 'footage/F07_burn_test.mp4',
     pix: 'footage/pix/F07_burn_test_soft.mp4',
     present: false,
     durationSec: 12,
     fps: 30,
-    hasAudio: true,
-    use: {from: 0, to: 12, audio: 'duck'},
+    hasAudio: false,
+    use: {from: 0, to: 12, audio: 'mute'},
     annotations: [
-      {t0: 1.5, t1: 10.0, x: 0.5, y: 0.35, text: 'Nyala stabil = reaksi pembakaran (KIMIA)', arrow: 'left'},
+      {t0: 0.5, t1: 4.5, x: 0.5, y: 0.35, text: 'Demonstrasi nyala api stabil (reaksi pembakaran)', arrow: 'left'},
+      {t0: 4.8, t1: 11.5, x: 0.5, y: 0.45, text: 'Produk lilin ber-sumbu siap uji nyala dengan pengawasan', arrow: 'up'},
     ],
   },
   F08: {

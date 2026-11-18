@@ -47,33 +47,38 @@ export const S02_Masalah: React.FC = () => {
     'S02_L09',
   ].find((id) => frame >= Math.round(lineStartSec(id) * fps) && frame <= lineEnd(id));
 
-  // Smooth eased keyframes across every beat — zero abrupt jumps
+  // Lively, expressive zoom & pan keyframes across kitchen & river beats
   const camZoom = smoothKeyframes(t, [
     [0, 1.0],
-    [4.0, 1.14],
-    [tL3 - 0.5, 1.14],
-    [tL3 + 0.6, 1.08],
-    [tL4 - 0.4, 1.08],
-    [tL4 + 0.8, 1.02],
-    [tL6 - 0.4, 1.02],
-    [tL6 + 0.9, 1.42],
-    [tL7 - 0.5, 1.42],
-    [tL7 + 0.8, 1.04],
+    [3.5, 1.18],
+    [tL2 + 1.0, 1.24],
+    [tL3 - 0.3, 1.18],
+    [tL3 + 1.0, 1.12],
+    [tL4 - 0.3, 1.12],
+    [tL4 + 0.9, 1.04],
+    [tL5 + 1.5, 1.14],
+    [tL6 - 0.3, 1.08],
+    [tL6 + 1.0, 1.48],
+    [tL7 - 0.4, 1.48],
+    [tL7 + 0.9, 1.04],
+    [tL8 + 2.0, 1.14],
+    [tL9, 1.06],
   ]);
 
   const camX = smoothKeyframes(t, [
     [0, 240],
-    [tL3 - 0.2, 240],
-    [tL3 + 0.9, 278],
-    [tL4 - 0.2, 278],
-    [tL4 + 0.6, 240],
+    [tL2 + 1.0, 252],
+    [tL3 - 0.2, 244],
+    [tL3 + 1.0, 286],
+    [tL4 - 0.2, 286],
+    [tL4 + 0.7, 240],
     [tL6 - 0.3, 240],
-    [tL6 + 0.9, 300],
-    [tL7 - 0.4, 300],
-    [tL7 + 0.8, 240],
+    [tL6 + 1.0, 304],
+    [tL7 - 0.4, 304],
+    [tL7 + 0.9, 240],
+    [tL9, 260],
   ]);
 
-  // Smooth Malika walk path to sink at L03 and back at L07
   const malikaX = smoothKeyframes(t, [
     [0, 140],
     [tL3 - 0.2, 140],
@@ -89,13 +94,7 @@ export const S02_Masalah: React.FC = () => {
     extrapolateRight: 'clamp',
   });
 
-  // Smooth rising O2 bubbles (continuous motion)
-  const bubbleY = (idx: number) => {
-    const raw = 240 - ((frame * 1.35 + idx * 24) % 140);
-    return Math.max(108, raw);
-  };
-
-  // Smooth organic molecular oscillation
+  const bubbleY = (idx: number) => Math.max(108, 240 - ((frame * 1.35 + idx * 24) % 140));
   const jiggleX = (idx: number) => Math.sin(frame * 0.42 + idx * 2.1) * 2.4;
   const jiggleY = (idx: number) => Math.cos(frame * 0.36 + idx * 1.7) * 2.2;
 
@@ -105,33 +104,34 @@ export const S02_Masalah: React.FC = () => {
         badge="BAGIAN 2 · MASALAH"
         title="Mengapa Minyak Jelantah Perlu Dikelola?"
         accent={PALETTE.amber}
-        startFrame={10}
-        endFrame={135}
+        startFrame={8}
+        endFrame={110}
       />
 
       {t >= tL2 && t < tL3 ? (
         <div
           style={{
             position: 'absolute',
-            top: 136,
+            top: 118,
             left: 110,
-            backgroundColor: 'rgba(27,16,32,0.9)',
+            backgroundColor: 'rgba(27,16,32,0.92)',
             border: `4px solid ${PALETTE.gold}`,
             boxShadow: `6px 6px 0 ${PALETTE.ink}`,
-            padding: '18px 26px',
-            fontFamily: FONT_TITLE,
-            fontSize: 18,
+            padding: '16px 26px',
+            fontFamily: FONT_BODY,
+            fontSize: 28,
+            fontWeight: 700,
             color: PALETTE.cream,
             display: 'flex',
             alignItems: 'center',
             gap: 16,
           }}
         >
-          <span style={{color: PALETTE.gold}}>MINYAK GORENG</span>
+          <span style={{color: PALETTE.gold}}>Minyak Goreng</span>
           <span>→</span>
-          <span style={{color: PALETTE.amber}}>DIPAKAI BERULANG</span>
+          <span style={{color: PALETTE.amber}}>Dipakai Berulang</span>
           <span>→</span>
-          <span style={{color: PALETTE.red}}>JELANTAH</span>
+          <span style={{color: PALETTE.red}}>Minyak Jelantah</span>
         </div>
       ) : null}
 
@@ -139,19 +139,19 @@ export const S02_Masalah: React.FC = () => {
         <div
           style={{
             position: 'absolute',
-            top: 90,
+            top: 112,
             right: 80,
-            backgroundColor: 'rgba(21,50,67,0.92)',
+            backgroundColor: 'rgba(21,50,67,0.93)',
             border: `4px solid ${PALETTE.red}`,
             boxShadow: `6px 6px 0 ${PALETTE.ink}`,
-            padding: '18px 24px',
-            maxWidth: 680,
+            padding: '18px 26px',
+            maxWidth: 720,
           }}
         >
-          <div style={{fontFamily: FONT_TITLE, fontSize: 16, color: PALETTE.red, marginBottom: 8}}>
+          <div style={{fontFamily: FONT_TITLE, fontSize: 15, color: PALETTE.red, marginBottom: 8}}>
             ✕ PERTUKARAN O₂ TERHAMBAT
           </div>
-          <div style={{fontFamily: FONT_BODY, fontSize: 28, color: PALETTE.cream}}>
+          <div style={{fontFamily: FONT_BODY, fontSize: 28, color: PALETTE.cream, lineHeight: 1.35}}>
             {t >= tL5
               ? 'Kajian lingkungan membahas dampaknya pada kualitas air & tanah.'
               : 'Lapisan minyak menutup permukaan air dan mengganggu organisme.'}
@@ -163,18 +163,19 @@ export const S02_Masalah: React.FC = () => {
         <div
           style={{
             position: 'absolute',
-            top: 110,
+            top: 114,
             left: 90,
-            backgroundColor: 'rgba(27,16,32,0.92)',
+            backgroundColor: 'rgba(27,16,32,0.93)',
             border: `4px solid ${PALETTE.red}`,
             boxShadow: `6px 6px 0 ${PALETTE.ink}`,
             padding: '18px 26px',
+            maxWidth: 640,
           }}
         >
-          <div style={{fontFamily: FONT_TITLE, fontSize: 18, color: PALETTE.red, marginBottom: 8}}>
+          <div style={{fontFamily: FONT_TITLE, fontSize: 16, color: PALETTE.red, marginBottom: 8}}>
             ✕ JANGAN DIGORENG BERULANG
           </div>
-          <div style={{fontFamily: FONT_BODY, fontSize: 28, color: PALETTE.cream}}>
+          <div style={{fontFamily: FONT_BODY, fontSize: 28, color: PALETTE.cream, lineHeight: 1.35}}>
             Pemanasan berulang memicu senyawa hasil degradasi minyak.
           </div>
         </div>
@@ -184,26 +185,26 @@ export const S02_Masalah: React.FC = () => {
         <div
           style={{
             position: 'absolute',
-            top: 118,
+            top: 116,
             left: 160,
             right: 160,
             textAlign: 'center',
-            backgroundColor: 'rgba(27,16,32,0.92)',
+            backgroundColor: 'rgba(27,16,32,0.93)',
             border: `5px solid ${PALETTE.teal}`,
             padding: '22px 32px',
             boxShadow: `8px 8px 0 ${PALETTE.ink}`,
           }}
         >
-          <div style={{fontFamily: FONT_TITLE, fontSize: 20, color: PALETTE.teal, marginBottom: 10}}>
+          <div style={{fontFamily: FONT_TITLE, fontSize: 18, color: PALETTE.teal, marginBottom: 10}}>
             PERTANYAAN PROYEK
           </div>
-          <div style={{fontFamily: FONT_BODY, fontSize: 34, fontWeight: 700, color: PALETTE.cream}}>
+          <div style={{fontFamily: FONT_BODY, fontSize: 32, fontWeight: 700, color: PALETTE.cream, lineHeight: 1.32}}>
             Bagaimana jelantah diolah menjadi lilin aromatis yang berguna dengan konsep kimia yang tepat?
           </div>
         </div>
       ) : null}
 
-      <SceneSubtitles sceneId="S02" bottomOffset={48} />
+      <SceneSubtitles sceneId="S02" bottomOffset={40} />
     </>
   );
 
@@ -254,7 +255,6 @@ export const S02_Masalah: React.FC = () => {
       {isRiver ? (
         <div style={{position: 'absolute', inset: 0}}>
           <RiverDioramaExtras />
-          {/* Oil slick film floating over river surface */}
           <div
             style={{
               position: 'absolute',
@@ -316,7 +316,7 @@ export const S02_Masalah: React.FC = () => {
         </div>
       ) : (
         <div style={{position: 'absolute', inset: 0}}>
-          {/* Kitchen counter with cabinet panel detail */}
+          {/* Kitchen counter top edge = y:158 */}
           <div
             style={{
               position: 'absolute',
@@ -344,17 +344,18 @@ export const S02_Masalah: React.FC = () => {
             ))}
           </div>
 
+          {/* All counter props grounded flush onto y=158 compensating transparent PNG bottom padding */}
           <Img
             src={staticFile(`sprites/props/${oilDarkness > 0.5 ? 'bottle_used' : 'bottle_gold'}.png`)}
-            style={{position: 'absolute', left: 224, top: 124, width: 24, height: 36, imageRendering: 'pixelated'}}
-          />
-          <Img
-            src={staticFile('sprites/props/pan_stove.png')}
-            style={{position: 'absolute', left: 286, top: 128, width: 48, height: 32, imageRendering: 'pixelated'}}
+            style={{position: 'absolute', left: 222, top: 125, width: 24, height: 36, imageRendering: 'pixelated'}}
           />
           <Img
             src={staticFile('sprites/props/beaker_funnel.png')}
-            style={{position: 'absolute', left: 256, top: 132, width: 20, height: 26, imageRendering: 'pixelated'}}
+            style={{position: 'absolute', left: 254, top: 135, width: 22, height: 26, imageRendering: 'pixelated'}}
+          />
+          <Img
+            src={staticFile('sprites/props/pan_stove.png')}
+            style={{position: 'absolute', left: 286, top: 129, width: 48, height: 32, imageRendering: 'pixelated'}}
           />
           <PottedPlant x={446} y={200} h={24} />
 

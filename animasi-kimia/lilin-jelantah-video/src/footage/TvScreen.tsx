@@ -1,9 +1,9 @@
 import React from 'react';
-import {Img, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
+import {Easing, Img, interpolate, Sequence, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
 import footageLightJson from '../data/footage-light.json';
 import {PALETTE} from '../data/palette';
 import {snap} from '../lib/pixel';
-import {FOOTAGE_MAP, RealFootage} from './RealFootage';
+import {RealFootage} from './RealFootage';
 
 const LIGHT_MAP = footageLightJson as Record<string, string[]>;
 
@@ -15,27 +15,31 @@ export const useFootageLightColor = (id: string): string => {
   return samples[idx] ?? PALETTE.gold;
 };
 
+export interface TvClipItem {
+  id: string;
+  startSec: number;
+  endSec: number;
+}
+
 export const TvScreen: React.FC<{
-  footageId: string;
+  clips: TvClipItem[];
+  activeId: string;
   x: number;
   y: number;
   w?: number;
   h?: number;
-  staticBurst?: boolean;
-}> = ({footageId, x, y, w = 160, h = 128, staticBurst = false}) => {
+}> = ({clips, activeId, x, y, w = 160, h = 128}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
-  const glowColor = useFootageLightColor(footageId);
-  const entry = FOOTAGE_MAP[footageId];
+  const t = frame / fps;
+  const glowColor = useFootageLightColor(activeId);
+
   const screenX = snap(w * 0.15);
   const screenY = snap(h * 0.28);
   const screenW = snap(w * 0.56);
-  const screenH = snap(h * 0.50);
+  const screenH = snap(h * 0.5);
 
-  const activeNote = entry?.annotations?.find((a) => {
-    const t = frame / fps;
-    return t >= a.t0 && t <= a.t1;
-  });
+  const fadeDur = 0.65; // smooth 0.65s (~20 frame) dissolve between documentation clips
 
   return (
     <div
@@ -47,22 +51,22 @@ export const TvScreen: React.FC<{
         height: h,
       }}
     >
-      {/* Dynamic screen spill glow behind TV */}
+      {/* Dynamic ambient screen spill glow behind CRT bezel */}
       <div
         style={{
           position: 'absolute',
-          left: screenX - 18,
-          top: screenY - 18,
-          width: screenW + 36,
-          height: screenH + 36,
+          left: screenX - 20,
+          top: screenY - 20,
+          width: screenW + 40,
+          height: screenH + 40,
           borderRadius: '50%',
-          background: `radial-gradient(circle, ${glowColor}66 0%, transparent 72%)`,
+          background: `radial-gradient(circle, ${glowColor}70 0%, transparent 74%)`,
           mixBlendMode: 'plus-lighter',
           pointerEvents: 'none',
         }}
       />
 
-      {/* Retro CRT Bezel sprite behind screen viewport */}
+      {/* Retro CRT Bezel */}
       <Img
         src={staticFile('sprites/props/crt_tv.png')}
         style={{
@@ -75,7 +79,7 @@ export const TvScreen: React.FC<{
         }}
       />
 
-      {/* Screen viewport inside CRT bezel */}
+      {/* Smooth dual-layer crossfading TV screen viewport */}
       <div
         style={{
           position: 'absolute',
@@ -91,44 +95,62 @@ export const TvScreen: React.FC<{
           boxSizing: 'border-box',
         }}
       >
-        {staticBurst ? (
-          <div
-            style={{
-              width: '100%',
-              height: '100%',
-              background: `repeating-linear-gradient(0deg, ${PALETTE.silver} 0px, ${PALETTE.ink} 2px, ${PALETTE.steel} 4px)`,
-              opacity: 0.9,
-            }}
-          />
-        ) : (
-          <RealFootage id={footageId} variant="pixel" compactPlaceholder />
-        )}
+        {clips.map((clip, idx) => {
+          const isFirst = idx === 0;
+          const visibleStart = isFirst ? clip.startSec : clip.startSec - fadeDur * 0.5;
+          const visibleEnd = clip.endSec + fadeDur * 0.5;
+          if (t < visibleStart || t > visibleEnd) return null;
 
-        {/* Scanline overlay */}
+          const fadeIn = isFirst
+            ? interpolate(t, [clip.startSec, clip.startSec + 0.35], [0, 1], {
+                extrapolateLeft: 'clamp',
+                extrapolateRight: 'clamp',
+                easing: Easing.out(Easing.cubic),
+              })
+            : interpolate(t, [clip.startSec - fadeDur * 0.5, clip.startSec + fadeDur * 0.5], [0, 1], {
+                extrapolateLeft: 'clamp',
+                extrapolateRight: 'clamp',
+                easing: Easing.inOut(Easing.cubic),
+              });
+          const fadeOut =
+            idx === clips.length - 1
+              ? 1
+              : interpolate(t, [clip.endSec - fadeDur * 0.5, clip.endSec + fadeDur * 0.5], [1, 0], {
+                  extrapolateLeft: 'clamp',
+                  extrapolateRight: 'clamp',
+                  easing: Easing.inOut(Easing.cubic),
+                });
+          const opacity = Math.min(fadeIn, fadeOut);
+          const zoomSettle = interpolate(fadeIn, [0, 1], [1.05, 1.0]);
+          const seqFrom = Math.max(0, Math.round(clip.startSec * fps));
+
+          return (
+            <div
+              key={clip.id}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                opacity,
+                transform: `scale(${zoomSettle.toFixed(3)})`,
+              }}
+            >
+              <Sequence from={seqFrom} layout="none">
+                <RealFootage id={clip.id} variant="pixel" loop fit="cover" compactPlaceholder />
+              </Sequence>
+            </div>
+          );
+        })}
+
+        {/* Subtle CRT scanline sheen */}
         <div
           style={{
             position: 'absolute',
             inset: 0,
-            backgroundImage: 'repeating-linear-gradient(0deg, rgba(16,10,20,0.32) 0px, rgba(16,10,20,0.32) 1px, transparent 1px, transparent 3px)',
+            backgroundImage:
+              'repeating-linear-gradient(0deg, rgba(16,10,20,0.22) 0px, rgba(16,10,20,0.22) 1px, transparent 1px, transparent 3px)',
             pointerEvents: 'none',
           }}
         />
-
-        {/* In-screen annotation marker dot */}
-        {activeNote ? (
-          <div
-            style={{
-              position: 'absolute',
-              left: `${(activeNote.x * 100).toFixed(1)}%`,
-              top: `${(activeNote.y * 100).toFixed(1)}%`,
-              width: 5,
-              height: 5,
-              backgroundColor: PALETTE.gold,
-              border: `1px solid ${PALETTE.ink}`,
-              transform: 'translate(-50%, -50%)',
-            }}
-          />
-        ) : null}
       </div>
     </div>
   );
