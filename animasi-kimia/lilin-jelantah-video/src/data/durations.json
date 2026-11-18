@@ -1,0 +1,77 @@
+{
+  "fps": 30,
+  "totalFrames": 19797,
+  "totalSeconds": 659.9,
+  "scenes": {
+    "S01A": {
+      "plannedSec": 40,
+      "dubEndSec": 0,
+      "finalSec": 40,
+      "frames": 1200,
+      "out": 0
+    },
+    "S01B": {
+      "plannedSec": 30,
+      "dubEndSec": 30.28,
+      "finalSec": 31.3,
+      "frames": 939,
+      "out": 15
+    },
+    "S02": {
+      "plannedSec": 65,
+      "dubEndSec": 80.83,
+      "finalSec": 81.9,
+      "frames": 2457,
+      "out": 15
+    },
+    "S03": {
+      "plannedSec": 80,
+      "dubEndSec": 91.31,
+      "finalSec": 92.4,
+      "frames": 2772,
+      "out": 15
+    },
+    "S04": {
+      "plannedSec": 100,
+      "dubEndSec": 100.02,
+      "finalSec": 101.1,
+      "frames": 3033,
+      "out": 15
+    },
+    "S05": {
+      "plannedSec": 60,
+      "dubEndSec": 56.17,
+      "finalSec": 60,
+      "frames": 1800,
+      "out": 15
+    },
+    "S06": {
+      "plannedSec": 95,
+      "dubEndSec": 107.28,
+      "finalSec": 108.3,
+      "frames": 3249,
+      "out": 15
+    },
+    "S07": {
+      "plannedSec": 60,
+      "dubEndSec": 67.85,
+      "finalSec": 68.9,
+      "frames": 2067,
+      "out": 15
+    },
+    "S08": {
+      "plannedSec": 40,
+      "dubEndSec": 38.83,
+      "finalSec": 40,
+      "frames": 1200,
+      "out": 15
+    },
+    "S09": {
+      "plannedSec": 40,
+      "dubEndSec": 33.78,
+      "finalSec": 40,
+      "frames": 1200,
+      "out": 0
+    }
+  }
+}

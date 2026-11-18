@@ -1,0 +1,632 @@
+[
+  {
+    "id": "UI_BLIP",
+    "file": "sfx/UI_BLIP.wav",
+    "source": "local-synth",
+    "durationSec": 0.08,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "UI_POP",
+    "file": "sfx/UI_POP.wav",
+    "source": "local-synth",
+    "durationSec": 0.12,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "UI_CONFIRM",
+    "file": "sfx/UI_CONFIRM.wav",
+    "source": "local-synth",
+    "durationSec": 0.43,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "UI_ERROR",
+    "file": "sfx/UI_ERROR.wav",
+    "source": "local-synth",
+    "durationSec": 0.4,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "UI_ACHIEVE",
+    "file": "sfx/UI_ACHIEVE.wav",
+    "source": "local-synth",
+    "durationSec": 0.95,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "UI_DING_SPARKLE",
+    "file": "sfx/UI_DING_SPARKLE.wav",
+    "source": "local-synth",
+    "durationSec": 0.85,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "UI_TAG_FISIKA",
+    "file": "sfx/UI_TAG_FISIKA.wav",
+    "source": "local-synth",
+    "durationSec": 0.64,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "UI_TAG_KIMIA",
+    "file": "sfx/UI_TAG_KIMIA.wav",
+    "source": "local-synth",
+    "durationSec": 0.66,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "UI_CARD_FLIP",
+    "file": "sfx/UI_CARD_FLIP.wav",
+    "source": "local-synth",
+    "durationSec": 0.28,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "JUMP",
+    "file": "sfx/JUMP.wav",
+    "source": "local-synth",
+    "durationSec": 0.2,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "LAND",
+    "file": "sfx/LAND.wav",
+    "source": "local-synth",
+    "durationSec": 0.18,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "STEP_WOOD",
+    "file": "sfx/STEP_WOOD.wav",
+    "source": "local-synth",
+    "durationSec": 0.1,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "EMOTE_EXCLAIM",
+    "file": "sfx/EMOTE_EXCLAIM.wav",
+    "source": "local-synth",
+    "durationSec": 0.38,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "EMOTE_QUESTION",
+    "file": "sfx/EMOTE_QUESTION.wav",
+    "source": "local-synth",
+    "durationSec": 0.3,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "EMOTE_IDEA",
+    "file": "sfx/EMOTE_IDEA.wav",
+    "source": "local-synth",
+    "durationSec": 0.6,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "EMOTE_HEART",
+    "file": "sfx/EMOTE_HEART.wav",
+    "source": "local-synth",
+    "durationSec": 0.58,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "HIGH_FIVE_CLAP",
+    "file": "sfx/HIGH_FIVE_CLAP.wav",
+    "source": "local-synth",
+    "durationSec": 0.28,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "WARNING_BEEP",
+    "file": "sfx/WARNING_BEEP.wav",
+    "source": "local-synth",
+    "durationSec": 0.45,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "STAMP",
+    "file": "sfx/STAMP.wav",
+    "source": "local-synth",
+    "durationSec": 0.28,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "TR_WHOOSH",
+    "file": "sfx/TR_WHOOSH.wav",
+    "source": "local-synth",
+    "durationSec": 0.45,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "TR_WHIP",
+    "file": "sfx/TR_WHIP.wav",
+    "source": "local-synth",
+    "durationSec": 0.3,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "TR_CURTAIN",
+    "file": "sfx/TR_CURTAIN.wav",
+    "source": "local-synth",
+    "durationSec": 1.4,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "TR_IRIS",
+    "file": "sfx/TR_IRIS.wav",
+    "source": "local-synth",
+    "durationSec": 0.6,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "TR_LIGHT_FLASH",
+    "file": "sfx/TR_LIGHT_FLASH.wav",
+    "source": "local-synth",
+    "durationSec": 0.7,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "TR_PIXEL_DISSOLVE",
+    "file": "sfx/TR_PIXEL_DISSOLVE.wav",
+    "source": "local-synth",
+    "durationSec": 0.9,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "HAND_COVER_THUMP",
+    "file": "sfx/HAND_COVER_THUMP.wav",
+    "source": "local-synth",
+    "durationSec": 0.5,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "PORTAL_SUB_RUMBLE",
+    "file": "sfx/PORTAL_SUB_RUMBLE.wav",
+    "source": "local-synth",
+    "durationSec": 3.8,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "HAND_UNCOVER_RUSTLE",
+    "file": "sfx/HAND_UNCOVER_RUSTLE.wav",
+    "source": "local-synth",
+    "durationSec": 0.9,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "PORTAL_SHIMMER_SWELL",
+    "file": "sfx/PORTAL_SHIMMER_SWELL.wav",
+    "source": "local-synth",
+    "durationSec": 2.8,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "AMB_STAGE",
+    "file": "sfx/AMB_STAGE.wav",
+    "source": "local-synth",
+    "durationSec": 5,
+    "loop": true,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "AMB_KITCHEN",
+    "file": "sfx/AMB_KITCHEN.wav",
+    "source": "local-synth",
+    "durationSec": 5,
+    "loop": true,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "AMB_WATER_UNDER",
+    "file": "sfx/AMB_WATER_UNDER.wav",
+    "source": "local-synth",
+    "durationSec": 5,
+    "loop": true,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "AMB_LAB",
+    "file": "sfx/AMB_LAB.wav",
+    "source": "local-synth",
+    "durationSec": 5,
+    "loop": true,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "AMB_WORKSHOP",
+    "file": "sfx/AMB_WORKSHOP.wav",
+    "source": "local-synth",
+    "durationSec": 5,
+    "loop": true,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "AMB_CINEMA_ROOM",
+    "file": "sfx/AMB_CINEMA_ROOM.wav",
+    "source": "local-synth",
+    "durationSec": 5,
+    "loop": true,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "AMB_SHOWROOM",
+    "file": "sfx/AMB_SHOWROOM.wav",
+    "source": "local-synth",
+    "durationSec": 5,
+    "loop": true,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "AMB_OBSERVATORY",
+    "file": "sfx/AMB_OBSERVATORY.wav",
+    "source": "local-synth",
+    "durationSec": 5,
+    "loop": true,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "AMB_LIBRARY",
+    "file": "sfx/AMB_LIBRARY.wav",
+    "source": "local-synth",
+    "durationSec": 5,
+    "loop": true,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "AMB_OFFICE",
+    "file": "sfx/AMB_OFFICE.wav",
+    "source": "local-synth",
+    "durationSec": 5,
+    "loop": true,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "AMB_NIGHT_ROOFTOP",
+    "file": "sfx/AMB_NIGHT_ROOFTOP.wav",
+    "source": "local-synth",
+    "durationSec": 5,
+    "loop": true,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "SIZZLE",
+    "file": "sfx/SIZZLE.wav",
+    "source": "local-synth",
+    "durationSec": 4,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "OIL_POUR",
+    "file": "sfx/OIL_POUR.wav",
+    "source": "local-synth",
+    "durationSec": 3,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "OIL_DRAIN_GLUG",
+    "file": "sfx/OIL_DRAIN_GLUG.wav",
+    "source": "local-synth",
+    "durationSec": 2,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "BUBBLES_LOOP",
+    "file": "sfx/BUBBLES_LOOP.wav",
+    "source": "local-synth",
+    "durationSec": 5,
+    "loop": true,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "HEAT_SHIMMER",
+    "file": "sfx/HEAT_SHIMMER.wav",
+    "source": "local-synth",
+    "durationSec": 2,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "MOLECULE_SNAP",
+    "file": "sfx/MOLECULE_SNAP.wav",
+    "source": "local-synth",
+    "durationSec": 0.29,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "MOLECULE_JIGGLE",
+    "file": "sfx/MOLECULE_JIGGLE.wav",
+    "source": "local-synth",
+    "durationSec": 3,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "CHALK_SCRIBBLE",
+    "file": "sfx/CHALK_SCRIBBLE.wav",
+    "source": "local-synth",
+    "durationSec": 1.4,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "STRAINER_DRIP",
+    "file": "sfx/STRAINER_DRIP.wav",
+    "source": "local-synth",
+    "durationSec": 2.5,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "WAX_MELT",
+    "file": "sfx/WAX_MELT.wav",
+    "source": "local-synth",
+    "durationSec": 3.5,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "SPOON_STIR",
+    "file": "sfx/SPOON_STIR.wav",
+    "source": "local-synth",
+    "durationSec": 2.5,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "JAR_POUR",
+    "file": "sfx/JAR_POUR.wav",
+    "source": "local-synth",
+    "durationSec": 2.5,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "COOL_CRYSTAL",
+    "file": "sfx/COOL_CRYSTAL.wav",
+    "source": "local-synth",
+    "durationSec": 1.15,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "MATCH_STRIKE",
+    "file": "sfx/MATCH_STRIKE.wav",
+    "source": "local-synth",
+    "durationSec": 0.8,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "FLAME_IGNITE",
+    "file": "sfx/FLAME_IGNITE.wav",
+    "source": "local-synth",
+    "durationSec": 0.9,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "FLAME_LOOP",
+    "file": "sfx/FLAME_LOOP.wav",
+    "source": "local-synth",
+    "durationSec": 5,
+    "loop": true,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "O2_SWIRL",
+    "file": "sfx/O2_SWIRL.wav",
+    "source": "local-synth",
+    "durationSec": 2,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "SOFA_SIT",
+    "file": "sfx/SOFA_SIT.wav",
+    "source": "local-synth",
+    "durationSec": 0.55,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "TV_ON",
+    "file": "sfx/TV_ON.wav",
+    "source": "local-synth",
+    "durationSec": 0.9,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "CRT_STATIC_POP",
+    "file": "sfx/CRT_STATIC_POP.wav",
+    "source": "local-synth",
+    "durationSec": 0.35,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "CAMERA_SHUTTER",
+    "file": "sfx/CAMERA_SHUTTER.wav",
+    "source": "local-synth",
+    "durationSec": 0.25,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "COUNTER_ROLL",
+    "file": "sfx/COUNTER_ROLL.wav",
+    "source": "local-synth",
+    "durationSec": 2.8,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "BARREL_THUD",
+    "file": "sfx/BARREL_THUD.wav",
+    "source": "local-synth",
+    "durationSec": 0.45,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "DOT_POP",
+    "file": "sfx/DOT_POP.wav",
+    "source": "local-synth",
+    "durationSec": 0.06,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "LADDER_CREAK",
+    "file": "sfx/LADDER_CREAK.wav",
+    "source": "local-synth",
+    "durationSec": 0.9,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "PAGE_TURN",
+    "file": "sfx/PAGE_TURN.wav",
+    "source": "local-synth",
+    "durationSec": 0.5,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "BOOK_THUD",
+    "file": "sfx/BOOK_THUD.wav",
+    "source": "local-synth",
+    "durationSec": 0.45,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "PAPER_SLIDE",
+    "file": "sfx/PAPER_SLIDE.wav",
+    "source": "local-synth",
+    "durationSec": 0.45,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "JAR_PLACE",
+    "file": "sfx/JAR_PLACE.wav",
+    "source": "local-synth",
+    "durationSec": 0.27,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  },
+  {
+    "id": "WICK_PLACE",
+    "file": "sfx/WICK_PLACE.wav",
+    "source": "local-synth",
+    "durationSec": 0.29,
+    "loop": false,
+    "license": "CC0 (local synthesis, non-vocal)",
+    "peakDb": -3
+  }
+]

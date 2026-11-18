@@ -1,0 +1,47 @@
+{
+  "malika": {
+    "role": "Pembuka & Identifikasi Masalah",
+    "tasks": ["Menyiapkan alat dan bahan", "TODO(user): lengkapi tugas praktikum"],
+    "prop": "strainer"
+  },
+  "noya": {
+    "role": "Konsep & Reaksi Kimia",
+    "tasks": ["Penyusunan konsep kimia", "TODO(user): lengkapi tugas praktikum"],
+    "prop": "beaker"
+  },
+  "marsha": {
+    "role": "Penerapan & Analisis Proses",
+    "tasks": ["Membantu pemanasan dan pencampuran", "TODO(user): lengkapi tugas praktikum"],
+    "prop": "pot"
+  },
+  "ayuya": {
+    "role": "Pengembangan Produk",
+    "tasks": ["Menyiapkan wadah dan pencetakan", "TODO(user): lengkapi tugas praktikum"],
+    "prop": "jar"
+  },
+  "lovyta": {
+    "role": "Finishing & Keamanan Produk",
+    "tasks": ["Memasang sumbu dan dekorasi produk", "TODO(user): lengkapi tugas praktikum"],
+    "prop": "wick"
+  },
+  "farel": {
+    "role": "Data Pustaka & Inovasi",
+    "tasks": ["Pengolahan data dan pengujian", "TODO(user): lengkapi tugas praktikum"],
+    "prop": "laptop"
+  },
+  "sofi": {
+    "role": "Bukti & Evaluasi Hasil",
+    "tasks": ["Pengamatan hasil uji dan dokumentasi", "TODO(user): lengkapi tugas praktikum"],
+    "prop": "clipboard"
+  },
+  "disa": {
+    "role": "Kurasi Referensi Ilmiah",
+    "tasks": ["Mengumpulkan informasi pendukung", "TODO(user): lengkapi tugas praktikum"],
+    "prop": "book"
+  },
+  "ais": {
+    "role": "Dokumentasi & Koordinasi Tim",
+    "tasks": ["Mendokumentasikan proses praktikum", "TODO(user): lengkapi tugas praktikum"],
+    "prop": "camera"
+  }
+}

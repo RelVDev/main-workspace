@@ -1,0 +1,15 @@
+node_modules
+dist
+build
+.DS_Store
+.env
+__pycache__
+*.pyc
+
+# Ignore large full-HD final renders; keep rendered preview & reference stills tracked.
+out/*
+!out/preview.mp4
+!out/hand-transition-slice.mp4
+!out/still.png
+!out/style-frame-v1.png
+!out/lineup.png

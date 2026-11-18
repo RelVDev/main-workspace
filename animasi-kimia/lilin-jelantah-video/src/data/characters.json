@@ -1,0 +1,191 @@
+{
+  "malika": {
+    "id": "malika",
+    "displayName": "Malika",
+    "accentColor": "#F08A3C",
+    "role": "Pembuka & Masalah",
+    "skin": "light",
+    "hairStyle": "long_bangs",
+    "hijab": false,
+    "glasses": false,
+    "outfitStyle": "hoodie_skirt",
+    "accessory": "hairclip_gold",
+    "heightScale": 1.0,
+    "charColors": {
+      "hairBase": "#22182B",
+      "hairHi": "#493757",
+      "hairShade": "#150E1B",
+      "outfitBase": "#8A2A4A",
+      "outfitShade": "#6B1F4A",
+      "outfitAccent": "#FFD97D"
+    }
+  },
+  "noya": {
+    "id": "noya",
+    "displayName": "Noya",
+    "accentColor": "#4FD1C5",
+    "role": "Konsep Kimia",
+    "skin": "light",
+    "hairStyle": "shoulder_wavy",
+    "hijab": false,
+    "glasses": true,
+    "outfitStyle": "labcoat",
+    "accessory": "lab_pen",
+    "heightScale": 0.98,
+    "charColors": {
+      "hairBase": "#472C22",
+      "hairHi": "#6E4638",
+      "hairShade": "#2B1914",
+      "outfitBase": "#F7FAFC",
+      "outfitShade": "#CBD5E0",
+      "outfitAccent": "#4FD1C5"
+    }
+  },
+  "marsha": {
+    "id": "marsha",
+    "displayName": "Marsha",
+    "accentColor": "#FFB25A",
+    "role": "Penerapan & Analisis",
+    "skin": "light",
+    "hairStyle": "hijab_draped",
+    "hijab": true,
+    "glasses": true,
+    "outfitStyle": "apron",
+    "accessory": "badge_star",
+    "heightScale": 0.97,
+    "charColors": {
+      "hairBase": "#C97D78",
+      "hairHi": "#E5A39B",
+      "hairShade": "#965352",
+      "outfitBase": "#F08A3C",
+      "outfitShade": "#C46A2C",
+      "outfitAccent": "#FFF3DC"
+    }
+  },
+  "ayuya": {
+    "id": "ayuya",
+    "displayName": "Ayuya",
+    "accentColor": "#F4A3B0",
+    "role": "Produk & Solusi",
+    "skin": "light",
+    "hairStyle": "short_bob",
+    "hijab": false,
+    "glasses": false,
+    "outfitStyle": "sweater_pants",
+    "accessory": "headband_ribbon",
+    "heightScale": 0.95,
+    "charColors": {
+      "hairBase": "#563829",
+      "hairHi": "#7D5440",
+      "hairShade": "#362018",
+      "outfitBase": "#B23A5A",
+      "outfitShade": "#6B1F4A",
+      "outfitAccent": "#F4A3B0"
+    }
+  },
+  "lovyta": {
+    "id": "lovyta",
+    "displayName": "Lovyta",
+    "accentColor": "#9FF3EE",
+    "role": "Produk & Keselamatan",
+    "skin": "med",
+    "hairStyle": "hijab_neat",
+    "hijab": true,
+    "glasses": false,
+    "outfitStyle": "cardigan_skirt",
+    "accessory": "brooch_leaf",
+    "heightScale": 0.98,
+    "charColors": {
+      "hairBase": "#2C7A7B",
+      "hairHi": "#4FD1C5",
+      "hairShade": "#1E4D5C",
+      "outfitBase": "#FFF3DC",
+      "outfitShade": "#C98A5E",
+      "outfitAccent": "#9FF3EE"
+    }
+  },
+  "farel": {
+    "id": "farel",
+    "displayName": "Farel",
+    "accentColor": "#52A86D",
+    "role": "Data & Bukti",
+    "skin": "med",
+    "hairStyle": "short_spiky",
+    "hijab": false,
+    "glasses": false,
+    "outfitStyle": "jacket_pants",
+    "accessory": "wrist_watch",
+    "heightScale": 1.05,
+    "charColors": {
+      "hairBase": "#192338",
+      "hairHi": "#2F4361",
+      "hairShade": "#101624",
+      "outfitBase": "#2F6B4F",
+      "outfitShade": "#1E4D5C",
+      "outfitAccent": "#FFB25A"
+    }
+  },
+  "sofi": {
+    "id": "sofi",
+    "displayName": "Sofi",
+    "accentColor": "#B23A5A",
+    "role": "Data & Bukti",
+    "skin": "light",
+    "hairStyle": "ponytail",
+    "hijab": false,
+    "glasses": true,
+    "outfitStyle": "vest_shirt",
+    "accessory": "hair_tie_red",
+    "heightScale": 0.97,
+    "charColors": {
+      "hairBase": "#30222E",
+      "hairHi": "#543B4F",
+      "hairShade": "#1C121B",
+      "outfitBase": "#6B1F4A",
+      "outfitShade": "#4E1A3C",
+      "outfitAccent": "#F7FAFC"
+    }
+  },
+  "disa": {
+    "id": "disa",
+    "displayName": "Disa",
+    "accentColor": "#FFD97D",
+    "role": "Referensi Ilmiah",
+    "skin": "light",
+    "hairStyle": "side_braid",
+    "hijab": false,
+    "glasses": true,
+    "outfitStyle": "cardigan_skirt",
+    "accessory": "glasses_gold",
+    "heightScale": 0.99,
+    "charColors": {
+      "hairBase": "#422A1E",
+      "hairHi": "#6B4532",
+      "hairShade": "#26160E",
+      "outfitBase": "#7A4A22",
+      "outfitShade": "#5A3418",
+      "outfitAccent": "#FFD97D"
+    }
+  },
+  "ais": {
+    "id": "ais",
+    "displayName": "Ais",
+    "accentColor": "#C98A5E",
+    "role": "Kontribusi Tim",
+    "skin": "med",
+    "hairStyle": "wavy_bob",
+    "hijab": false,
+    "glasses": false,
+    "outfitStyle": "overall",
+    "accessory": "beret_star",
+    "heightScale": 0.96,
+    "charColors": {
+      "hairBase": "#241920",
+      "hairHi": "#483340",
+      "hairShade": "#150E13",
+      "outfitBase": "#A06834",
+      "outfitShade": "#7A4A22",
+      "outfitAccent": "#FFD97D"
+    }
+  }
+}

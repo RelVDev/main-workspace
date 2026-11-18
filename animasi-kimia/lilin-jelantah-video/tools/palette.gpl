@@ -1,0 +1,36 @@
+GIMP Palette
+Name: Lilin Jelantah Master 32
+Columns: 8
+#
+ 27  16  32	ink
+ 42  21  48	plumDeep
+ 61  28  66	plumMid
+ 78  26  60	magentaDark
+107  31  74	burgundy
+138  42  74	maroon
+178  58  90	crimson
+217  78  82	red
+ 90  52  24	woodDark
+122  74  34	woodMid
+160 104  52	woodLight
+201 138  94	tan
+196 106  44	amberDeep
+240 138  60	amber
+255 178  90	gold
+255 217 125	goldPale
+255 243 220	cream
+246 217 196	skinLight
+223 172 139	skinMed
+244 163 176	blush
+ 21  50  67	navy
+ 30  77  92	tealDark
+ 44 122 123	tealMid
+ 79 209 197	teal
+159 243 238	cyan
+ 47 107  79	greenDark
+ 82 168 109	green
+ 74  85 104	slate
+113 128 150	steel
+203 213 224	silver
+247 250 252	white
+ 16  10  20	void

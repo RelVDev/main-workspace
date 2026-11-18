@@ -1,0 +1,235 @@
+{
+  "F00": {
+    "id": "F00",
+    "title": "Intro Live-Action & Transisi Tangan Malika",
+    "scene": "S01A",
+    "file": "footage/F00_intro.mp4",
+    "pix": "footage/F00_ramp.mp4",
+    "present": false,
+    "durationSec": 40,
+    "fps": 30,
+    "hasAudio": true,
+    "use": {
+      "from": 0,
+      "to": 40,
+      "audio": "full"
+    },
+    "annotations": []
+  },
+  "F01": {
+    "id": "F01",
+    "title": "Penyaringan Minyak Jelantah",
+    "scene": "S04",
+    "file": "footage/F01_filtering.mp4",
+    "pix": "footage/pix/F01_filtering_soft.mp4",
+    "present": false,
+    "durationSec": 14,
+    "fps": 30,
+    "hasAudio": false,
+    "use": {
+      "from": 0,
+      "to": 14,
+      "audio": "mute"
+    },
+    "annotations": [
+      {
+        "t0": 1.5,
+        "t1": 6.5,
+        "x": 0.56,
+        "y": 0.42,
+        "text": "Saringan menahan remah & kotoran padat",
+        "arrow": "left"
+      },
+      {
+        "t0": 7,
+        "t1": 13,
+        "x": 0.52,
+        "y": 0.68,
+        "text": "Minyak tersaring (pemisahan fisika)",
+        "arrow": "up"
+      }
+    ]
+  },
+  "F02": {
+    "id": "F02",
+    "title": "Pemanasan & Peleburan Bahan Lilin",
+    "scene": "S04",
+    "file": "footage/F02_melting.mp4",
+    "pix": "footage/pix/F02_melting_soft.mp4",
+    "present": false,
+    "durationSec": 8,
+    "fps": 30,
+    "hasAudio": false,
+    "use": {
+      "from": 0,
+      "to": 8,
+      "audio": "mute"
+    },
+    "annotations": [
+      {
+        "t0": 1,
+        "t1": 6.5,
+        "x": 0.55,
+        "y": 0.45,
+        "text": "Bahan lilin meleleh perlahan",
+        "arrow": "left"
+      }
+    ]
+  },
+  "F03": {
+    "id": "F03",
+    "title": "Pencampuran Jelantah + Bahan Lilin + Pewangi",
+    "scene": "S04",
+    "file": "footage/F03_mixing.mp4",
+    "pix": "footage/pix/F03_mixing_soft.mp4",
+    "present": false,
+    "durationSec": 8,
+    "fps": 30,
+    "hasAudio": false,
+    "use": {
+      "from": 0,
+      "to": 8,
+      "audio": "mute"
+    },
+    "annotations": [
+      {
+        "t0": 1,
+        "t1": 6.5,
+        "x": 0.5,
+        "y": 0.5,
+        "text": "Diaduk merata + pewangi",
+        "arrow": "left"
+      }
+    ]
+  },
+  "F04": {
+    "id": "F04",
+    "title": "Penuangan ke Wadah Bersumbu",
+    "scene": "S04",
+    "file": "footage/F04_pouring.mp4",
+    "pix": "footage/pix/F04_pouring_soft.mp4",
+    "present": false,
+    "durationSec": 7,
+    "fps": 30,
+    "hasAudio": false,
+    "use": {
+      "from": 0,
+      "to": 7,
+      "audio": "mute"
+    },
+    "annotations": [
+      {
+        "t0": 1,
+        "t1": 6,
+        "x": 0.52,
+        "y": 0.48,
+        "text": "Tuang hati-hati ke wadah bersumbu",
+        "arrow": "left"
+      }
+    ]
+  },
+  "F05": {
+    "id": "F05",
+    "title": "Pendinginan & Pemadatan (Timelapse)",
+    "scene": "S04",
+    "file": "footage/F05_cooling.mp4",
+    "pix": "footage/pix/F05_cooling_soft.mp4",
+    "present": false,
+    "durationSec": 7,
+    "fps": 30,
+    "hasAudio": false,
+    "use": {
+      "from": 0,
+      "to": 7,
+      "audio": "mute",
+      "playbackRate": 2
+    },
+    "annotations": [
+      {
+        "t0": 1,
+        "t1": 6,
+        "x": 0.5,
+        "y": 0.55,
+        "text": "Mendingin & memadat (FISIKA)",
+        "arrow": "up"
+      }
+    ]
+  },
+  "F06": {
+    "id": "F06",
+    "title": "Produk Jadi Lilin Aromatis",
+    "scene": "S05",
+    "file": "footage/F06_product.mp4",
+    "pix": "footage/pix/F06_product_soft.mp4",
+    "present": false,
+    "durationSec": 10,
+    "fps": 30,
+    "hasAudio": false,
+    "use": {
+      "from": 0,
+      "to": 10,
+      "audio": "mute"
+    },
+    "annotations": []
+  },
+  "F07": {
+    "id": "F07",
+    "title": "Uji Nyala (Aman dengan Pengawasan)",
+    "scene": "S04",
+    "file": "footage/F07_burn_test.mp4",
+    "pix": "footage/pix/F07_burn_test_soft.mp4",
+    "present": false,
+    "durationSec": 12,
+    "fps": 30,
+    "hasAudio": true,
+    "use": {
+      "from": 0,
+      "to": 12,
+      "audio": "duck"
+    },
+    "annotations": [
+      {
+        "t0": 1.5,
+        "t1": 10,
+        "x": 0.5,
+        "y": 0.35,
+        "text": "Nyala stabil = reaksi pembakaran (KIMIA)",
+        "arrow": "left"
+      }
+    ]
+  },
+  "F08": {
+    "id": "F08",
+    "title": "Behind The Scenes Kerja Sama Tim",
+    "scene": "S08",
+    "file": "footage/F08_bts.mp4",
+    "pix": "footage/pix/F08_bts_soft.mp4",
+    "present": false,
+    "durationSec": 16,
+    "fps": 30,
+    "hasAudio": false,
+    "use": {
+      "from": 0,
+      "to": 16,
+      "audio": "mute"
+    },
+    "annotations": []
+  },
+  "F09": {
+    "id": "F09",
+    "title": "Bloopers & Momen Tim (Opsional)",
+    "scene": "S09",
+    "file": "footage/F09_bloopers.mp4",
+    "pix": "footage/pix/F09_bloopers_soft.mp4",
+    "present": false,
+    "durationSec": 10,
+    "fps": 30,
+    "hasAudio": false,
+    "use": {
+      "from": 0,
+      "to": 10,
+      "audio": "mute"
+    },
+    "annotations": []
+  }
+}
