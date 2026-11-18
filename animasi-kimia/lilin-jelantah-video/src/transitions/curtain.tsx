@@ -1,6 +1,6 @@
 import React from 'react';
 import type {TransitionPresentation, TransitionPresentationComponentProps} from '@remotion/transitions';
-import {AbsoluteFill, interpolate} from 'remotion';
+import {AbsoluteFill, Easing, interpolate} from 'remotion';
 import {PALETTE} from '../data/palette';
 
 const CurtainPresentation: React.FC<TransitionPresentationComponentProps<Record<string, never>>> = ({
@@ -12,6 +12,7 @@ const CurtainPresentation: React.FC<TransitionPresentationComponentProps<Record<
     const closePct = interpolate(presentationProgress, [0, 0.5], [0, 52], {
       extrapolateLeft: 'clamp',
       extrapolateRight: 'clamp',
+      easing: Easing.inOut(Easing.cubic),
     });
     return (
       <AbsoluteFill>
@@ -24,9 +25,10 @@ const CurtainPresentation: React.FC<TransitionPresentationComponentProps<Record<
                 left: 0,
                 top: 0,
                 bottom: 0,
-                width: `${closePct}%`,
+                width: `${closePct.toFixed(2)}%`,
                 background: `repeating-linear-gradient(90deg, ${PALETTE.magentaDark} 0px, ${PALETTE.burgundy} 28px, ${PALETTE.maroon} 48px, ${PALETTE.magentaDark} 64px)`,
                 borderRight: `8px solid ${PALETTE.gold}`,
+                boxShadow: '16px 0 40px rgba(16,10,20,0.65)',
               }}
             />
             <div
@@ -35,9 +37,10 @@ const CurtainPresentation: React.FC<TransitionPresentationComponentProps<Record<
                 right: 0,
                 top: 0,
                 bottom: 0,
-                width: `${closePct}%`,
+                width: `${closePct.toFixed(2)}%`,
                 background: `repeating-linear-gradient(90deg, ${PALETTE.magentaDark} 0px, ${PALETTE.burgundy} 28px, ${PALETTE.maroon} 48px, ${PALETTE.magentaDark} 64px)`,
                 borderLeft: `8px solid ${PALETTE.gold}`,
+                boxShadow: '-16px 0 40px rgba(16,10,20,0.65)',
               }}
             />
           </>
@@ -46,11 +49,12 @@ const CurtainPresentation: React.FC<TransitionPresentationComponentProps<Record<
     );
   }
 
-  const openPct = interpolate(presentationProgress, [0.45, 1], [52, 0], {
+  const openPct = interpolate(presentationProgress, [0.42, 1], [52, 0], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
+    easing: Easing.inOut(Easing.cubic),
   });
-  const revealOpacity = presentationProgress >= 0.45 ? 1 : 0;
+  const revealOpacity = presentationProgress >= 0.42 ? 1 : 0;
 
   return (
     <AbsoluteFill style={{opacity: revealOpacity}}>
@@ -63,9 +67,10 @@ const CurtainPresentation: React.FC<TransitionPresentationComponentProps<Record<
               left: 0,
               top: 0,
               bottom: 0,
-              width: `${openPct}%`,
+              width: `${openPct.toFixed(2)}%`,
               background: `repeating-linear-gradient(90deg, ${PALETTE.magentaDark} 0px, ${PALETTE.burgundy} 28px, ${PALETTE.maroon} 48px, ${PALETTE.magentaDark} 64px)`,
               borderRight: `8px solid ${PALETTE.gold}`,
+              boxShadow: '16px 0 40px rgba(16,10,20,0.65)',
             }}
           />
           <div
@@ -74,9 +79,10 @@ const CurtainPresentation: React.FC<TransitionPresentationComponentProps<Record<
               right: 0,
               top: 0,
               bottom: 0,
-              width: `${openPct}%`,
+              width: `${openPct.toFixed(2)}%`,
               background: `repeating-linear-gradient(90deg, ${PALETTE.magentaDark} 0px, ${PALETTE.burgundy} 28px, ${PALETTE.maroon} 48px, ${PALETTE.magentaDark} 64px)`,
               borderLeft: `8px solid ${PALETTE.gold}`,
+              boxShadow: '-16px 0 40px rgba(16,10,20,0.65)',
             }}
           />
         </>

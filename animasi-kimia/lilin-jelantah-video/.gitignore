@@ -5,11 +5,11 @@ build
 .env
 __pycache__
 *.pyc
+public/footage/_raw
 
 # Ignore large full-HD final renders; keep rendered preview & reference stills tracked.
 out/*
 !out/preview.mp4
-!out/hand-transition-slice.mp4
 !out/still.png
 !out/style-frame-v1.png
 !out/lineup.png

@@ -1,5 +1,4 @@
 import React from 'react';
-import {snap} from '../lib/pixel';
 
 export interface ParallaxProps {
   depth?: number; // 0.2 far, 0.5 mid, 1.0 foreground
@@ -20,18 +19,18 @@ export const Parallax: React.FC<ParallaxProps> = ({
   style,
   children,
 }) => {
-  const dx = snap(camOffsetX * (1 - depth));
-  const dy = snap(camOffsetY * (1 - depth));
+  const dx = camOffsetX * (1 - depth);
+  const dy = camOffsetY * (1 - depth);
   const effectiveBlur = Math.max(0, blurPx * (0.25 + 0.75 * focus));
 
   return (
     <div
       style={{
         position: 'absolute',
-        inset: -24,
-        padding: 24,
-        transform: `translate(${dx}px, ${dy}px)`,
-        filter: effectiveBlur > 0.1 ? `blur(${effectiveBlur.toFixed(1)}px)` : undefined,
+        inset: -28,
+        padding: 28,
+        transform: `translate3d(${dx.toFixed(3)}px, ${dy.toFixed(3)}px, 0)`,
+        filter: effectiveBlur > 0.1 ? `blur(${effectiveBlur.toFixed(2)}px)` : undefined,
         ...style,
       }}
     >

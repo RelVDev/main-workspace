@@ -1,0 +1,47 @@
+[
+  {
+    "label": "Pembukaan Bersama",
+    "speakers": [
+      "all"
+    ],
+    "startSec": 0.0,
+    "endSec": 9.6
+  },
+  {
+    "label": "Disa & Malika",
+    "speakers": [
+      "disa",
+      "malika"
+    ],
+    "startSec": 9.6,
+    "endSec": 26.3
+  },
+  {
+    "label": "Noya & Marsha",
+    "speakers": [
+      "noya",
+      "marsha"
+    ],
+    "startSec": 26.3,
+    "endSec": 42.5
+  },
+  {
+    "label": "Ayuya & Lovyta",
+    "speakers": [
+      "ayuya",
+      "lovyta"
+    ],
+    "startSec": 42.5,
+    "endSec": 59.3
+  },
+  {
+    "label": "Sofi, Farel & Ais",
+    "speakers": [
+      "sofi",
+      "farel",
+      "ais"
+    ],
+    "startSec": 59.3,
+    "endSec": 84.3
+  }
+]

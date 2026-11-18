@@ -7,14 +7,15 @@ import {S03_SFX} from '../data/cues/S03.cues';
 import {META} from '../data/meta';
 import {PALETTE} from '../data/palette';
 import {recipe} from '../data/recipe';
+import {Bloom, FloorGlow, PointLight, Sparkle} from '../engine/Lighting';
 import {SceneShell} from '../engine/SceneShell';
-import {Bloom, PointLight, Sparkle} from '../engine/Lighting';
+import {smoothKeyframes} from '../lib/easing';
 import {FONT_BODY, FONT_TITLE} from '../lib/fonts';
-import {ART_H, ART_W, snap} from '../lib/pixel';
 import {lineEnd, lineStartSec} from '../lib/seconds';
 import {SceneBanner} from '../ui/SceneBanner';
 import {SceneSubtitles} from '../ui/Subtitles';
 import {Tag} from '../ui/Tag';
+import {HangingLamp, LabBackdrop, LabBenchExtras} from './shared/RoomDecor';
 import {AnimatedFlame, PixelDoor, StageFloor} from './shared/StageElements';
 
 export const S03_Konsep: React.FC = () => {
@@ -33,7 +34,6 @@ export const S03_Konsep: React.FC = () => {
     (id) => frame >= Math.round(lineStartSec(id) * fps) && frame <= lineEnd(id),
   );
 
-  // Beat flags
   const showTriglyceride = t >= tL2 && t < tL3;
   const showFiltering = t >= tL3 && t < tL4;
   const showNotParaffin = t >= tL4 && t < tL5;
@@ -44,32 +44,89 @@ export const S03_Konsep: React.FC = () => {
   const candleLit = t >= tL6 + 1.3;
   const shake = t >= tL4 + 1.8 && t <= tL4 + 2.3 ? 1 : 0;
 
-  // Camera zoom per beat (establishing -> board close-up -> bench -> candle flame)
-  const camZoom =
-    showTriglyceride || showNotParaffin
-      ? 1.18
-      : showCombustion
-        ? interpolate(t, [tL6, tL6 + 3], [1.1, 1.38], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'})
-        : 1.0;
-  const camX = showCombustion ? 318 : showTriglyceride ? 265 : 240;
+  // Smooth eased camera keyframes across all chemistry beats (zero 1-frame snaps)
+  const camZoom = smoothKeyframes(t, [
+    [0, 1.0],
+    [tL2 - 0.3, 1.0],
+    [tL2 + 0.8, 1.16],
+    [tL3 - 0.3, 1.16],
+    [tL3 + 0.8, 1.06],
+    [tL4 - 0.3, 1.06],
+    [tL4 + 0.8, 1.18],
+    [tL5 - 0.3, 1.18],
+    [tL5 + 0.8, 1.1],
+    [tL6 - 0.2, 1.1],
+    [tL6 + 2.6, 1.36],
+    [tL7 - 0.4, 1.36],
+    [tL7 + 0.9, 1.0],
+  ]);
 
-  // Solidification progress during L05 (liquid -> solid wipe bottom-up)
+  const camX = smoothKeyframes(t, [
+    [0, 240],
+    [tL2 - 0.3, 240],
+    [tL2 + 0.8, 268],
+    [tL3 - 0.3, 268],
+    [tL3 + 0.8, 246],
+    [tL6 - 0.2, 246],
+    [tL6 + 2.0, 316],
+    [tL7 - 0.4, 316],
+    [tL7 + 0.9, 240],
+  ]);
+
+  // Noya walks playfully closer to candle/beaker during L05..L06, returns at L07
+  const noyaX = smoothKeyframes(t, [
+    [0, 124],
+    [tL5 - 0.2, 124],
+    [tL5 + 1.2, 152],
+    [tL7 - 0.3, 152],
+    [tL7 + 0.9, 128],
+  ]);
+  const noyaWalking =
+    (t >= tL5 - 0.2 && t <= tL5 + 1.15) || (t >= tL7 - 0.3 && t <= tL7 + 0.85);
+
+  // Mascot Jeli hovers eagerly over candle when combustion is explained
+  const jeliX = smoothKeyframes(t, [
+    [0, 78],
+    [tL5, 78],
+    [tL5 + 2.0, 294],
+    [tL6, 294],
+    [tL6 + 1.8, 378],
+    [tL7, 378],
+    [tL7 + 1.4, 86],
+  ]);
+  const jeliY = smoothKeyframes(t, [
+    [0, 186],
+    [tL5, 186],
+    [tL5 + 2.0, 112],
+    [tL6 + 1.8, 124],
+    [tL7, 124],
+    [tL7 + 1.4, 186],
+  ]);
+
   const solidFill = interpolate(t, [tL5 + 6.5, tL5 + 10.2], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
     easing: Easing.inOut(Easing.cubic),
   });
 
-  // 3 fatty acid chains snap into glycerol
   const tailSnaps = [tL2 + 2.0, tL2 + 3.8, tL2 + 5.6].map((ts) =>
-    interpolate(t, [ts - 0.5, ts], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'}),
+    interpolate(t, [ts - 0.5, ts], [0, 1], {
+      extrapolateLeft: 'clamp',
+      extrapolateRight: 'clamp',
+      easing: Easing.out(Easing.cubic),
+    }),
   );
 
   const hud = (
     <>
-      <SceneBanner badge="BAGIAN 3 · KONSEP KIMIA" title="Dari Molekul Trigliserida hingga Reaksi Pembakaran" accent={PALETTE.teal} startFrame={6} endFrame={135} />
+      <SceneBanner
+        badge="BAGIAN 3 · KONSEP KIMIA"
+        title="Dari Molekul Trigliserida hingga Reaksi Pembakaran"
+        accent={PALETTE.teal}
+        startFrame={6}
+        endFrame={135}
+      />
 
-      {/* L02 Triglyceride chalkboard overlay */}
       {showTriglyceride ? (
         <div
           style={{
@@ -89,7 +146,6 @@ export const S03_Konsep: React.FC = () => {
           <div style={{fontFamily: FONT_BODY, fontSize: 30, color: PALETTE.cream, marginBottom: 16}}>
             1 Molekul Gliserol + 3 Rantai Asam Lemak
           </div>
-          {/* Crisp schematic */}
           <div style={{display: 'flex', alignItems: 'center', gap: 22}}>
             <div
               style={{
@@ -114,7 +170,7 @@ export const S03_Konsep: React.FC = () => {
                     alignItems: 'center',
                     gap: 10,
                     opacity: tailSnaps[i],
-                    transform: `translateX(${((1 - tailSnaps[i]) * 60).toFixed(0)}px)`,
+                    transform: `translate3d(${((1 - tailSnaps[i]) * 60).toFixed(2)}px, 0, 0)`,
                   }}
                 >
                   <span style={{color: PALETTE.gold, fontFamily: FONT_TITLE, fontSize: 18}}>═══</span>
@@ -139,7 +195,6 @@ export const S03_Konsep: React.FC = () => {
         </div>
       ) : null}
 
-      {/* L03 Filtering != New */}
       {showFiltering ? (
         <div
           style={{
@@ -149,6 +204,7 @@ export const S03_Konsep: React.FC = () => {
             width: 760,
             backgroundColor: 'rgba(27,16,32,0.92)',
             border: `5px solid ${PALETTE.amber}`,
+            boxShadow: `8px 8px 0 ${PALETTE.ink}`,
             padding: '24px 30px',
           }}
         >
@@ -175,7 +231,6 @@ export const S03_Konsep: React.FC = () => {
         </div>
       ) : null}
 
-      {/* L04 STRICT RULE: Jelantah DOES NOT become Paraffin */}
       {showNotParaffin ? (
         <div
           style={{
@@ -209,7 +264,6 @@ export const S03_Konsep: React.FC = () => {
         </div>
       ) : null}
 
-      {/* L05 Physical state change: Solidification */}
       {showPhaseChange ? (
         <div style={{position: 'absolute', top: 100, right: 120, display: 'flex', flexDirection: 'column', gap: 18, alignItems: 'flex-start'}}>
           <Tag kind="FISIKA" label="PEMADATAN = PERUBAHAN FISIKA" startFrame={Math.round((tL5 + 9.5) * fps)} />
@@ -217,6 +271,7 @@ export const S03_Konsep: React.FC = () => {
             style={{
               backgroundColor: 'rgba(21,50,67,0.92)',
               border: `4px solid ${PALETTE.teal}`,
+              boxShadow: `6px 6px 0 ${PALETTE.ink}`,
               padding: '18px 24px',
               maxWidth: 700,
               fontFamily: FONT_BODY,
@@ -229,7 +284,6 @@ export const S03_Konsep: React.FC = () => {
         </div>
       ) : null}
 
-      {/* L06 Chemical reaction: Combustion + optional CO2 + H2O */}
       {showCombustion ? (
         <div style={{position: 'absolute', top: 90, left: 80, display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'flex-start'}}>
           <Tag kind="KIMIA" label="PEMBAKARAN = PERUBAHAN KIMIA" startFrame={Math.round((tL6 + 6.0) * fps)} />
@@ -237,6 +291,7 @@ export const S03_Konsep: React.FC = () => {
             style={{
               backgroundColor: 'rgba(27,16,32,0.9)',
               border: `4px solid ${PALETTE.amber}`,
+              boxShadow: `6px 6px 0 ${PALETTE.ink}`,
               padding: '18px 24px',
               maxWidth: 680,
               fontFamily: FONT_BODY,
@@ -252,7 +307,6 @@ export const S03_Konsep: React.FC = () => {
         </div>
       ) : null}
 
-      {/* L07 Four concepts summary */}
       {showSummary ? (
         <div
           style={{
@@ -302,43 +356,26 @@ export const S03_Konsep: React.FC = () => {
       camY={135}
       zoom={camZoom}
       shake={shake}
-      farBlur={4}
-      midBlur={1.5}
-      farBg={
-        <div
-          style={{
-            width: ART_W,
-            height: ART_H,
-            background: `linear-gradient(180deg, ${PALETTE.tealDark} 0%, ${PALETTE.navy} 100%)`,
-          }}
-        >
-          {/* Lab blackboard */}
-          <div
-            style={{
-              position: 'absolute',
-              left: 165,
-              top: 26,
-              width: 248,
-              height: 112,
-              backgroundColor: PALETTE.greenDark,
-              border: `5px solid ${PALETTE.woodMid}`,
-            }}
-          />
-        </div>
-      }
+      farBlur={3.6}
+      midBlur={1.4}
+      farBg={<LabBackdrop />}
       floor={<StageFloor y={200} topColor={PALETTE.slate} bottomColor={PALETTE.navy} />}
       lights={
-        candleLit ? (
-          <PointLight x={352} y={120} radius={130} color={PALETTE.amber} intensity={0.95} flicker banded />
-        ) : (
-          <PointLight x={260} y={80} radius={120} color={PALETTE.cyan} intensity={0.4} />
-        )
+        <>
+          <HangingLamp x={200} cordLen={16} bulbColor={PALETTE.cyan} coneHeight={165} opacity={0.18} />
+          <HangingLamp x={320} cordLen={16} bulbColor={PALETTE.goldPale} coneHeight={165} opacity={0.2} />
+          <FloorGlow x={275} y={205} rx={110} ry={14} color={candleLit ? PALETTE.amber : PALETTE.cyan} opacity={0.32} />
+          {candleLit ? (
+            <PointLight x={352} y={120} radius={135} color={PALETTE.amber} intensity={0.95} flicker banded />
+          ) : (
+            <PointLight x={260} y={84} radius={130} color={PALETTE.cyan} intensity={0.48} />
+          )}
+        </>
       }
-      bloom={candleLit ? {intensity: 0.35, color: PALETTE.amber} : {intensity: 0.15, color: PALETTE.cyan}}
-      dust={{count: 30, color: candleLit ? PALETTE.goldPale : PALETTE.cyan, seed: 's03-dust'}}
+      bloom={candleLit ? {intensity: 0.36, color: PALETTE.amber} : {intensity: 0.18, color: PALETTE.cyan}}
+      dust={{count: 34, color: candleLit ? PALETTE.goldPale : PALETTE.cyan, seed: 's03-dust'}}
       hud={hud}
     >
-      {/* Door to Workshop on right */}
       <PixelDoor x={426} y={132} glow={PALETTE.amber} label="WORKSHOP" />
 
       {/* Lab bench */}
@@ -353,14 +390,14 @@ export const S03_Konsep: React.FC = () => {
           border: `2px solid ${PALETTE.ink}`,
         }}
       />
+      <LabBenchExtras heated={showPhaseChange || candleLit} />
 
-      {/* Beaker + funnel */}
       <Img
         src={staticFile('sprites/props/beaker_funnel.png')}
-        style={{position: 'absolute', left: 190, top: 120, width: 36, height: 40, imageRendering: 'pixelated'}}
+        style={{position: 'absolute', left: 196, top: 120, width: 36, height: 40, imageRendering: 'pixelated'}}
       />
 
-      {/* Electric hotplate + Melting pot / solidification jar */}
+      {/* Melting pot & solidification jar */}
       <div
         style={{
           position: 'absolute',
@@ -390,7 +427,7 @@ export const S03_Konsep: React.FC = () => {
             left: 2,
             right: 2,
             bottom: 2,
-            height: snap(24 * solidFill + 8),
+            height: Math.round(24 * solidFill + 8),
             backgroundColor: solidFill > 0.6 ? PALETTE.cream : PALETTE.amber,
           }}
         />
@@ -404,18 +441,18 @@ export const S03_Konsep: React.FC = () => {
       {candleLit ? (
         <>
           <AnimatedFlame x={352} y={132} scale={1} />
-          {/* Swirling O2 particles */}
           {[0, 1, 2, 3].map((i) => {
-            const ang = frame * 0.1 + (i * Math.PI) / 2;
-            const ox = snap(352 + Math.cos(ang) * 18);
-            const oy = snap(118 + Math.sin(ang) * 8);
+            const ang = frame * 0.08 + (i * Math.PI) / 2;
+            const ox = 352 + Math.cos(ang) * 18;
+            const oy = 118 + Math.sin(ang) * 8;
             return (
               <div
                 key={i}
                 style={{
                   position: 'absolute',
-                  left: ox,
-                  top: oy,
+                  left: 0,
+                  top: 0,
+                  transform: `translate3d(${ox.toFixed(2)}px, ${oy.toFixed(2)}px, 0)`,
                   width: 4,
                   height: 4,
                   backgroundColor: PALETTE.cyan,
@@ -424,24 +461,23 @@ export const S03_Konsep: React.FC = () => {
               />
             );
           })}
-          <Bloom intensity={0.22} color={PALETTE.amber} />
+          <Bloom intensity={0.24} color={PALETTE.amber} />
         </>
       ) : null}
 
-      {/* Noya presenter */}
       <Character
         id="noya"
-        x={124}
+        x={noyaX}
         y={202}
         flip={showSummary}
-        pose={showNotParaffin || showTriglyceride ? 'point' : 'talk'}
+        pose={noyaWalking ? 'walk' : showNotParaffin || showTriglyceride || showCombustion ? 'point' : 'talk'}
         expr={showNotParaffin ? 'determined' : 'happy'}
         lineId={activeLineId}
         z={20}
       />
 
       {META.showMascotJeli ? (
-        <JeliMascot x={80} y={186} mood={candleLit ? 'happy' : 'idle'} z={22} />
+        <JeliMascot x={jeliX} y={jeliY} mood={candleLit ? 'flame' : showPhaseChange ? 'happy' : 'idle'} z={24} />
       ) : null}
 
       <Sparkle x={352} y={96} size="sm" color={candleLit ? PALETTE.gold : PALETTE.cyan} />

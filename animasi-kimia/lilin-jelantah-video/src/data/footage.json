@@ -4,14 +4,14 @@
     "title": "Intro Live-Action & Transisi Tangan Malika",
     "scene": "S01A",
     "file": "footage/F00_intro.mp4",
-    "pix": "footage/F00_ramp.mp4",
-    "present": false,
-    "durationSec": 40,
+    "pix": "footage/F00_intro.mp4",
+    "present": true,
+    "durationSec": 84.63,
     "fps": 30,
     "hasAudio": true,
     "use": {
       "from": 0,
-      "to": 40,
+      "to": 84.63,
       "audio": "full"
     },
     "annotations": []
@@ -22,30 +22,30 @@
     "scene": "S04",
     "file": "footage/F01_filtering.mp4",
     "pix": "footage/pix/F01_filtering_soft.mp4",
-    "present": false,
-    "durationSec": 14,
+    "present": true,
+    "durationSec": 14.13,
     "fps": 30,
     "hasAudio": false,
     "use": {
       "from": 0,
-      "to": 14,
+      "to": 14.13,
       "audio": "mute"
     },
     "annotations": [
       {
-        "t0": 1.5,
-        "t1": 6.5,
-        "x": 0.56,
-        "y": 0.42,
-        "text": "Saringan menahan remah & kotoran padat",
+        "t0": 1,
+        "t1": 5,
+        "x": 0.52,
+        "y": 0.5,
+        "text": "Alat & minyak disiapkan untuk percobaan",
         "arrow": "left"
       },
       {
-        "t0": 7,
-        "t1": 13,
-        "x": 0.52,
-        "y": 0.68,
-        "text": "Minyak tersaring (pemisahan fisika)",
+        "t0": 6,
+        "t1": 12.5,
+        "x": 0.54,
+        "y": 0.56,
+        "text": "Penakaran minyak ke gelas ukur",
         "arrow": "up"
       }
     ]
@@ -56,13 +56,13 @@
     "scene": "S04",
     "file": "footage/F02_melting.mp4",
     "pix": "footage/pix/F02_melting_soft.mp4",
-    "present": false,
-    "durationSec": 8,
+    "present": true,
+    "durationSec": 8.7,
     "fps": 30,
     "hasAudio": false,
     "use": {
       "from": 0,
-      "to": 8,
+      "to": 8.7,
       "audio": "mute"
     },
     "annotations": [
@@ -82,22 +82,22 @@
     "scene": "S04",
     "file": "footage/F03_mixing.mp4",
     "pix": "footage/pix/F03_mixing_soft.mp4",
-    "present": false,
-    "durationSec": 8,
+    "present": true,
+    "durationSec": 9.2,
     "fps": 30,
     "hasAudio": false,
     "use": {
       "from": 0,
-      "to": 8,
+      "to": 9.2,
       "audio": "mute"
     },
     "annotations": [
       {
-        "t0": 1,
-        "t1": 6.5,
+        "t0": 0.8,
+        "t1": 8,
         "x": 0.5,
         "y": 0.5,
-        "text": "Diaduk merata + pewangi",
+        "text": "Campur minyak + essential oil + pewarna krayon",
         "arrow": "left"
       }
     ]
@@ -108,46 +108,46 @@
     "scene": "S04",
     "file": "footage/F04_pouring.mp4",
     "pix": "footage/pix/F04_pouring_soft.mp4",
-    "present": false,
-    "durationSec": 7,
+    "present": true,
+    "durationSec": 7.63,
     "fps": 30,
     "hasAudio": false,
     "use": {
       "from": 0,
-      "to": 7,
+      "to": 7.63,
       "audio": "mute"
     },
     "annotations": [
       {
-        "t0": 1,
-        "t1": 6,
+        "t0": 0.8,
+        "t1": 6.5,
         "x": 0.52,
         "y": 0.48,
-        "text": "Tuang hati-hati ke wadah bersumbu",
+        "text": "Tuang ke wadah kaca & rapikan penyangga sumbu",
         "arrow": "left"
       }
     ]
   },
   "F05": {
     "id": "F05",
-    "title": "Pendinginan & Pemadatan (Timelapse)",
+    "title": "Pendinginan & Pemadatan Lilin",
     "scene": "S04",
     "file": "footage/F05_cooling.mp4",
     "pix": "footage/pix/F05_cooling_soft.mp4",
-    "present": false,
-    "durationSec": 7,
+    "present": true,
+    "durationSec": 7.13,
     "fps": 30,
     "hasAudio": false,
     "use": {
       "from": 0,
-      "to": 7,
+      "to": 7.13,
       "audio": "mute",
-      "playbackRate": 2
+      "playbackRate": 1
     },
     "annotations": [
       {
-        "t0": 1,
-        "t1": 6,
+        "t0": 0.8,
+        "t1": 6.2,
         "x": 0.5,
         "y": 0.55,
         "text": "Mendingin & memadat (FISIKA)",
@@ -160,14 +160,14 @@
     "title": "Produk Jadi Lilin Aromatis",
     "scene": "S05",
     "file": "footage/F06_product.mp4",
-    "pix": "footage/pix/F06_product_soft.mp4",
-    "present": false,
-    "durationSec": 10,
+    "pix": "footage/F06_product.mp4",
+    "present": true,
+    "durationSec": 10.07,
     "fps": 30,
     "hasAudio": false,
     "use": {
       "from": 0,
-      "to": 10,
+      "to": 10.07,
       "audio": "mute"
     },
     "annotations": []
@@ -203,32 +203,32 @@
     "title": "Behind The Scenes Kerja Sama Tim",
     "scene": "S08",
     "file": "footage/F08_bts.mp4",
-    "pix": "footage/pix/F08_bts_soft.mp4",
-    "present": false,
-    "durationSec": 16,
+    "pix": "footage/F08_bts.mp4",
+    "present": true,
+    "durationSec": 16.53,
     "fps": 30,
     "hasAudio": false,
     "use": {
       "from": 0,
-      "to": 16,
+      "to": 16.53,
       "audio": "mute"
     },
     "annotations": []
   },
   "F09": {
     "id": "F09",
-    "title": "Bloopers & Momen Tim (Opsional)",
+    "title": "Closing Live-Action Kelompok",
     "scene": "S09",
-    "file": "footage/F09_bloopers.mp4",
-    "pix": "footage/pix/F09_bloopers_soft.mp4",
-    "present": false,
-    "durationSec": 10,
+    "file": "footage/F09_closing.mp4",
+    "pix": "footage/F09_closing.mp4",
+    "present": true,
+    "durationSec": 7.07,
     "fps": 30,
-    "hasAudio": false,
+    "hasAudio": true,
     "use": {
       "from": 0,
-      "to": 10,
-      "audio": "mute"
+      "to": 7.07,
+      "audio": "full"
     },
     "annotations": []
   }

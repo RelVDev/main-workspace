@@ -1,18 +1,20 @@
 import React from 'react';
-import {interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
+import {useCurrentFrame, useVideoConfig} from 'remotion';
 import {DubLayer} from '../audio/DubLayer';
 import {SfxLayer} from '../audio/SfxLayer';
-import {Character} from '../characters/Character';
+import {Character, JeliMascot} from '../characters/Character';
 import {S07_SFX} from '../data/cues/S07.cues';
+import {META} from '../data/meta';
 import {PALETTE} from '../data/palette';
 import referencesJson from '../data/references.json';
+import {FloorGlow, PointLight, Sparkle} from '../engine/Lighting';
 import {SceneShell} from '../engine/SceneShell';
-import {PointLight} from '../engine/Lighting';
+import {smoothKeyframes} from '../lib/easing';
 import {FONT_BODY, FONT_TITLE} from '../lib/fonts';
-import {ART_H, ART_W} from '../lib/pixel';
 import {lineEnd, lineStartSec} from '../lib/seconds';
 import {SceneBanner} from '../ui/SceneBanner';
 import {SceneSubtitles} from '../ui/Subtitles';
+import {HangingLamp, LibraryDecor, PottedPlant} from './shared/RoomDecor';
 import {StageFloor} from './shared/StageElements';
 
 export const S07_Referensi: React.FC = () => {
@@ -30,7 +32,6 @@ export const S07_Referensi: React.FC = () => {
     (id) => frame >= Math.round(lineStartSec(id) * fps) && frame <= lineEnd(id),
   );
 
-  // Highlight groups of cards by beat
   const activeIndices =
     t >= tL2 && t < tL3
       ? [0, 1]
@@ -44,11 +45,30 @@ export const S07_Referensi: React.FC = () => {
 
   const showBuckets = t >= tL6;
 
+  // Smooth slow zoom-in across library
+  const camZoom = smoothKeyframes(t, [
+    [0, 1.0],
+    [6.0, 1.08],
+    [tL6, 1.06],
+    [tL6 + 2.0, 1.12],
+  ]);
+  const disaX = smoothKeyframes(t, [
+    [0, 240],
+    [tL2, 180],
+    [tL4, 290],
+    [tL6, 240],
+  ]);
+
   const hud = (
     <>
-      <SceneBanner badge="BAGIAN 7 · REFERENSI ILMIAH" title="9 Pustaka Ilmiah & Pemisahan Sumber Data" accent={PALETTE.goldPale} startFrame={6} endFrame={135} />
+      <SceneBanner
+        badge="BAGIAN 7 · REFERENSI ILMIAH"
+        title="9 Pustaka Ilmiah & Pemisahan Sumber Data"
+        accent={PALETTE.goldPale}
+        startFrame={6}
+        endFrame={135}
+      />
 
-      {/* 9 Reference cards grid */}
       {!showBuckets && t >= tL2 - 1 ? (
         <div
           style={{
@@ -70,9 +90,9 @@ export const S07_Referensi: React.FC = () => {
                 style={{
                   backgroundColor: isHighlighted ? 'rgba(42,21,48,0.96)' : 'rgba(27,16,32,0.82)',
                   border: `4px solid ${isHighlighted ? PALETTE.gold : PALETTE.woodLight}`,
-                  boxShadow: isHighlighted ? `8px 8px 0 ${PALETTE.ink}` : `4px 4px 0 ${PALETTE.ink}`,
+                  boxShadow: isHighlighted ? `0 0 16px ${PALETTE.gold}55, 8px 8px 0 ${PALETTE.ink}` : `4px 4px 0 ${PALETTE.ink}`,
                   padding: '14px 18px',
-                  opacity: revealed ? (isHighlighted ? 1 : 0.65) : 0,
+                  opacity: revealed ? (isHighlighted ? 1 : 0.62) : 0,
                   transform: `scale(${isHighlighted ? 1.03 : 1})`,
                 }}
               >
@@ -88,7 +108,6 @@ export const S07_Referensi: React.FC = () => {
         </div>
       ) : null}
 
-      {/* L06-L07: Two sorting buckets */}
       {showBuckets ? (
         <div
           style={{
@@ -128,7 +147,7 @@ export const S07_Referensi: React.FC = () => {
               EMBER B · PENGAMATAN KELOMPOK
             </div>
             <div style={{fontFamily: FONT_BODY, fontSize: 26, color: PALETTE.cream}}>
-              Foto proses, rekaman uji nyala & catatan hasil praktikum kelompok sendiri — tidak tercampur!
+              Dokumentasi video praktikum & catatan pengamatan kelompok sendiri — tidak tercampur!
             </div>
           </div>
         </div>
@@ -143,62 +162,36 @@ export const S07_Referensi: React.FC = () => {
       grade="library"
       camX={240}
       camY={135}
-      zoom={interpolate(t, [0, 6], [1, 1.08], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'})}
-      farBlur={4}
-      midBlur={1.5}
-      farBg={
-        <div
-          style={{
-            width: ART_W,
-            height: ART_H,
-            background: `linear-gradient(180deg, ${PALETTE.woodDark} 0%, ${PALETTE.plumDeep} 100%)`,
-          }}
-        >
-          {/* Bookshelves */}
-          {[40, 140, 260, 360].map((bx) => (
-            <div
-              key={bx}
-              style={{
-                position: 'absolute',
-                left: bx,
-                top: 24,
-                width: 82,
-                height: 174,
-                backgroundColor: PALETTE.woodMid,
-                border: `3px solid ${PALETTE.ink}`,
-              }}
-            >
-              {[36, 76, 116, 152].map((sy) => (
-                <div
-                  key={sy}
-                  style={{
-                    position: 'absolute',
-                    left: 4,
-                    right: 4,
-                    top: sy,
-                    height: 3,
-                    backgroundColor: PALETTE.ink,
-                  }}
-                />
-              ))}
-            </div>
-          ))}
-        </div>
-      }
+      zoom={camZoom}
+      farBlur={3.6}
+      midBlur={1.4}
+      farBg={<LibraryDecor />}
       floor={<StageFloor y={202} topColor={PALETTE.woodMid} bottomColor={PALETTE.woodDark} />}
-      lights={<PointLight x={240} y={84} radius={160} color={PALETTE.goldPale} intensity={0.5} />}
-      dust={{count: 38, color: PALETTE.goldPale, seed: 's07-dust'}}
+      lights={
+        <>
+          <HangingLamp x={160} cordLen={18} bulbColor={PALETTE.goldPale} coneHeight={170} opacity={0.22} />
+          <HangingLamp x={320} cordLen={18} bulbColor={PALETTE.goldPale} coneHeight={170} opacity={0.22} />
+          <FloorGlow x={240} y={206} rx={115} ry={14} color={PALETTE.goldPale} opacity={0.34} />
+          <PointLight x={240} y={84} radius={165} color={PALETTE.goldPale} intensity={0.54} />
+        </>
+      }
+      dust={{count: 40, color: PALETTE.goldPale, seed: 's07-dust'}}
       hud={hud}
     >
+      <PottedPlant x={44} y={202} h={26} />
+      <PottedPlant x={436} y={202} h={26} />
       <Character
         id="disa"
-        x={240}
+        x={disaX}
         y={202}
+        flip={t >= tL4 && t < tL6}
         pose={showBuckets ? 'point' : 'talk'}
         expr="happy"
         lineId={activeLineId}
         z={20}
       />
+      {META.showMascotJeli ? <JeliMascot x={290} y={188} mood="happy" z={22} /> : null}
+      <Sparkle x={240} y={120} size="sm" color={PALETTE.goldPale} />
       <DubLayer sceneId="S07" />
       <SfxLayer cues={S07_SFX} />
     </SceneShell>

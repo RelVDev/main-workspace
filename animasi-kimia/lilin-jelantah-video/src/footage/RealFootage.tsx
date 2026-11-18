@@ -38,8 +38,9 @@ export const RealFootage: React.FC<{
   id: string;
   variant?: 'natural' | 'pixel';
   compactPlaceholder?: boolean;
+  loop?: boolean;
   style?: React.CSSProperties;
-}> = ({id, variant = 'natural', compactPlaceholder = false, style}) => {
+}> = ({id, variant = 'natural', compactPlaceholder = false, loop = false, style}) => {
   const {fps} = useVideoConfig();
   const entry = FOOTAGE_MAP[id];
 
@@ -59,6 +60,7 @@ export const RealFootage: React.FC<{
       trimBefore={trimBefore}
       trimAfter={trimAfter}
       playbackRate={playbackRate}
+      loop={loop}
       muted={entry.use.audio === 'mute'}
       volume={volume}
       objectFit="contain"

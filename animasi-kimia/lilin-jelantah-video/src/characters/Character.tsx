@@ -1,8 +1,6 @@
 import React from 'react';
 import {Img, random, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
 import type {CharId} from '../data/script';
-import {stepFrame} from '../lib/easing';
-import {snap} from '../lib/pixel';
 import {CHARACTERS} from './registry';
 import {useMouth, type MouthShape} from './useMouth';
 import {Emote, type EmoteType} from './Emote';
@@ -12,9 +10,9 @@ export type Expr = 'neutral' | 'happy' | 'surprised' | 'worried' | 'determined' 
 
 export interface CharacterProps {
   id: CharId;
-  /** Ground anchor X in 480x270 art-space (integer). */
+  /** Ground anchor X in 480x270 art-space (continuous fractional pan supported). */
   x: number;
-  /** Ground anchor Y (feet level) in 480x270 art-space (integer). */
+  /** Ground anchor Y (feet level) in 480x270 art-space. */
   y: number;
   flip?: boolean;
   pose?: Pose;
@@ -23,7 +21,7 @@ export interface CharacterProps {
   lineId?: string;
   scale?: 1 | 2;
   z?: number;
-  /** 0 = full bright speaker; >0 dims non-speakers (PLAN 5.3 recommends 0.35). */
+  /** 0 = full bright speaker; >0 dims non-speakers. */
   dim?: number;
   /** Jump height in art pixels (positive lifts up, shadow stays grounded). */
   jumpY?: number;
@@ -49,11 +47,11 @@ export const Character: React.FC<CharacterProps> = ({
   const {fps} = useVideoConfig();
   const meta = CHARACTERS[id];
 
-  // Stepped 6 fps idle bob (PLAN 5.3: 1 px up/down, 1.2s cycle)
-  const bobStep = stepFrame(frame, 6, fps) % 7;
-  const idleBob = bobStep === 2 || bobStep === 3 ? -1 : 0;
+  // Smooth continuous breathing & speaking bounce (no harsh 4px staircase steps)
+  const phase = random(`breath-${id}`) * Math.PI * 2;
+  const idleBob = Math.sin(frame / 13 + phase) * 0.65;
 
-  // Seeded blink every 3-5 seconds for 3 frames
+  // Seeded blink every 3.2-5s for 3 frames
   const blinkPeriod = Math.round((3.2 + random(`blink-p-${id}`) * 1.8) * fps);
   const blinkPhase = Math.round(random(`blink-off-${id}`) * blinkPeriod);
   const isBlinking = (frame + blinkPhase) % blinkPeriod < 3;
@@ -61,12 +59,14 @@ export const Character: React.FC<CharacterProps> = ({
   // Mouth state (from lip-sync or placeholder)
   const activeMouth = useMouth(lineId, mouth);
   const isSpeaking = Boolean(lineId) && activeMouth !== 'closed';
-  const talkBob = isSpeaking && frame % 8 < 4 ? -1 : 0;
+  const talkBob = isSpeaking ? -Math.abs(Math.sin(frame * 0.55)) * 1.1 : 0;
 
-  // Cheer hop
-  const cheerHop = pose === 'cheer' ? (Math.floor(frame / 5) % 2 === 0 ? -2 : 0) : 0;
+  // Smooth cheer bounce instead of binary frame snap
+  const cheerHop = pose === 'cheer' ? -Math.abs(Math.sin(frame * 0.42)) * 2.4 : 0;
+  // Walk bob when walking
+  const walkBob = pose === 'walk' ? -Math.abs(Math.sin(frame * 0.55)) * 1.4 : 0;
 
-  const bodyOffsetY = snap(idleBob + talkBob + cheerHop - jumpY);
+  const bodyOffsetY = idleBob + talkBob + cheerHop + walkBob - jumpY;
 
   // Resolve eyes sprite
   let eyesName: string = expr === 'neutral' ? 'open' : expr;
@@ -110,8 +110,8 @@ export const Character: React.FC<CharacterProps> = ({
 
   const w = 64 * scale;
   const h = 80 * scale;
-  const left = snap(x - 32 * scale);
-  const top = snap(y - 75 * scale);
+  const left = x - 32 * scale;
+  const top = y - 75 * scale;
   const base = `sprites/characters/${id}`;
 
   const layerStyle: React.CSSProperties = {
@@ -132,20 +132,21 @@ export const Character: React.FC<CharacterProps> = ({
     <div
       style={{
         position: 'absolute',
-        left,
-        top,
+        left: 0,
+        top: 0,
+        transform: `translate3d(${left.toFixed(2)}px, ${top.toFixed(2)}px, 0)`,
         width: w,
         height: h,
         zIndex: z,
         pointerEvents: 'none',
       }}
     >
-      {/* Ground shadow stays fixed on floor even when jumping */}
+      {/* Ground shadow stays anchored cleanly to floor */}
       <Img
         src={staticFile(`${base}/shadow.png`)}
         style={{
           ...layerStyle,
-          opacity: Math.max(0.35, 1 - jumpY * 0.04),
+          opacity: Math.max(0.32, 1 - jumpY * 0.04),
         }}
       />
 
@@ -154,7 +155,7 @@ export const Character: React.FC<CharacterProps> = ({
         style={{
           position: 'absolute',
           inset: 0,
-          transform: `translateY(${bodyOffsetY}px) scaleX(${flip ? -1 : 1})`,
+          transform: `translate3d(0, ${bodyOffsetY.toFixed(2)}px, 0) scaleX(${flip ? -1 : 1})`,
           transformOrigin: 'center center',
           filter: dimFilter,
         }}
@@ -174,7 +175,7 @@ export const Character: React.FC<CharacterProps> = ({
         <Img src={staticFile(`${base}/accessory.png`)} style={layerStyle} />
         <Img
           src={staticFile(`${base}/rim.png`)}
-          style={{...layerStyle, opacity: dim > 0 ? 0.25 : 0.92}}
+          style={{...layerStyle, opacity: dim > 0 ? 0.25 : 0.94}}
         />
         <Img src={staticFile(`${base}/arm_r_${armR}.png`)} style={layerStyle} />
       </div>
@@ -183,8 +184,8 @@ export const Character: React.FC<CharacterProps> = ({
       {emote ? (
         <Emote
           type={emote.type}
-          x={snap(w / 2)}
-          y={snap(12 * scale + bodyOffsetY)}
+          x={Math.round(w / 2)}
+          y={Math.round(12 * scale + bodyOffsetY)}
           startFrame={emote.startFrame}
           durationFrames={emote.durationFrames}
         />
@@ -200,23 +201,32 @@ export const JeliMascot: React.FC<{
   z?: number;
 }> = ({x, y, mood = 'idle', z = 20}) => {
   const frame = useCurrentFrame();
-  const hover = snap(Math.sin(frame / 10) * 2);
+  const hover = Math.sin(frame / 11) * 2.2;
+  const tilt = Math.sin(frame / 18) * 3.5;
   const variant =
     mood === 'idle' ? (Math.floor(frame / 12) % 2 === 0 ? 'idle_a' : 'idle_b') : mood;
 
   return (
-    <Img
-      src={staticFile(`sprites/characters/jeli/${variant}.png`)}
+    <div
       style={{
         position: 'absolute',
-        left: snap(x - 12),
-        top: snap(y - 12) + hover,
+        left: 0,
+        top: 0,
+        transform: `translate3d(${(x - 12).toFixed(2)}px, ${(y - 12 + hover).toFixed(2)}px, 0) rotate(${tilt.toFixed(2)}deg)`,
         width: 24,
         height: 24,
         zIndex: z,
-        imageRendering: 'pixelated',
         pointerEvents: 'none',
       }}
-    />
+    >
+      <Img
+        src={staticFile(`sprites/characters/jeli/${variant}.png`)}
+        style={{
+          width: 24,
+          height: 24,
+          imageRendering: 'pixelated',
+        }}
+      />
+    </div>
   );
 };

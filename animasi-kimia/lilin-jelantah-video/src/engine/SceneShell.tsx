@@ -41,17 +41,17 @@ export const SceneShell: React.FC<SceneShellProps> = ({
   zoom = 1,
   shake = 0,
   focus = 1,
-  farBlur = 7,
-  midBlur = 2.5,
+  farBlur = 6,
+  midBlur = 2.2,
   farBg,
   midBg,
   floor,
   lights,
-  rays = {opacity: 0.12},
-  bloom = {intensity: 0.2},
-  dust = {count: 34},
-  vignette = 0.36,
-  grain = 0.08,
+  rays = {opacity: 0.16},
+  bloom = {intensity: 0.25},
+  dust = {count: 38},
+  vignette = 0.4,
+  grain = 0.075,
   letterbox = 0,
   hud,
   children,
@@ -62,7 +62,7 @@ export const SceneShell: React.FC<SceneShellProps> = ({
   return (
     <PixelStage background={PALETTE.void} hud={hud}>
       <Camera x={camX} y={camY} zoom={zoom} shake={shake}>
-        {/* 1. Far background (heavily blurred DoF) */}
+        {/* 1. Far background (cinematic DoF blur) */}
         {farBg ? (
           <Parallax depth={0.2} blurPx={farBlur} focus={focus} camOffsetX={camOffsetX} camOffsetY={camOffsetY}>
             {farBg}
@@ -82,16 +82,16 @@ export const SceneShell: React.FC<SceneShellProps> = ({
         {/* 4. Sharp characters & main props */}
         <div style={{position: 'absolute', inset: 0}}>{children}</div>
 
-        {/* 5. God rays */}
+        {/* 5. Volumetric god rays */}
         {rays ? <LightRays {...rays} /> : null}
 
-        {/* 6. Point lights */}
+        {/* 6. Local practical & key lights */}
         {lights}
 
-        {/* 7. Bloom */}
+        {/* 7. Soft filmic bloom */}
         {bloom ? <Bloom {...bloom} /> : null}
 
-        {/* 8. Floating atmospheric dust */}
+        {/* 8. Floating atmospheric dust & bokeh */}
         {dust ? <Dust {...dust} /> : null}
       </Camera>
 

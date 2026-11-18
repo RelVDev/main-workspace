@@ -1,5 +1,5 @@
 import React from 'react';
-import {useCurrentFrame, useVideoConfig} from 'remotion';
+import {Sequence, useCurrentFrame, useVideoConfig} from 'remotion';
 import {DubLayer} from '../audio/DubLayer';
 import {SfxLayer} from '../audio/SfxLayer';
 import {Character} from '../characters/Character';
@@ -8,14 +8,16 @@ import contributionsJson from '../data/contributions.json';
 import {S08_SFX} from '../data/cues/S08.cues';
 import {PALETTE} from '../data/palette';
 import type {CharId} from '../data/script';
+import {FloorGlow, PointLight} from '../engine/Lighting';
 import {SceneShell} from '../engine/SceneShell';
-import {PointLight} from '../engine/Lighting';
 import {RealFootage} from '../footage/RealFootage';
+import {smoothKeyframes} from '../lib/easing';
 import {FONT_BODY, FONT_TITLE} from '../lib/fonts';
 import {ART_H, ART_W} from '../lib/pixel';
 import {lineEnd, lineStartSec} from '../lib/seconds';
 import {SceneBanner} from '../ui/SceneBanner';
 import {SceneSubtitles} from '../ui/Subtitles';
+import {HangingLamp, PottedPlant, StringLights, WallWainscot} from './shared/RoomDecor';
 import {StageFloor} from './shared/StageElements';
 
 const CONTRIB_MAP = contributionsJson as Record<CharId, {role: string; tasks: string[]; prop: string}>;
@@ -32,11 +34,24 @@ export const S08_Kontribusi: React.FC = () => {
     (id) => frame >= Math.round(lineStartSec(id) * fps) && frame <= lineEnd(id),
   );
 
+  // Smooth zoom & pan across 9 members
+  const camZoom = smoothKeyframes(t, [
+    [0, 1.0],
+    [tL2, 1.04],
+    [tL3, 1.08],
+    [tL3 + 6, 1.02],
+  ]);
+
   const hud = (
     <>
-      <SceneBanner badge="BAGIAN 8 · KONTRIBUSI TIM" title="Kerja Sama 9 Anggota Kelompok" accent={PALETTE.tan} startFrame={6} endFrame={120} />
+      <SceneBanner
+        badge="BAGIAN 8 · KONTRIBUSI TIM"
+        title="Kerja Sama 9 Anggota Kelompok"
+        accent={PALETTE.tan}
+        startFrame={6}
+        endFrame={120}
+      />
 
-      {/* Polaroid & task corkboard cards */}
       {t >= tL2 - 1 && t < tL3 ? (
         <div
           style={{
@@ -59,7 +74,7 @@ export const S08_Kontribusi: React.FC = () => {
                 style={{
                   backgroundColor: lit ? 'rgba(27,16,32,0.92)' : 'rgba(27,16,32,0.65)',
                   border: `4px solid ${lit ? meta.accentColor : PALETTE.woodMid}`,
-                  boxShadow: `6px 6px 0 ${PALETTE.ink}`,
+                  boxShadow: lit ? `0 0 14px ${meta.accentColor}44, 6px 6px 0 ${PALETTE.ink}` : `6px 6px 0 ${PALETTE.ink}`,
                   padding: '12px 16px',
                   opacity: lit ? 1 : 0.45,
                 }}
@@ -79,12 +94,11 @@ export const S08_Kontribusi: React.FC = () => {
         </div>
       ) : null}
 
-      {/* L03 Mini BTS TVs + Relay Summary */}
       {t >= tL3 ? (
         <div
           style={{
             position: 'absolute',
-            top: 96,
+            top: 94,
             left: 120,
             right: 120,
             display: 'flex',
@@ -98,15 +112,18 @@ export const S08_Kontribusi: React.FC = () => {
               <div
                 key={tv}
                 style={{
-                  width: 360,
-                  height: 210,
+                  width: 380,
+                  height: 220,
                   border: `6px solid ${PALETTE.woodMid}`,
                   outline: `4px solid ${PALETTE.ink}`,
+                  boxShadow: `8px 8px 0 ${PALETTE.ink}`,
                   backgroundColor: PALETTE.void,
                   overflow: 'hidden',
                 }}
               >
-                <RealFootage id="F08" variant="pixel" compactPlaceholder />
+                <Sequence from={Math.round((tL3 - tv * 2) * fps)} layout="none">
+                  <RealFootage id="F08" variant="natural" loop compactPlaceholder />
+                </Sequence>
               </div>
             ))}
           </div>
@@ -134,18 +151,13 @@ export const S08_Kontribusi: React.FC = () => {
       grade="office"
       camX={240}
       camY={135}
-      zoom={1}
-      farBlur={4}
-      midBlur={1.5}
+      zoom={camZoom}
+      farBlur={3.2}
+      midBlur={1.2}
       farBg={
-        <div
-          style={{
-            width: ART_W,
-            height: ART_H,
-            background: `linear-gradient(180deg, ${PALETTE.woodMid} 0%, ${PALETTE.woodDark} 100%)`,
-          }}
-        >
-          {/* Corkboard */}
+        <div style={{position: 'relative', width: ART_W, height: ART_H}}>
+          <WallWainscot yFloor={206} wallTop={PALETTE.woodMid} wallBot={PALETTE.woodDark} wainscot={PALETTE.woodDark} trim={PALETTE.gold} />
+          {/* Detailed Corkboard with colorful polaroid pins */}
           <div
             style={{
               position: 'absolute',
@@ -155,16 +167,45 @@ export const S08_Kontribusi: React.FC = () => {
               height: 124,
               backgroundColor: PALETTE.woodLight,
               border: `4px solid ${PALETTE.woodDark}`,
+              outline: `2px solid ${PALETTE.ink}`,
             }}
-          />
+          >
+            {[0, 1, 2, 3, 4].map((p) => (
+              <div
+                key={p}
+                style={{
+                  position: 'absolute',
+                  left: 24 + p * 62,
+                  top: 22 + (p % 2) * 26,
+                  width: 42,
+                  height: 36,
+                  backgroundColor: PALETTE.cream,
+                  border: `2px solid ${PALETTE.ink}`,
+                }}
+              >
+                <div style={{position: 'absolute', left: 18, top: -3, width: 5, height: 5, borderRadius: '50%', backgroundColor: PALETTE.red}} />
+                <div style={{position: 'absolute', inset: '5px 5px 10px 5px', backgroundColor: p % 2 === 0 ? PALETTE.teal : PALETTE.amber}} />
+              </div>
+            ))}
+          </div>
         </div>
       }
+      midBg={<StringLights y={12} count={16} sag={8} />}
       floor={<StageFloor y={206} topColor={PALETTE.woodMid} bottomColor={PALETTE.woodDark} />}
-      lights={<PointLight x={240} y={96} radius={180} color={PALETTE.cream} intensity={0.4} />}
-      dust={{count: 24, color: PALETTE.cream, seed: 's08-dust'}}
+      lights={
+        <>
+          <HangingLamp x={140} cordLen={14} bulbColor={PALETTE.cream} coneHeight={170} opacity={0.18} />
+          <HangingLamp x={340} cordLen={14} bulbColor={PALETTE.cream} coneHeight={170} opacity={0.18} />
+          <FloorGlow x={240} y={210} rx={140} ry={14} color={PALETTE.goldPale} opacity={0.3} />
+          <PointLight x={240} y={96} radius={185} color={PALETTE.cream} intensity={0.44} />
+        </>
+      }
+      dust={{count: 28, color: PALETTE.cream, seed: 's08-dust'}}
       hud={hud}
     >
-      {/* All 9 members lined behind team table */}
+      <PottedPlant x={24} y={206} h={24} />
+      <PottedPlant x={456} y={206} h={24} />
+
       {ALL_CHAR_IDS.map((cid, idx) => (
         <Character
           key={cid}
@@ -174,7 +215,7 @@ export const S08_Kontribusi: React.FC = () => {
           pose={t >= tL3 + 6 ? 'cheer' : cid === 'ais' ? 'talk' : 'idle'}
           expr="happy"
           lineId={cid === 'ais' ? activeLineId : undefined}
-          dim={cid === 'ais' ? 0 : 0.15}
+          dim={cid === 'ais' ? 0 : 0.12}
           z={cid === 'ais' ? 22 : 14}
         />
       ))}

@@ -1,10 +1,10 @@
-// Data resep sebenarnya diisi oleh user sesuai praktikum.
-// Agent dilarang mengarang angka/bahan tanpa persetujuan user.
+// Data resep berdasarkan bahan yang teramati pada dokumentasi praktikum kelompok.
+// Takaran numerik & suhu tepat tetap bertanda TODO(user) hingga diisi oleh user.
 export const recipe = {
-  bahanLilin: 'TODO(user): bahan lilin / pemadat',
-  pewangi: 'TODO(user): pewangi / minyak esensial',
-  wadah: 'TODO(user): wadah tahan panas',
-  sumbu: 'TODO(user): sumbu lilin + penyangga',
+  bahanLilin: 'Parafin padat (base lilin)',
+  pewangi: 'Essential oil (Vanilla) & pewarna krayon',
+  wadah: 'Gelas kaca kecil tahan panas',
+  sumbu: 'Sumbu lilin + penyangga stik kayu',
   takaran: {
     jelantahTersaring: 'TODO(user)',
     bahanLilin: 'TODO(user)',

@@ -1,7 +1,7 @@
 import React from 'react';
 import {Img, staticFile, useCurrentFrame} from 'remotion';
 import {PALETTE} from '../../data/palette';
-import {ART_H, ART_W, snap} from '../../lib/pixel';
+import {ART_H, ART_W} from '../../lib/pixel';
 
 export const BokehBackdrop: React.FC<{
   topColor?: string;
@@ -15,13 +15,13 @@ export const BokehBackdrop: React.FC<{
   orbColorB = PALETTE.amber,
 }) => {
   const frame = useCurrentFrame();
-  const drift = Math.sin(frame / 50) * 4;
+  const drift = Math.sin(frame / 55) * 6;
   const orbs = [
-    {x: 68, y: 54, r: 28, c: orbColorA, op: 0.45},
-    {x: 150, y: 82, r: 18, c: orbColorB, op: 0.35},
-    {x: 340, y: 48, r: 34, c: orbColorA, op: 0.4},
-    {x: 412, y: 95, r: 22, c: orbColorB, op: 0.32},
-    {x: 245, y: 65, r: 16, c: PALETTE.cream, op: 0.25},
+    {x: 68, y: 54, r: 30, c: orbColorA, op: 0.45},
+    {x: 150, y: 82, r: 20, c: orbColorB, op: 0.35},
+    {x: 340, y: 48, r: 36, c: orbColorA, op: 0.4},
+    {x: 412, y: 95, r: 24, c: orbColorB, op: 0.34},
+    {x: 245, y: 65, r: 18, c: PALETTE.cream, op: 0.28},
   ];
   return (
     <div
@@ -31,63 +31,64 @@ export const BokehBackdrop: React.FC<{
         background: `linear-gradient(180deg, ${topColor} 0%, ${bottomColor} 100%)`,
       }}
     >
-      {orbs.map((o, i) => (
-        <div
-          key={i}
-          style={{
-            position: 'absolute',
-            left: snap(o.x - o.r + drift * (i % 2 === 0 ? 1 : -1)),
-            top: snap(o.y - o.r),
-            width: o.r * 2,
-            height: o.r * 2,
-            borderRadius: '50%',
-            background: `radial-gradient(circle, ${o.c} 0%, ${o.c}66 55%, transparent 100%)`,
-            opacity: o.op,
-          }}
-        />
-      ))}
+      {orbs.map((o, i) => {
+        const dx = o.x - o.r + drift * (i % 2 === 0 ? 1 : -1);
+        const dy = o.y - o.r + Math.cos(frame / 65 + i) * 2;
+        return (
+          <div
+            key={i}
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              transform: `translate3d(${dx.toFixed(2)}px, ${dy.toFixed(2)}px, 0)`,
+              width: o.r * 2,
+              height: o.r * 2,
+              borderRadius: '50%',
+              background: `radial-gradient(circle, ${o.c} 0%, ${o.c}66 55%, transparent 100%)`,
+              opacity: o.op,
+            }}
+          />
+        );
+      })}
     </div>
   );
 };
 
 export const VelvetCurtains: React.FC<{openProgress?: number}> = ({openProgress = 1}) => {
-  // openProgress 0 = closed, 1 = parted to edges
-  const sideW = snap(140 - openProgress * 82);
-  const topDrop = snap(36 - openProgress * 12);
+  const sideW = 140 - openProgress * 82;
+  const topDrop = 36 - openProgress * 12;
   return (
     <div style={{position: 'absolute', inset: 0, pointerEvents: 'none'}}>
-      {/* Left curtain */}
       <div
         style={{
           position: 'absolute',
           left: 0,
           top: 0,
           bottom: 0,
-          width: sideW,
+          width: Number(sideW.toFixed(2)),
           background: `repeating-linear-gradient(90deg, ${PALETTE.magentaDark} 0px, ${PALETTE.burgundy} 10px, ${PALETTE.maroon} 18px, ${PALETTE.magentaDark} 24px)`,
           borderRight: `2px solid ${PALETTE.gold}`,
         }}
       />
-      {/* Right curtain */}
       <div
         style={{
           position: 'absolute',
           right: 0,
           top: 0,
           bottom: 0,
-          width: sideW,
+          width: Number(sideW.toFixed(2)),
           background: `repeating-linear-gradient(90deg, ${PALETTE.magentaDark} 0px, ${PALETTE.burgundy} 10px, ${PALETTE.maroon} 18px, ${PALETTE.magentaDark} 24px)`,
           borderLeft: `2px solid ${PALETTE.gold}`,
         }}
       />
-      {/* Top valence */}
       <div
         style={{
           position: 'absolute',
           left: 0,
           right: 0,
           top: 0,
-          height: topDrop,
+          height: Number(topDrop.toFixed(2)),
           background: `repeating-linear-gradient(90deg, ${PALETTE.burgundy} 0px, ${PALETTE.maroon} 14px, ${PALETTE.magentaDark} 26px)`,
           borderBottom: `2px solid ${PALETTE.gold}`,
         }}
@@ -119,7 +120,6 @@ export const StageFloor: React.FC<{
         borderTop: `2px solid ${plankColor}`,
       }}
     >
-      {/* Horizontal plank lines */}
       {[14, 34, 56].map((dy) => (
         <div
           key={dy}
@@ -145,21 +145,41 @@ export const AnimatedFlame: React.FC<{
 }> = ({x, y, scale = 1}) => {
   const frame = useCurrentFrame();
   const variant = frame % 9 < 3 ? 'a' : frame % 9 < 6 ? 'b' : 'c';
+  const pulse = 0.96 + 0.08 * Math.sin(frame * 0.45);
   const w = 16 * scale;
   const h = 24 * scale;
   return (
-    <Img
-      src={staticFile(`sprites/fx/flame_${variant}.png`)}
+    <div
       style={{
         position: 'absolute',
-        left: snap(x - w / 2),
-        top: snap(y - h),
+        left: Number((x - w / 2).toFixed(2)),
+        top: Number((y - h).toFixed(2)),
         width: w,
         height: h,
-        imageRendering: 'pixelated',
         pointerEvents: 'none',
       }}
-    />
+    >
+      <div
+        style={{
+          position: 'absolute',
+          inset: -10 * scale,
+          borderRadius: '50%',
+          background: `radial-gradient(circle, ${PALETTE.goldPale}AA 0%, ${PALETTE.amber}44 45%, transparent 75%)`,
+          mixBlendMode: 'plus-lighter',
+          opacity: 0.8 + 0.2 * Math.sin(frame * 0.35),
+        }}
+      />
+      <Img
+        src={staticFile(`sprites/fx/flame_${variant}.png`)}
+        style={{
+          width: w,
+          height: h,
+          transform: `scale(${pulse.toFixed(3)})`,
+          transformOrigin: 'bottom center',
+          imageRendering: 'pixelated',
+        }}
+      />
+    </div>
   );
 };
 
@@ -169,12 +189,14 @@ export const PixelDoor: React.FC<{
   glow?: string;
   label?: string;
 }> = ({x, y, glow = PALETTE.gold, label}) => {
+  const frame = useCurrentFrame();
+  const glowPulse = 0.85 + 0.15 * Math.sin(frame / 18);
   return (
     <div
       style={{
         position: 'absolute',
-        left: snap(x),
-        top: snap(y),
+        left: Math.round(x),
+        top: Math.round(y),
         width: 34,
         height: 68,
       }}
@@ -182,9 +204,10 @@ export const PixelDoor: React.FC<{
       <div
         style={{
           position: 'absolute',
-          inset: -10,
-          background: `radial-gradient(circle, ${glow}66 0%, transparent 72%)`,
+          inset: -14,
+          background: `radial-gradient(circle, ${glow}77 0%, transparent 74%)`,
           mixBlendMode: 'plus-lighter',
+          opacity: glowPulse,
         }}
       />
       <div
@@ -205,7 +228,7 @@ export const PixelDoor: React.FC<{
             height: 22,
             backgroundColor: glow,
             border: `1px solid ${PALETTE.ink}`,
-            opacity: 0.9,
+            opacity: 0.92,
           }}
         />
         <div

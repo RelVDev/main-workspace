@@ -1,5 +1,6 @@
 import React from 'react';
-import {TransitionSeries, linearTiming} from '@remotion/transitions';
+import {TransitionSeries, linearTiming, springTiming} from '@remotion/transitions';
+import {Easing} from 'remotion';
 import {GlobalBgm} from './audio/Bgm';
 import {sceneDurationFrames} from './data/timeline';
 import {ensurePixelFonts} from './lib/fonts';
@@ -18,12 +19,19 @@ import {curtain, iris, lightFlash, pixelDissolve, slide} from './transitions';
 ensurePixelFonts();
 
 export const Main: React.FC = () => {
-  const t15 = linearTiming({durationInFrames: 15});
+  const smooth24 = linearTiming({
+    durationInFrames: 24,
+    easing: Easing.inOut(Easing.cubic),
+  });
+  const spring24 = springTiming({
+    config: {damping: 200},
+    durationInFrames: 24,
+  });
 
   return (
     <>
       <TransitionSeries>
-        {/* S01A -> S01B: Controlled hard cut (palm covers lens -> palm opens) */}
+        {/* S01A -> S01B: Direct clean cut so user can drop manual hand transition on the opening boundary */}
         <TransitionSeries.Sequence name="S01A Live Intro" durationInFrames={sceneDurationFrames('S01A')}>
           <S01A_LiveIntro />
         </TransitionSeries.Sequence>
@@ -33,15 +41,15 @@ export const Main: React.FC = () => {
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition
           presentation={iris({width: 1920, height: 1080})}
-          timing={t15}
+          timing={smooth24}
         />
 
         <TransitionSeries.Sequence name="S02 Masalah" durationInFrames={sceneDurationFrames('S02')}>
           <S02_Masalah />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition
-          presentation={pixelDissolve({cols: 24, rows: 14, seed: 'tr-s02'})}
-          timing={t15}
+          presentation={pixelDissolve({cols: 32, rows: 18, seed: 'tr-s02'})}
+          timing={smooth24}
         />
 
         <TransitionSeries.Sequence name="S03 Konsep Kimia" durationInFrames={sceneDurationFrames('S03')}>
@@ -49,7 +57,7 @@ export const Main: React.FC = () => {
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition
           presentation={slide({direction: 'from-right'})}
-          timing={t15}
+          timing={spring24}
         />
 
         <TransitionSeries.Sequence name="S04 Penerapan & Analisis" durationInFrames={sceneDurationFrames('S04')}>
@@ -57,15 +65,15 @@ export const Main: React.FC = () => {
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition
           presentation={curtain()}
-          timing={t15}
+          timing={smooth24}
         />
 
         <TransitionSeries.Sequence name="S05 Produk & Keselamatan" durationInFrames={sceneDurationFrames('S05')}>
           <S05_Produk />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition
-          presentation={lightFlash()}
-          timing={t15}
+          presentation={lightFlash({color: '#FFD97D'})}
+          timing={smooth24}
         />
 
         <TransitionSeries.Sequence name="S06 Data & Bukti" durationInFrames={sceneDurationFrames('S06')}>
@@ -73,15 +81,15 @@ export const Main: React.FC = () => {
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition
           presentation={slide({direction: 'from-right'})}
-          timing={t15}
+          timing={spring24}
         />
 
         <TransitionSeries.Sequence name="S07 Referensi" durationInFrames={sceneDurationFrames('S07')}>
           <S07_Referensi />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition
-          presentation={pixelDissolve({cols: 24, rows: 14, seed: 'tr-s07'})}
-          timing={t15}
+          presentation={pixelDissolve({cols: 32, rows: 18, seed: 'tr-s07'})}
+          timing={smooth24}
         />
 
         <TransitionSeries.Sequence name="S08 Kontribusi" durationInFrames={sceneDurationFrames('S08')}>
@@ -89,7 +97,7 @@ export const Main: React.FC = () => {
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition
           presentation={lightFlash({color: '#FFB25A'})}
-          timing={t15}
+          timing={smooth24}
         />
 
         <TransitionSeries.Sequence name="S09 Penutup" durationInFrames={sceneDurationFrames('S09')}>

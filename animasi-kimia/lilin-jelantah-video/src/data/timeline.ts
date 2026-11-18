@@ -15,15 +15,15 @@ export interface SceneMeta {
 
 export const SCENES: readonly SceneMeta[] = [
   {id: 'S01A', title: '1. Opening Live-Action', plannedSec: 40, out: 0, live: true},
-  {id: 'S01B', title: '1. Masuk Dunia Kimia Pixel', plannedSec: 30, out: 15},
-  {id: 'S02', title: '2. Identifikasi Masalah', plannedSec: 65, out: 15},
-  {id: 'S03', title: '3. Ketepatan Konsep Kimia', plannedSec: 80, out: 15},
-  {id: 'S04', title: '4. Penerapan & Analisis', plannedSec: 100, out: 15},
-  {id: 'S05', title: '5. Produk / Solusi Proyek', plannedSec: 60, out: 15},
-  {id: 'S06', title: '6. Kreativitas, Data & Bukti', plannedSec: 95, out: 15},
-  {id: 'S07', title: '7. Referensi & Komunikasi Ilmiah', plannedSec: 60, out: 15},
-  {id: 'S08', title: '8. Kontribusi Seluruh Anggota', plannedSec: 40, out: 15},
-  {id: 'S09', title: '9. Penutup & Keselamatan', plannedSec: 40, out: 0},
+  {id: 'S01B', title: '1. Masuk Dunia Kimia Pixel', plannedSec: 30, out: 24},
+  {id: 'S02', title: '2. Identifikasi Masalah', plannedSec: 65, out: 24},
+  {id: 'S03', title: '3. Ketepatan Konsep Kimia', plannedSec: 80, out: 24},
+  {id: 'S04', title: '4. Penerapan & Analisis', plannedSec: 100, out: 24},
+  {id: 'S05', title: '5. Produk / Solusi Proyek', plannedSec: 60, out: 24},
+  {id: 'S06', title: '6. Kreativitas, Data & Bukti', plannedSec: 95, out: 24},
+  {id: 'S07', title: '7. Referensi & Komunikasi Ilmiah', plannedSec: 60, out: 24},
+  {id: 'S08', title: '8. Kontribusi Seluruh Anggota', plannedSec: 40, out: 24},
+  {id: 'S09', title: '9. Penutup & Keselamatan', plannedSec: 49, out: 0},
 ] as const;
 
 export interface DubLineEntry {
@@ -81,8 +81,9 @@ export const getGlobalDubRangesFrames = (): [number, number][] => {
   for (const s of SCENES) {
     const startFrame = getSceneStartFrame(s.id);
     if (s.live) {
-      // Live action dialogue window (S01A 1.5s - 35.5s)
-      ranges.push([startFrame + Math.round(1.5 * FPS), startFrame + Math.round(35.5 * FPS)]);
+      // Live action dialogue window spans the full intro recording minus lead-out pad
+      const s01aLen = sceneFrames(s);
+      ranges.push([startFrame + 6, Math.max(startFrame + 10, startFrame + s01aLen - 15)]);
       continue;
     }
     for (const [a, b] of getSceneDubRangesFrames(s.id)) {

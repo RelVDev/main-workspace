@@ -26,15 +26,15 @@ export interface LipSyncTrack {
 
 const PLANNED_SEC: Record<SceneId, {plannedSec: number; out: number}> = {
   S01A: {plannedSec: 40, out: 0},
-  S01B: {plannedSec: 30, out: 15},
-  S02: {plannedSec: 65, out: 15},
-  S03: {plannedSec: 80, out: 15},
-  S04: {plannedSec: 100, out: 15},
-  S05: {plannedSec: 60, out: 15},
-  S06: {plannedSec: 95, out: 15},
-  S07: {plannedSec: 60, out: 15},
-  S08: {plannedSec: 40, out: 15},
-  S09: {plannedSec: 40, out: 0},
+  S01B: {plannedSec: 30, out: 24},
+  S02: {plannedSec: 65, out: 24},
+  S03: {plannedSec: 80, out: 24},
+  S04: {plannedSec: 100, out: 24},
+  S05: {plannedSec: 60, out: 24},
+  S06: {plannedSec: 95, out: 24},
+  S07: {plannedSec: 60, out: 24},
+  S08: {plannedSec: 40, out: 24},
+  S09: {plannedSec: 49, out: 0},
 };
 
 function probeAudioDuration(absPath: string): number {
@@ -152,6 +152,11 @@ function main() {
     };
   }
 
+  const footageJsonPath = path.join(PROJECT_ROOT, 'src/data/footage.json');
+  const footageInfo = fs.existsSync(footageJsonPath)
+    ? (JSON.parse(fs.readFileSync(footageJsonPath, 'utf8')) as Record<string, {present?: boolean; durationSec?: number}>)
+    : {};
+
   const FPS = 30;
   const scenesSummary: Record<
     string,
@@ -161,7 +166,10 @@ function main() {
 
   for (const [sceneId, cfg] of Object.entries(PLANNED_SEC)) {
     const dubEnd = dubEndByScene[sceneId] ?? 0;
-    const finalSec = Math.max(cfg.plannedSec, Math.ceil((dubEnd + 1.0) * 10) / 10);
+    let finalSec = Math.max(cfg.plannedSec, Math.ceil((dubEnd + 1.0) * 10) / 10);
+    if (sceneId === 'S01A' && footageInfo.F00?.present && footageInfo.F00.durationSec) {
+      finalSec = Math.max(10, Math.round(footageInfo.F00.durationSec * 100) / 100);
+    }
     const frames = Math.round(finalSec * FPS);
     scenesSummary[sceneId] = {
       plannedSec: cfg.plannedSec,

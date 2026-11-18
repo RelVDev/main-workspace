@@ -1,5 +1,5 @@
 import React from 'react';
-import {Img, interpolate, Sequence, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
+import {Easing, Img, interpolate, Sequence, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
 import {DubLayer} from '../audio/DubLayer';
 import {SfxLayer} from '../audio/SfxLayer';
 import {Character, JeliMascot} from '../characters/Character';
@@ -7,15 +7,17 @@ import {S05_SFX} from '../data/cues/S05.cues';
 import {META} from '../data/meta';
 import {PALETTE} from '../data/palette';
 import {recipe} from '../data/recipe';
+import {FloorGlow, PointLight, Sparkle, SpotCone} from '../engine/Lighting';
 import {SceneShell} from '../engine/SceneShell';
-import {PointLight, Sparkle} from '../engine/Lighting';
 import {EvidenceFrame} from '../footage/EvidenceFrame';
+import {smoothKeyframes} from '../lib/easing';
 import {FONT_BODY, FONT_TITLE} from '../lib/fonts';
 import {ART_H, ART_W} from '../lib/pixel';
 import {lineEnd, lineStartSec} from '../lib/seconds';
 import {SceneBanner} from '../ui/SceneBanner';
 import {SceneSubtitles} from '../ui/Subtitles';
-import {AnimatedFlame, PixelDoor, StageFloor} from './shared/StageElements';
+import {PottedPlant, StringLights} from './shared/RoomDecor';
+import {AnimatedFlame, PixelDoor, StageFloor, VelvetCurtains} from './shared/StageElements';
 
 export const S05_Produk: React.FC = () => {
   const frame = useCurrentFrame();
@@ -44,22 +46,34 @@ export const S05_Produk: React.FC = () => {
   const candleLit = t >= tL8 + 0.9;
 
   const shake =
-    (t >= tL6 + 0.6 && t <= tL6 + 1.0) || (t >= tL7 + 0.6 && t <= tL7 + 1.0) ? 1 : 0;
+    (t >= tL6 + 0.6 && t <= tL6 + 1.0) || (t >= tL7 + 0.6 && t <= tL7 + 1.0) ? 0.85 : 0;
 
-  const camZoom = showProductZoom
-    ? interpolate(t, [tL5, tL5 + 2], [1.0, 1.4], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'})
-    : 1.0;
+  // Smooth zoom in & pull back — zero snap
+  const camZoom = smoothKeyframes(t, [
+    [0, 1.0],
+    [tL5 - 0.3, 1.0],
+    [tL5 + 1.5, 1.34],
+    [tL6 - 0.4, 1.34],
+    [tL6 + 0.9, 1.0],
+    [tL8, 1.0],
+    [tL8 + 2.5, 1.18],
+  ]);
 
   const hud = (
     <>
-      <SceneBanner badge="BAGIAN 5 · PRODUK & KESELAMATAN" title="Lilin Aromatis dari Minyak Jelantah" accent={PALETTE.blush} startFrame={6} endFrame={135} />
+      <SceneBanner
+        badge="BAGIAN 5 · PRODUK & KESELAMATAN"
+        title="Lilin Aromatis dari Minyak Jelantah"
+        accent={PALETTE.blush}
+        startFrame={6}
+        endFrame={135}
+      />
 
-      {/* L02 Visual Equation: A + B + C + D = Product (NO "berubah menjadi parafin") */}
       {showEquation ? (
         <div
           style={{
             position: 'absolute',
-            top: 120,
+            top: 118,
             left: 90,
             right: 90,
             display: 'flex',
@@ -74,13 +88,18 @@ export const S05_Produk: React.FC = () => {
             {txt: '+', c: PALETTE.cream, plain: true, at: tL2 + 1.0},
             {txt: `Bahan Lilin\n(${recipe.bahanLilin})`, c: PALETTE.gold, at: tL2 + 1.3},
             {txt: '+', c: PALETTE.cream, plain: true, at: tL2 + 2.2},
-            {txt: `Pewangi\n(${recipe.pewangi})`, c: PALETTE.blush, at: tL2 + 2.5},
+            {txt: `Pewangi & Warna\n(${recipe.pewangi})`, c: PALETTE.blush, at: tL2 + 2.5},
             {txt: '+', c: PALETTE.cream, plain: true, at: tL2 + 3.4},
             {txt: 'Sumbu &\nWadah', c: PALETTE.teal, at: tL2 + 3.6},
             {txt: '=', c: PALETTE.gold, plain: true, at: tL2 + 4.3},
             {txt: 'LILIN AROMATIS', c: PALETTE.cyan, at: tL2 + 4.5},
           ].map((box, i) => {
             if (t < box.at) return null;
+            const popIn = interpolate(t, [box.at, box.at + 0.25], [0.75, 1], {
+              extrapolateLeft: 'clamp',
+              extrapolateRight: 'clamp',
+              easing: Easing.out(Easing.back(1.4)),
+            });
             if (box.plain) {
               return (
                 <span key={i} style={{fontFamily: FONT_TITLE, fontSize: 30, color: box.c, textShadow: `3px 3px 0 ${PALETTE.ink}`}}>
@@ -97,11 +116,12 @@ export const S05_Produk: React.FC = () => {
                   boxShadow: `6px 6px 0 ${PALETTE.ink}`,
                   padding: '16px 20px',
                   fontFamily: FONT_BODY,
-                  fontSize: 26,
+                  fontSize: 25,
                   fontWeight: 700,
                   color: PALETTE.cream,
                   whiteSpace: 'pre-line',
                   textAlign: 'center',
+                  transform: `scale(${popIn.toFixed(3)})`,
                 }}
               >
                 {box.txt}
@@ -111,7 +131,6 @@ export const S05_Produk: React.FC = () => {
         </div>
       ) : null}
 
-      {/* L03-L05 Process steps + Natural product frame F06 */}
       {showProcess || showProductZoom ? (
         <div
           style={{
@@ -127,9 +146,9 @@ export const S05_Produk: React.FC = () => {
         >
           <div style={{display: 'flex', flexDirection: 'column', gap: 12, flex: 1}}>
             {[
-              '1. Saring minyak jelantah',
-              '2. Siapkan bahan lilin & wadah bersumbu',
-              '3. Panaskan & campur merata + pewangi',
+              '1. Siapkan minyak jelantah & wadah bersumbu',
+              '2. Lelehkan parafin & campurkan minyak + pewangi',
+              '3. Tambahkan pewarna & aduk merata',
               '4. Tuang ke wadah & dinginkan (FISIKA)',
               '5. Produk siap diamati & diberi nilai guna',
             ].map((step, i) => {
@@ -142,7 +161,7 @@ export const S05_Produk: React.FC = () => {
                     border: `4px solid ${active ? PALETTE.gold : PALETTE.slate}`,
                     padding: '12px 18px',
                     fontFamily: FONT_BODY,
-                    fontSize: 26,
+                    fontSize: 25,
                     fontWeight: 700,
                     color: active ? PALETTE.cream : PALETTE.steel,
                   }}
@@ -158,7 +177,6 @@ export const S05_Produk: React.FC = () => {
         </div>
       ) : null}
 
-      {/* L06-L07 MANDATORY SAFETY PANELS */}
       {showSafety ? (
         <div
           style={{
@@ -226,7 +244,7 @@ export const S05_Produk: React.FC = () => {
       camY={135}
       zoom={camZoom}
       shake={shake}
-      farBlur={6}
+      farBlur={5}
       midBlur={2}
       farBg={
         <div
@@ -237,22 +255,31 @@ export const S05_Produk: React.FC = () => {
           }}
         />
       }
+      midBg={
+        <>
+          <VelvetCurtains openProgress={1} />
+          <StringLights y={18} count={14} sag={10} colorA={PALETTE.goldPale} colorB={PALETTE.blush} />
+        </>
+      }
       floor={<StageFloor y={202} topColor={PALETTE.plumMid} bottomColor={PALETTE.plumDeep} />}
       lights={
         <>
-          <PointLight x={240} y={110} radius={130} color={PALETTE.amber} intensity={0.65} />
+          <SpotCone x={240} topY={0} bottomY={210} spreadW={82} color={PALETTE.goldPale} opacity={0.26} />
+          <FloorGlow x={240} y={206} rx={72} ry={14} color={candleLit ? PALETTE.gold : PALETTE.amber} opacity={0.38} />
+          <PointLight x={240} y={110} radius={135} color={PALETTE.amber} intensity={0.65} />
           {candleLit ? (
-            <PointLight x={240} y={132} radius={80} color={PALETTE.gold} intensity={0.85} flicker />
+            <PointLight x={240} y={132} radius={86} color={PALETTE.gold} intensity={0.88} flicker />
           ) : null}
         </>
       }
-      rays={{color: PALETTE.gold, opacity: 0.16, angleDeg: 0}}
-      dust={{count: 34, color: PALETTE.goldPale, seed: 's05-dust'}}
+      rays={{color: PALETTE.gold, opacity: 0.18, angleDeg: 0}}
+      dust={{count: 38, color: PALETTE.goldPale, seed: 's05-dust'}}
       hud={hud}
     >
       <PixelDoor x={426} y={134} glow={PALETTE.teal} label="OBSERVATORIUM" />
+      <PottedPlant x={66} y={202} h={28} />
+      <PottedPlant x={392} y={202} h={24} />
 
-      {/* Center Showroom Podium & Candle */}
       <Img
         src={staticFile('sprites/props/podium.png')}
         style={{position: 'absolute', left: 216, top: 166, width: 48, height: 40, imageRendering: 'pixelated'}}
@@ -263,7 +290,6 @@ export const S05_Produk: React.FC = () => {
       />
       {candleLit ? <AnimatedFlame x={240} y={140} scale={1} /> : null}
 
-      {/* Safety sign prop */}
       {showSafety ? (
         <Img
           src={staticFile('sprites/props/safety_sign.png')}
@@ -271,7 +297,6 @@ export const S05_Produk: React.FC = () => {
         />
       ) : null}
 
-      {/* Ayuya (left) & Lovyta (right) */}
       <Character
         id="ayuya"
         x={148}

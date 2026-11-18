@@ -1,5 +1,5 @@
 import React from 'react';
-import {interpolate, useCurrentFrame} from 'remotion';
+import {Easing, interpolate, useCurrentFrame} from 'remotion';
 import {PALETTE} from '../data/palette';
 import {FONT_BODY, FONT_TITLE} from '../lib/fonts';
 
@@ -13,13 +13,15 @@ export const SceneBanner: React.FC<{
   const frame = useCurrentFrame();
   if (frame < startFrame || frame > endFrame) return null;
 
-  const op = interpolate(frame, [startFrame, startFrame + 10, endFrame - 12, endFrame], [0, 1, 1, 0], {
+  const op = interpolate(frame, [startFrame, startFrame + 12, endFrame - 14, endFrame], [0, 1, 1, 0], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
+    easing: Easing.inOut(Easing.cubic),
   });
-  const tx = interpolate(frame, [startFrame, startFrame + 12], [-40, 0], {
+  const tx = interpolate(frame, [startFrame, startFrame + 14], [-36, 0], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
+    easing: Easing.out(Easing.cubic),
   });
 
   return (
@@ -29,7 +31,7 @@ export const SceneBanner: React.FC<{
         top: 38,
         left: 48,
         opacity: op,
-        transform: `translateX(${tx.toFixed(0)}px)`,
+        transform: `translate3d(${tx.toFixed(2)}px, 0, 0)`,
         display: 'flex',
         flexDirection: 'column',
         gap: 8,

@@ -1,6 +1,7 @@
 import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import {FFMPEG_BIN, FFPROBE_BIN, PROJECT_ROOT} from './lib/ffmpeg-path';
 
 export interface FootageAnnotation {
@@ -57,8 +58,8 @@ const DEFAULT_FOOTAGE: Record<string, FootageEntry> = {
     hasAudio: false,
     use: {from: 0, to: 14, audio: 'mute'},
     annotations: [
-      {t0: 1.5, t1: 6.5, x: 0.56, y: 0.42, text: 'Saringan menahan remah & kotoran padat', arrow: 'left'},
-      {t0: 7.0, t1: 13.0, x: 0.52, y: 0.68, text: 'Minyak tersaring (pemisahan fisika)', arrow: 'up'},
+      {t0: 1.0, t1: 5.0, x: 0.52, y: 0.50, text: 'Alat & minyak disiapkan untuk percobaan', arrow: 'left'},
+      {t0: 6.0, t1: 12.5, x: 0.54, y: 0.56, text: 'Penakaran minyak ke gelas ukur', arrow: 'up'},
     ],
   },
   F02: {
@@ -83,12 +84,12 @@ const DEFAULT_FOOTAGE: Record<string, FootageEntry> = {
     file: 'footage/F03_mixing.mp4',
     pix: 'footage/pix/F03_mixing_soft.mp4',
     present: false,
-    durationSec: 8,
+    durationSec: 9,
     fps: 30,
     hasAudio: false,
-    use: {from: 0, to: 8, audio: 'mute'},
+    use: {from: 0, to: 9, audio: 'mute'},
     annotations: [
-      {t0: 1.0, t1: 6.5, x: 0.5, y: 0.5, text: 'Diaduk merata + pewangi', arrow: 'left'},
+      {t0: 0.8, t1: 8.0, x: 0.5, y: 0.5, text: 'Campur minyak + essential oil + pewarna krayon', arrow: 'left'},
     ],
   },
   F04: {
@@ -98,17 +99,17 @@ const DEFAULT_FOOTAGE: Record<string, FootageEntry> = {
     file: 'footage/F04_pouring.mp4',
     pix: 'footage/pix/F04_pouring_soft.mp4',
     present: false,
-    durationSec: 7,
+    durationSec: 7.5,
     fps: 30,
     hasAudio: false,
-    use: {from: 0, to: 7, audio: 'mute'},
+    use: {from: 0, to: 7.5, audio: 'mute'},
     annotations: [
-      {t0: 1.0, t1: 6.0, x: 0.52, y: 0.48, text: 'Tuang hati-hati ke wadah bersumbu', arrow: 'left'},
+      {t0: 0.8, t1: 6.5, x: 0.52, y: 0.48, text: 'Tuang ke wadah kaca & rapikan penyangga sumbu', arrow: 'left'},
     ],
   },
   F05: {
     id: 'F05',
-    title: 'Pendinginan & Pemadatan (Timelapse)',
+    title: 'Pendinginan & Pemadatan Lilin',
     scene: 'S04',
     file: 'footage/F05_cooling.mp4',
     pix: 'footage/pix/F05_cooling_soft.mp4',
@@ -116,9 +117,9 @@ const DEFAULT_FOOTAGE: Record<string, FootageEntry> = {
     durationSec: 7,
     fps: 30,
     hasAudio: false,
-    use: {from: 0, to: 7, audio: 'mute', playbackRate: 2},
+    use: {from: 0, to: 7, audio: 'mute', playbackRate: 1},
     annotations: [
-      {t0: 1.0, t1: 6.0, x: 0.5, y: 0.55, text: 'Mendingin & memadat (FISIKA)', arrow: 'up'},
+      {t0: 0.8, t1: 6.2, x: 0.5, y: 0.55, text: 'Mendingin & memadat (FISIKA)', arrow: 'up'},
     ],
   },
   F06: {
@@ -164,15 +165,15 @@ const DEFAULT_FOOTAGE: Record<string, FootageEntry> = {
   },
   F09: {
     id: 'F09',
-    title: 'Bloopers & Momen Tim (Opsional)',
+    title: 'Closing Live-Action Kelompok',
     scene: 'S09',
-    file: 'footage/F09_bloopers.mp4',
-    pix: 'footage/pix/F09_bloopers_soft.mp4',
+    file: 'footage/F09_closing.mp4',
+    pix: 'footage/F09_closing.mp4',
     present: false,
-    durationSec: 10,
+    durationSec: 7,
     fps: 30,
-    hasAudio: false,
-    use: {from: 0, to: 10, audio: 'mute'},
+    hasAudio: true,
+    use: {from: 0, to: 7, audio: 'full'},
     annotations: [],
   },
 };
@@ -206,26 +207,65 @@ function probeVideo(absPath: string) {
   return {durationSec, fps, hasAudio: Boolean(aStream)};
 }
 
-function sampleAvgColors(absPath: string): string[] {
-  const raw = execFileSync(FFMPEG_BIN, [
-    '-v',
-    'error',
-    '-i',
-    absPath,
-    '-vf',
-    'fps=2,scale=1:1:flags=area',
-    '-f',
-    'rawvideo',
-    '-pix_fmt',
-    'rgb24',
-    '-',
-  ]);
+function readSinglePixelPng(pngBuf: Buffer): string | null {
+  let offset = 8; // skip PNG signature
+  const idatChunks: Buffer[] = [];
+  let colorType = 2;
+  while (offset + 12 <= pngBuf.length) {
+    const len = pngBuf.readUInt32BE(offset);
+    const type = pngBuf.toString('ascii', offset + 4, offset + 8);
+    const data = pngBuf.subarray(offset + 8, offset + 8 + len);
+    if (type === 'IHDR' && data.length >= 10) {
+      colorType = data[9];
+    } else if (type === 'IDAT') {
+      idatChunks.push(data);
+    } else if (type === 'IEND') {
+      break;
+    }
+    offset += 12 + len;
+  }
+  if (idatChunks.length === 0) return null;
+  const raw = zlib.inflateSync(Buffer.concat(idatChunks));
+  // raw[0] is PNG scanline filter byte; following bytes are R,G,B(,A)
+  if (raw.length < 4) return null;
+  if (colorType === 0) {
+    const g = raw[1].toString(16).padStart(2, '0');
+    return `#${g}${g}${g}`;
+  }
+  const r = raw[1].toString(16).padStart(2, '0');
+  const g = raw[2].toString(16).padStart(2, '0');
+  const b = raw[3].toString(16).padStart(2, '0');
+  return `#${r}${g}${b}`;
+}
+
+function sampleAvgColors(absPath: string, durationSec: number): string[] {
   const colors: string[] = [];
-  for (let i = 0; i + 2 < raw.length; i += 3) {
-    const r = raw[i].toString(16).padStart(2, '0');
-    const g = raw[i + 1].toString(16).padStart(2, '0');
-    const b = raw[i + 2].toString(16).padStart(2, '0');
-    colors.push(`#${r}${g}${b}`);
+  const sampleCount = Math.min(8, Math.max(3, Math.round(durationSec / 2)));
+  for (let i = 0; i < sampleCount; i++) {
+    const ts = Math.max(0.1, ((i + 0.5) / sampleCount) * durationSec);
+    try {
+      const png = execFileSync(FFMPEG_BIN, [
+        '-v',
+        'error',
+        '-ss',
+        ts.toFixed(2),
+        '-i',
+        absPath,
+        '-frames:v',
+        '1',
+        '-vf',
+        'scale=1:1:flags=area',
+        '-c:v',
+        'png',
+        '-f',
+        'image2pipe',
+        'pipe:1',
+      ]);
+      const hex = readSinglePixelPng(png);
+      if (hex) colors.push(hex);
+    } catch {
+      // ignore sample error
+    }
   }
   return colors.length > 0 ? colors : ['#FFB25A'];
 }
@@ -257,17 +297,19 @@ function main() {
 
   for (const [id, def] of Object.entries(DEFAULT_FOOTAGE)) {
     const prev = existing[id];
-    const base: FootageEntry = prev ? {...def, ...prev, id} : {...def};
+    const base: FootageEntry = prev
+      ? {...def, ...prev, id, title: def.title, annotations: def.annotations}
+      : {...def};
 
     const matchedFile = filesInDir.find((f) => f.startsWith(`${id}_`) && f.endsWith('.mp4'));
-    const relFile = matchedFile ? `footage/${matchedFile}` : base.file;
+    const relFile = matchedFile ? `footage/${matchedFile}` : def.file;
     const absFile = path.join(PROJECT_ROOT, 'public', relFile);
 
     if (fs.existsSync(absFile)) {
       const probed = probeVideo(absFile);
       const pixCandidate = matchedFile
         ? `footage/pix/${matchedFile.replace(/\.mp4$/, '_soft.mp4')}`
-        : base.pix;
+        : def.pix;
       const absPix = path.join(PROJECT_ROOT, 'public', pixCandidate);
       base.file = relFile;
       base.pix = fs.existsSync(absPix) ? pixCandidate : relFile;
@@ -275,12 +317,16 @@ function main() {
       base.durationSec = Math.round(probed.durationSec * 100) / 100;
       base.fps = probed.fps;
       base.hasAudio = probed.hasAudio;
-      if (base.use.to > probed.durationSec || base.use.to === 0) {
-        base.use.to = base.durationSec;
-      }
-      lightResult[id] = sampleAvgColors(absFile);
+      base.use = {
+        ...def.use,
+        from: 0,
+        to: base.durationSec,
+      };
+      lightResult[id] = sampleAvgColors(absFile, probed.durationSec);
     } else {
       base.present = false;
+      base.file = def.file;
+      base.pix = def.pix;
       if (fs.existsSync(pixDir) && id === 'F00') {
         base.pix = 'footage/F00_ramp.mp4';
       }

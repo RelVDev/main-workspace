@@ -1,5 +1,5 @@
 import React from 'react';
-import {interpolate, useCurrentFrame} from 'remotion';
+import {Easing, interpolate, useCurrentFrame} from 'remotion';
 import {PALETTE} from '../data/palette';
 import {FONT_BODY} from '../lib/fonts';
 import {NamePlate} from './NamePlate';
@@ -33,9 +33,15 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
   const shown = text.slice(0, charCount);
   const cursorVisible = frame % 16 < 8 && charCount >= text.length;
 
-  const boxOpacity = interpolate(frame, [startFrame, startFrame + 4, endFrame - 4, endFrame], [0, 1, 1, 0], {
+  const boxOpacity = interpolate(frame, [startFrame, startFrame + 6, endFrame - 6, endFrame], [0, 1, 1, 0], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
+    easing: Easing.inOut(Easing.cubic),
+  });
+  const slideY = interpolate(frame, [startFrame, startFrame + 8], [14, 0], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+    easing: Easing.out(Easing.cubic),
   });
 
   return (
@@ -46,6 +52,7 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
         right: 160,
         bottom: bottomOffset,
         opacity: boxOpacity,
+        transform: `translate3d(0, ${slideY.toFixed(2)}px, 0)`,
         pointerEvents: 'none',
       }}
     >
@@ -54,10 +61,10 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
       </div>
       <div
         style={{
-          backgroundColor: 'rgba(27, 16, 32, 0.90)',
+          backgroundColor: 'rgba(27, 16, 32, 0.92)',
           border: `6px solid ${PALETTE.cream}`,
           outline: `4px solid ${PALETTE.ink}`,
-          boxShadow: `0 12px 0 rgba(16,10,20,0.65)`,
+          boxShadow: `0 12px 0 rgba(16,10,20,0.68)`,
           padding: '26px 34px 24px 34px',
           minHeight: 112,
         }}

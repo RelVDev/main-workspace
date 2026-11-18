@@ -21,7 +21,12 @@ const SceneBgmTrack: React.FC<{
   duckedVol = 0.08,
 }) => {
   const frame = useCurrentFrame();
+  const {fps} = useVideoConfig();
   const dubRanges = getSceneDubRangesFrames(sceneId);
+  if (sceneId === 'S09') {
+    // Duck softly under live-action closing clip (~33s..42s)
+    dubRanges.push([Math.round(33 * fps), Math.round(42 * fps)]);
+  }
   const duck = bgmVolume(frame, dubRanges, baseVol, duckedVol);
   const fade = interpolate(
     frame,
@@ -30,10 +35,10 @@ const SceneBgmTrack: React.FC<{
     {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'},
   );
 
-  // S01A pad rises gently only in last 8 seconds
+  // S01A stays subtle under real voices, rising gently over final 6 seconds before S01B
   const s01aGate =
     sceneId === 'S01A'
-      ? interpolate(frame, [Math.max(0, durationInFrames - 240), durationInFrames - 60], [0, 0.7], {
+      ? interpolate(frame, [Math.max(0, durationInFrames - 180), durationInFrames - 15], [0.22, 0.75], {
           extrapolateLeft: 'clamp',
           extrapolateRight: 'clamp',
         })

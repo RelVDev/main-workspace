@@ -1,5 +1,5 @@
 import React from 'react';
-import {Img, interpolate, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
+import {Img, interpolate, Sequence, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
 import {DubLayer} from '../audio/DubLayer';
 import {SfxLayer} from '../audio/SfxLayer';
 import {Character, JeliMascot} from '../characters/Character';
@@ -8,12 +8,15 @@ import {S09_SFX} from '../data/cues/S09.cues';
 import {META} from '../data/meta';
 import {PALETTE} from '../data/palette';
 import type {CharId} from '../data/script';
+import {FloorGlow, PointLight, Sparkle} from '../engine/Lighting';
 import {SceneShell} from '../engine/SceneShell';
-import {PointLight, Sparkle} from '../engine/Lighting';
+import {FOOTAGE_MAP, RealFootage} from '../footage/RealFootage';
+import {smoothKeyframes} from '../lib/easing';
 import {FONT_BODY, FONT_TITLE} from '../lib/fonts';
 import {ART_H, ART_W} from '../lib/pixel';
 import {lineEnd, lineStartSec} from '../lib/seconds';
 import {SceneSubtitles} from '../ui/Subtitles';
+import {StringLights} from './shared/RoomDecor';
 import {AnimatedFlame, StageFloor} from './shared/StageElements';
 
 const RELAY_LINES: Array<{id: string; who: CharId}> = [
@@ -28,6 +31,8 @@ const RELAY_LINES: Array<{id: string; who: CharId}> = [
   {id: 'S09_L09', who: 'ais'},
 ];
 
+const ROOF_X = [42, 82, 122, 162, 314, 352, 390, 426, 460];
+
 export const S09_Penutup: React.FC = () => {
   const frame = useCurrentFrame();
   const {fps, durationInFrames} = useVideoConfig();
@@ -36,7 +41,12 @@ export const S09_Penutup: React.FC = () => {
   const tL5 = lineStartSec('S09_L05');
   const tL10 = lineStartSec('S09_L10');
   const endL10 = lineEnd('S09_L10') / fps;
-  const endCardStart = Math.max(33.5, endL10 + 0.5);
+
+  const hasClosingVideo = Boolean(FOOTAGE_MAP.F09?.present);
+  const closingStart = Math.max(30.2, endL10 + 0.4);
+  const closingDur = FOOTAGE_MAP.F09?.durationSec ?? 7.0;
+  const showClosingVideo = hasClosingVideo && t >= closingStart && t < closingStart + closingDur;
+  const endCardStart = hasClosingVideo ? closingStart + closingDur + 0.3 : Math.max(33.5, endL10 + 0.5);
 
   const activeRelay = RELAY_LINES.find(
     (r) => frame >= Math.round(lineStartSec(r.id) * fps) && frame <= lineEnd(r.id),
@@ -45,7 +55,6 @@ export const S09_Penutup: React.FC = () => {
   const candleLit = t >= tL5 + 1.0;
   const showEndCard = t >= endCardStart;
 
-  // Sunset -> night transition
   const nightMix = interpolate(t, [0, 18], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
@@ -55,22 +64,34 @@ export const S09_Penutup: React.FC = () => {
     extrapolateRight: 'clamp',
   });
 
-  // Split 9 characters cleanly on left (4) and right (5) of center candle podium (x=240)
-  const ROOF_X = [42, 82, 122, 162, 314, 352, 390, 426, 460];
+  // Smooth eased camera glide across the 9 relay members instead of jumping X per speaker!
+  const camKeysX: Array<[number, number]> = [[0, 240]];
+  const camKeysZoom: Array<[number, number]> = [[0, 1.0]];
+  for (const r of RELAY_LINES) {
+    const s = lineStartSec(r.id);
+    const e = lineEnd(r.id) / fps;
+    const idx = ALL_CHAR_IDS.indexOf(r.who);
+    const cx = ROOF_X[idx] ?? 240;
+    camKeysX.push([Math.max(0.1, s - 0.15), idx === 0 ? 240 : ROOF_X[idx - 1] ?? 240]);
+    camKeysX.push([s + 0.45, cx]);
+    camKeysX.push([e, cx]);
+    camKeysZoom.push([Math.max(0.1, s - 0.15), idx === 0 ? 1.0 : 1.28]);
+    camKeysZoom.push([s + 0.45, 1.28]);
+  }
+  camKeysX.push([tL10, 240]);
+  camKeysZoom.push([tL10, 1.0]);
 
-  // Gentle camera spotlight follow during relay
-  const activeIdx = activeRelay ? ALL_CHAR_IDS.indexOf(activeRelay.who) : -1;
-  const targetX = activeIdx >= 0 ? ROOF_X[activeIdx] : 240;
-  const camZoom = activeRelay ? 1.35 : 1.0;
+  const targetX = smoothKeyframes(t, camKeysX);
+  const camZoom = smoothKeyframes(t, camKeysZoom);
+
   const groupJump =
     t >= tL10 && t <= tL10 + 1.0
-      ? Math.max(0, Math.round(Math.sin(((t - tL10) / 1.0) * Math.PI) * 14))
+      ? Math.max(0, Math.sin(((t - tL10) / 1.0) * Math.PI) * 14)
       : 0;
 
   const hud = (
     <>
-      {/* Safety reminder pill during L05 */}
-      {t >= tL5 && t <= endL10 ? (
+      {t >= tL5 && t < closingStart ? (
         <div
           style={{
             position: 'absolute',
@@ -88,8 +109,7 @@ export const S09_Penutup: React.FC = () => {
         </div>
       ) : null}
 
-      {/* Closing motto banner on S09_L10 */}
-      {t >= tL10 && !showEndCard ? (
+      {t >= tL10 && t < closingStart ? (
         <div
           style={{
             position: 'absolute',
@@ -109,7 +129,51 @@ export const S09_Penutup: React.FC = () => {
         </div>
       ) : null}
 
-      {/* Final End Card */}
+      {/* Real Group Live-Action Closing Clip (closing.MOV) */}
+      {showClosingVideo ? (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundColor: 'rgba(16,10,20,0.72)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 18,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: PALETTE.gold,
+              color: PALETTE.ink,
+              fontFamily: FONT_TITLE,
+              fontSize: 16,
+              padding: '10px 20px',
+              border: `4px solid ${PALETTE.ink}`,
+              boxShadow: `5px 5px 0 ${PALETTE.ink}`,
+            }}
+          >
+            SALAM PENUTUP KELOMPOK
+          </div>
+          <div
+            style={{
+              width: 1120,
+              height: 630,
+              border: `8px solid ${PALETTE.gold}`,
+              outline: `5px solid ${PALETTE.ink}`,
+              boxShadow: `14px 14px 0 ${PALETTE.ink}`,
+              overflow: 'hidden',
+              backgroundColor: PALETTE.void,
+            }}
+          >
+            <Sequence from={Math.round(closingStart * fps)} layout="none">
+              <RealFootage id="F09" variant="natural" />
+            </Sequence>
+          </div>
+        </div>
+      ) : null}
+
       {showEndCard ? (
         <div
           style={{
@@ -152,7 +216,7 @@ export const S09_Penutup: React.FC = () => {
         </div>
       ) : null}
 
-      {!showEndCard ? <SceneSubtitles sceneId="S09" bottomOffset={84} /> : null}
+      {!showEndCard && !showClosingVideo ? <SceneSubtitles sceneId="S09" bottomOffset={84} /> : null}
     </>
   );
 
@@ -163,7 +227,7 @@ export const S09_Penutup: React.FC = () => {
         camX={targetX}
         camY={135}
         zoom={camZoom}
-        farBlur={3}
+        farBlur={2.8}
         midBlur={1}
         farBg={
           <div
@@ -176,7 +240,23 @@ export const S09_Penutup: React.FC = () => {
                   : `linear-gradient(180deg, ${PALETTE.plumDeep} 0%, ${PALETTE.maroon} 55%, ${PALETTE.amber} 100%)`,
             }}
           >
-            {/* Distant twinkling pixel city skyline */}
+            {/* Starry night sparkles */}
+            {[
+              [42, 22], [108, 34], [186, 18], [268, 28], [344, 16], [420, 32], [74, 52], [388, 48],
+            ].map(([sx, sy], i) => (
+              <div
+                key={i}
+                style={{
+                  position: 'absolute',
+                  left: sx,
+                  top: sy,
+                  width: 2,
+                  height: 2,
+                  backgroundColor: PALETTE.goldPale,
+                  opacity: Math.max(0.15, nightMix * (0.4 + 0.6 * Math.abs(Math.sin(frame * 0.08 + i * 1.9)))),
+                }}
+              />
+            ))}
             <div style={{position: 'absolute', left: 0, right: 0, bottom: 68, height: 64, display: 'flex', alignItems: 'flex-end', gap: 6, padding: '0 12px'}}>
               {[34, 48, 28, 56, 40, 32, 60, 44, 36, 52, 30, 46].map((bh, i) => (
                 <div
@@ -205,19 +285,22 @@ export const S09_Penutup: React.FC = () => {
             </div>
           </div>
         }
+        midBg={<StringLights y={22} count={16} sag={10} />}
         floor={<StageFloor y={204} topColor={PALETTE.slate} bottomColor={PALETTE.plumDeep} />}
         lights={
-          candleLit ? (
-            <PointLight x={240} y={168} radius={165} color={PALETTE.amber} intensity={0.95} flicker banded />
-          ) : (
-            <PointLight x={240} y={90} radius={150} color={PALETTE.gold} intensity={0.4} />
-          )
+          <>
+            <FloorGlow x={240} y={208} rx={96} ry={14} color={candleLit ? PALETTE.amber : PALETTE.gold} opacity={0.36} />
+            {candleLit ? (
+              <PointLight x={240} y={168} radius={170} color={PALETTE.amber} intensity={0.95} flicker banded />
+            ) : (
+              <PointLight x={240} y={90} radius={155} color={PALETTE.gold} intensity={0.44} />
+            )}
+          </>
         }
-        dust={{count: 36, color: PALETTE.goldPale, seed: 's09-dust'}}
+        dust={{count: 38, color: PALETTE.goldPale, seed: 's09-dust'}}
         letterbox={1}
         hud={hud}
       >
-        {/* Center table & hero candle */}
         <Img
           src={staticFile('sprites/props/podium.png')}
           style={{position: 'absolute', left: 216, top: 174, width: 48, height: 34, imageRendering: 'pixelated'}}
@@ -228,7 +311,6 @@ export const S09_Penutup: React.FC = () => {
         />
         {candleLit ? <AnimatedFlame x={240} y={152} scale={1} /> : null}
 
-        {/* All 9 characters lined cleanly on left & right of hero candle */}
         {ALL_CHAR_IDS.map((cid, idx) => {
           const isMe = activeRelay?.who === cid || allSpeaking;
           return (
