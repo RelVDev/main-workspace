@@ -46,7 +46,9 @@
     "sync": "tsx scripts/probe-media.ts && tsx scripts/analyze-dub.ts && tsx scripts/validate.ts",
     "still": "remotion still LilinJelantah --frame=2100 out/still.png",
     "render:preview": "remotion render LilinJelantah out/preview.mp4 --scale=0.5 --crf=28",
-    "render:final": "remotion render LilinJelantah out/lilin-jelantah-final.mp4 --codec=h264 --crf=16"
+    "render:final": "remotion render LilinJelantah out/lilin-jelantah-final.mp4 --codec=h264 --crf=16",
+    "render:local": "remotion render LilinJelantah out/lilin-jelantah-final.mp4 --codec=h264 --crf=16 --concurrency=6 --gl=angle",
+    "render:local:preview": "remotion render LilinJelantah out/preview.mp4 --scale=0.5 --crf=28 --concurrency=6 --gl=angle"
   },
   "allowScripts": {
     "esbuild": false

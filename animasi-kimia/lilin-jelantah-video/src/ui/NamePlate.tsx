@@ -27,7 +27,7 @@ export const NamePlate: React.FC<{
         lineHeight: 1.2,
         padding: `${padY}px ${padX}px`,
         border: `4px solid ${PALETTE.ink}`,
-        boxShadow: `4px 4px 0 ${PALETTE.ink}`,
+        boxShadow: `4px 4px 0 ${PALETTE.ink}, inset 0 -4px 0 rgba(16,10,20,0.22), inset 0 4px 0 rgba(255,255,255,0.32)`,
         letterSpacing: 1,
       }}
     >

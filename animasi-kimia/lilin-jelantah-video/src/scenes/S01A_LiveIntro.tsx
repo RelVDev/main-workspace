@@ -1,4 +1,5 @@
 import React from 'react';
+import {noise2D} from '@remotion/noise';
 import {AbsoluteFill, Easing, interpolate, spring, useCurrentFrame, useVideoConfig} from 'remotion';
 import {SfxLayer} from '../audio/SfxLayer';
 import {Character} from '../characters/Character';
@@ -26,8 +27,9 @@ const SEGMENTS = introSegmentsJson as IntroSegment[];
 
 export const S01A_LiveIntro: React.FC = () => {
   const frame = useCurrentFrame();
-  const {fps} = useVideoConfig();
+  const {fps, durationInFrames} = useVideoConfig();
   const t = frame / fps;
+  const tToEnd = (durationInFrames - frame) / fps;
 
   const hasRealF00 = Boolean(FOOTAGE_MAP.F00?.present);
 
@@ -59,13 +61,66 @@ export const S01A_LiveIntro: React.FC = () => {
 
   return (
     <AbsoluteFill style={{backgroundColor: PALETTE.void, opacity: fadeIn, overflow: 'hidden'}}>
-      <AbsoluteFill style={{transform: `scale(${liveZoom.toFixed(4)})`}}>
+      <AbsoluteFill
+        style={{
+          transform: `scale(${liveZoom.toFixed(4)})`,
+          // gentle filmic grade so the live footage sits in the same warm world as the pixel scenes
+          filter: 'contrast(1.06) saturate(1.08) brightness(1.01)',
+        }}
+      >
         {hasRealF00 ? (
           <RealFootage id="F00" variant="natural" fit="cover" />
         ) : (
           <FootageSlot id="F00" durationSec={FOOTAGE_MAP.F00?.durationSec ?? 40} />
         )}
       </AbsoluteFill>
+
+      {/* ── Cinematic look on the live plate (under the HUD) ── */}
+      {/* split-tone: warm highlights, plum shadows */}
+      <AbsoluteFill
+        style={{
+          pointerEvents: 'none',
+          mixBlendMode: 'soft-light',
+          opacity: 0.4,
+          background: 'linear-gradient(180deg, rgba(255,190,110,0.85) 0%, rgba(255,178,90,0.25) 45%, rgba(58,27,92,0.6) 80%, rgba(42,21,48,0.9) 100%)',
+        }}
+      />
+      {/* lifted blacks into plum (matches the pixel world's grade) */}
+      <AbsoluteFill style={{pointerEvents: 'none', mixBlendMode: 'lighten', backgroundColor: '#1A0E1C'}} />
+      {/* drifting warm light-leak from the top-left */}
+      <AbsoluteFill
+        style={{
+          pointerEvents: 'none',
+          mixBlendMode: 'screen',
+          opacity: 0.16 + 0.08 * noise2D('s01a-leak', frame * 0.006, 0),
+          background: `radial-gradient(ellipse 55% 70% at ${(8 + 6 * noise2D('s01a-lx', frame * 0.004, 1)).toFixed(1)}% 0%, rgba(255,178,90,0.9) 0%, rgba(240,138,60,0.35) 40%, transparent 75%)`,
+        }}
+      />
+      {/* "the other world calls": warm edge glow that grows over the last seconds before the hand cover */}
+      {tToEnd < 9 ? (
+        <AbsoluteFill
+          style={{
+            pointerEvents: 'none',
+            mixBlendMode: 'screen',
+            opacity: interpolate(tToEnd, [1.2, 9], [1, 0], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic)}),
+            boxShadow: `inset 0 0 ${(80 + 60 * (0.5 + 0.5 * Math.sin(frame * 0.12))).toFixed(0)}px rgba(255,150,60,1), inset 0 0 260px rgba(240,110,40,0.6)`,
+          }}
+        />
+      ) : null}
+      <div
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          width: ART_W,
+          height: ART_H,
+          transform: `scale(${PX})`,
+          transformOrigin: 'top left',
+          pointerEvents: 'none',
+        }}
+      >
+        <Vignette strength={0.3} />
+      </div>
 
       {/* Top bar badges cleanly spaced left & right */}
       <div
@@ -272,8 +327,7 @@ export const S01A_LiveIntro: React.FC = () => {
           pointerEvents: 'none',
         }}
       >
-        <Vignette strength={0.22} />
-        <Grain opacity={0.04} />
+        <Grain opacity={0.045} />
       </div>
 
       <SfxLayer cues={S01A_SFX} />

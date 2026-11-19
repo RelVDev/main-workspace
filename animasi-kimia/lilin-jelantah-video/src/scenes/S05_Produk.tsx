@@ -1,5 +1,5 @@
 import React from 'react';
-import {Easing, Img, interpolate, Sequence, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
+import {Easing, interpolate, Sequence, staticFile, Img, useCurrentFrame, useVideoConfig} from 'remotion';
 import {DubLayer} from '../audio/DubLayer';
 import {SfxLayer} from '../audio/SfxLayer';
 import {Character, JeliMascot} from '../characters/Character';
@@ -7,17 +7,21 @@ import {S05_SFX} from '../data/cues/S05.cues';
 import {META} from '../data/meta';
 import {PALETTE} from '../data/palette';
 import {recipe} from '../data/recipe';
-import {FloorGlow, PointLight, Sparkle, SpotCone} from '../engine/Lighting';
+import {LensFlare} from '../engine/Atmosphere';
+import {FloorGlow, Sparkle, SpotCone} from '../engine/Lighting';
 import {SceneShell} from '../engine/SceneShell';
+import type {MapLight} from '../engine/SceneLight';
+import {VoxelModel, candleJarModel, podiumModel} from '../engine/Voxel';
 import {EvidenceFrame} from '../footage/EvidenceFrame';
-import {smoothKeyframes} from '../lib/easing';
+import {clamp01, smoothKeyframes} from '../lib/easing';
 import {FONT_BODY, FONT_TITLE} from '../lib/fonts';
-import {ART_H, ART_W} from '../lib/pixel';
 import {lineEnd, lineStartSec} from '../lib/seconds';
 import {SceneBanner} from '../ui/SceneBanner';
 import {SceneSubtitles} from '../ui/Subtitles';
 import {PottedPlant, StringLights} from './shared/RoomDecor';
-import {AnimatedFlame, PixelDoor, StageFloor, VelvetCurtains} from './shared/StageElements';
+import {AnimatedFlame, PixelDoor} from './shared/StageElements';
+import {VelvetCurtainsV2} from './shared/Stage3D';
+import {RopeStanchions, ShowroomBackdrop} from './shared/S05Set';
 
 export const S05_Produk: React.FC = () => {
   const frame = useCurrentFrame();
@@ -45,20 +49,83 @@ export const S05_Produk: React.FC = () => {
   const showSafety = t >= tL6 && t < tL8;
   const candleLit = t >= tL8 + 0.9;
 
-  const shake =
-    (t >= tL6 + 0.6 && t <= tL6 + 1.0) || (t >= tL7 + 0.6 && t <= tL7 + 1.0) ? 0.85 : 0;
+  // Impact shake on each safety panel (beep @+0.5, stamp @+2.8, beep @L07+0.5)
+  const shakeAt = [tL6 + 0.55, tL6 + 2.85, tL7 + 0.55];
+  const shake = shakeAt.reduce((m, s0) => Math.max(m, t >= s0 && t <= s0 + 0.35 ? 0.9 * (1 - (t - s0) / 0.35) : 0), 0);
 
+  // ── Camera: curtain-open establishing → push-in → tilt-up (equation) → pan (steps)
+  //    → 2x product close-up → wide safety → push to flame → rack/pan to the door
   const camZoom = smoothKeyframes(t, [
     [0, 1.0],
-    [3.5, 1.16],
-    [tL3, 1.06],
-    [tL5 - 0.3, 1.04],
-    [tL5 + 1.5, 1.4],
-    [tL6 - 0.4, 1.4],
-    [tL6 + 0.9, 1.02],
-    [tL8, 1.04],
-    [tL8 + 2.5, 1.24],
+    [1.0, 1.0],
+    [5.6, 1.2],
+    [tL2, 1.2],
+    [tL2 + 1.3, 1.08],
+    [tL3, 1.08],
+    [tL5 - 0.3, 1.1],
+    [tL5 + 1.3, 2.3],
+    [tL6 - 0.5, 2.38],
+    [tL6 + 0.8, 1.04],
+    [tL8, 1.06],
+    [tL8 + 2.2, 1.4],
+    [tL8 + 2.8, 1.4],
+    [tL8 + 4.4, 1.3],
   ]);
+  const camX = smoothKeyframes(t, [
+    [0, 240],
+    [tL3, 232],
+    [tL5 - 0.3, 254],
+    [tL5 + 1.3, 240],
+    [tL8 + 2.8, 240],
+    [tL8 + 4.4, 384],
+  ]);
+  const camY = smoothKeyframes(t, [
+    [0, 130],
+    [1.0, 130],
+    [5.6, 150],
+    [tL2, 150],
+    [tL2 + 1.3, 130],
+    [tL3, 138],
+    [tL5 - 0.3, 138],
+    [tL5 + 1.3, 166],
+    [tL6 - 0.5, 166],
+    [tL6 + 0.8, 140],
+    [tL8, 140],
+    [tL8 + 2.2, 168],
+    [tL8 + 4.4, 160],
+  ]);
+  const focus = smoothKeyframes(t, [
+    [0, 0.6],
+    [tL5, 0.6],
+    [tL5 + 1.3, 1],
+    [tL6, 1],
+    [tL6 + 0.8, 0.6],
+    [tL8 + 2.8, 1],
+    [tL8 + 4.4, 0.1],
+  ]);
+  const curtainOpen = smoothKeyframes(t, [
+    [0, 0.08],
+    [0.3, 0.08],
+    [2.6, 1],
+  ]);
+  const lit = clamp01((t - tL8 - 0.9) / 0.35);
+  const doorOn = clamp01((t - tL8 - 2.6) / 0.8);
+
+  const podium = React.useMemo(() => podiumModel(PALETTE.gold, PALETTE.woodMid), []);
+  const candle = React.useMemo(() => candleJarModel(PALETTE.cream, PALETTE.blush, 0.8), []);
+  const spin = frame * 0.018;
+
+  const mapLights: MapLight[] = [
+    {x: 240, y: 178, r: 66, sx: 1.3, color: PALETTE.goldPale, intensity: 0.95, seed: 'pod'},
+    {x: 148, y: 176, r: 46, color: PALETTE.gold, intensity: 0.5 + 0.4 * (ayuyaSpeaking ? 1 : 0)},
+    {x: 332, y: 176, r: 46, color: PALETTE.goldPale, intensity: 0.5 + 0.4 * (lovytaSpeaking ? 1 : 0)},
+    {x: 240, y: 100, r: 170, sx: 1.7, color: PALETTE.amber, intensity: 0.45, banded: false},
+    {x: 92, y: 80, r: 60, color: PALETTE.goldPale, intensity: 0.32},
+    {x: 410, y: 80, r: 60, color: PALETTE.goldPale, intensity: 0.32},
+    {x: 443, y: 168, r: 62, color: PALETTE.teal, intensity: 0.4 + 0.8 * doorOn, flicker: 0.05, seed: 'door'},
+    {x: 240, y: 160, r: 130, color: PALETTE.gold, intensity: 0.95 * lit, flicker: 0.22, seed: 'flame', banded: false},
+    {x: 240, y: 252, r: 160, sx: 2, color: PALETTE.amber, intensity: 0.4, banded: false},
+  ];
 
   const hud = (
     <>
@@ -241,61 +308,64 @@ export const S05_Produk: React.FC = () => {
   return (
     <SceneShell
       grade="showroom"
-      camX={240}
-      camY={135}
+      camX={camX}
+      camY={camY}
       zoom={camZoom}
       shake={shake}
-      farBlur={5}
-      midBlur={2}
-      farBg={
-        <div
-          style={{
-            width: ART_W,
-            height: ART_H,
-            background: `radial-gradient(circle at 50% 35%, ${PALETTE.burgundy} 0%, ${PALETTE.plumDeep} 60%, ${PALETTE.void} 100%)`,
-          }}
-        />
-      }
+      focus={focus}
+      farBlur={2.6}
+      midBlur={1}
+      intro="none"
+      outro="push"
+      handheld={0.9}
+      farBg={<ShowroomBackdrop />}
       midBg={
         <>
-          <VelvetCurtains openProgress={1} />
-          <StringLights y={18} count={14} sag={10} colorA={PALETTE.goldPale} colorB={PALETTE.blush} />
+          <StringLights y={22} count={14} sag={10} colorA={PALETTE.goldPale} colorB={PALETTE.blush} />
+          <VelvetCurtainsV2 openProgress={curtainOpen} seed="s05c" />
         </>
       }
-      floor={<StageFloor y={202} topColor={PALETTE.plumMid} bottomColor={PALETTE.plumDeep} />}
+      floor3d={{y: 202, pattern: 'stage', tile: 28, gloss: 0.45, glossColor: PALETTE.gold, seed: 's05'}}
+      lightMap={{ambient: '#1E0C24', darkness: 0.5, lights: mapLights}}
+      keyLight={{
+        keyX: 240,
+        keyY: candleLit ? 160 : 0,
+        rimColor: candleLit ? PALETTE.amber : PALETTE.goldPale,
+        rimStrength: 0.9,
+        shadowStrength: 0.55,
+      }}
       lights={
         <>
-          <SpotCone x={240} topY={0} bottomY={210} spreadW={82} color={PALETTE.goldPale} opacity={0.26} />
-          <FloorGlow x={240} y={206} rx={72} ry={14} color={candleLit ? PALETTE.gold : PALETTE.amber} opacity={0.38} />
-          <PointLight x={240} y={110} radius={135} color={PALETTE.amber} intensity={0.65} />
-          {candleLit ? (
-            <PointLight x={240} y={132} radius={86} color={PALETTE.gold} intensity={0.88} flicker />
-          ) : null}
+          <SpotCone x={240} topY={0} bottomY={206} spreadW={70} color={PALETTE.goldPale} opacity={0.2} />
+          <SpotCone x={148} topY={0} bottomY={206} spreadW={34} color={PALETTE.gold} opacity={ayuyaSpeaking ? 0.14 : 0.07} />
+          <SpotCone x={332} topY={0} bottomY={206} spreadW={34} color={PALETTE.goldPale} opacity={lovytaSpeaking ? 0.14 : 0.07} />
+          <FloorGlow x={240} y={206} rx={60} ry={10} color={candleLit ? PALETTE.gold : PALETTE.amber} opacity={0.32 + 0.2 * lit} />
+          {lit > 0.02 ? <LensFlare x={240} y={160} color={PALETTE.gold} intensity={0.6 * lit} width={170} seed="s05-flame" /> : null}
         </>
       }
-      rays={{color: PALETTE.gold, opacity: 0.18, angleDeg: 0}}
-      dust={{count: 38, color: PALETTE.goldPale, seed: 's05-dust'}}
+      rays={{color: PALETTE.goldPale, opacity: 0.18, x: 240, y: -6, spread: 30, length: 230}}
+      bloom={{intensity: 0.3 + 0.12 * lit}}
+      dust={{count: 38, color: PALETTE.goldPale, seed: 's05-dust', opacity: 0.55}}
+      nearBokeh={{count: 6, color: PALETTE.gold, opacity: 0.26}}
+      foreground={<RopeStanchions y={222} />}
+      foregroundBlur={2.6}
+      vignette={0.45}
+      grain={0.07}
       hud={hud}
     >
       <PixelDoor x={426} y={134} glow={PALETTE.teal} label="OBSERVATORIUM" />
       <PottedPlant x={66} y={202} h={28} />
       <PottedPlant x={392} y={202} h={24} />
 
-      {/* Grounded Podium + Candle + Safety Sign */}
-      <Img
-        src={staticFile('sprites/props/podium.png')}
-        style={{position: 'absolute', left: 216, top: 163, width: 48, height: 40, imageRendering: 'pixelated'}}
-      />
-      <Img
-        src={staticFile('sprites/props/candle_unlit.png')}
-        style={{position: 'absolute', left: 224, top: 130, width: 32, height: 40, imageRendering: 'pixelated'}}
-      />
-      {candleLit ? <AnimatedFlame x={240} y={142} scale={1} /> : null}
+      {/* Hero product: voxel podium + aromatic candle on a slow turntable */}
+      <VoxelModel voxels={podium} x={240} y={204} angle={spin} unit={2} box={60} tilt={0.5} z={6} />
+      <VoxelModel voxels={candle} x={240} y={185} angle={spin} unit={1} box={26} tilt={0.5} z={7} />
+      {candleLit ? <AnimatedFlame x={240} y={168} scale={0.75} /> : null}
 
       {showSafety ? (
         <Img
           src={staticFile('sprites/props/safety_sign.png')}
-          style={{position: 'absolute', left: 160, top: 173, width: 32, height: 32, imageRendering: 'pixelated'}}
+          style={{position: 'absolute', left: 176, top: 173, width: 32, height: 32, imageRendering: 'pixelated', zIndex: 9}}
         />
       ) : null}
 
@@ -309,6 +379,7 @@ export const S05_Produk: React.FC = () => {
         lineId={ayuyaSpeaking ? activeLineId : undefined}
         dim={lovytaSpeaking ? 0.35 : 0}
         z={20}
+        emote={{type: 'heart', startFrame: Math.round((tL5 + 0.8) * fps), durationFrames: 32}}
       />
       <Character
         id="lovyta"
@@ -320,13 +391,14 @@ export const S05_Produk: React.FC = () => {
         lineId={lovytaSpeaking ? activeLineId : undefined}
         dim={ayuyaSpeaking ? 0.35 : 0}
         z={20}
+        emote={{type: 'sparkle', startFrame: Math.round((tL2 + 4.3) * fps), durationFrames: 30}}
       />
 
       {META.showMascotJeli ? (
-        <JeliMascot x={240} y={candleLit ? 124 : 186} mood={candleLit ? 'flame' : 'happy'} z={24} />
+        <JeliMascot x={candleLit ? 240 : 270} y={candleLit ? 154 : 192} mood={candleLit ? 'flame' : 'happy'} z={24} />
       ) : null}
 
-      <Sparkle x={240} y={116} size="md" color={PALETTE.gold} />
+      <Sparkle x={240} y={candleLit ? 138 : 150} size="md" color={PALETTE.gold} glowRadius={18} />
       <DubLayer sceneId="S05" />
       <SfxLayer cues={S05_SFX} />
     </SceneShell>

@@ -26,9 +26,9 @@ const CurtainPresentation: React.FC<TransitionPresentationComponentProps<Record<
                 top: 0,
                 bottom: 0,
                 width: `${closePct.toFixed(2)}%`,
-                background: `repeating-linear-gradient(90deg, ${PALETTE.magentaDark} 0px, ${PALETTE.burgundy} 28px, ${PALETTE.maroon} 48px, ${PALETTE.magentaDark} 64px)`,
+                background: `linear-gradient(180deg, rgba(255,178,90,0.22) 0%, transparent 30%, rgba(16,10,20,0.55) 100%), repeating-linear-gradient(90deg, ${PALETTE.ink} 0px, ${PALETTE.magentaDark} 12px, ${PALETTE.burgundy} 30px, ${PALETTE.crimson} 44px, ${PALETTE.burgundy} 56px, ${PALETTE.magentaDark} 72px, ${PALETTE.ink} 84px)`,
                 borderRight: `8px solid ${PALETTE.gold}`,
-                boxShadow: '16px 0 40px rgba(16,10,20,0.65)',
+                boxShadow: '24px 0 60px rgba(16,10,20,0.8), inset -10px 0 24px rgba(255,178,90,0.25)',
               }}
             />
             <div
@@ -38,9 +38,9 @@ const CurtainPresentation: React.FC<TransitionPresentationComponentProps<Record<
                 top: 0,
                 bottom: 0,
                 width: `${closePct.toFixed(2)}%`,
-                background: `repeating-linear-gradient(90deg, ${PALETTE.magentaDark} 0px, ${PALETTE.burgundy} 28px, ${PALETTE.maroon} 48px, ${PALETTE.magentaDark} 64px)`,
+                background: `linear-gradient(180deg, rgba(255,178,90,0.22) 0%, transparent 30%, rgba(16,10,20,0.55) 100%), repeating-linear-gradient(90deg, ${PALETTE.ink} 0px, ${PALETTE.magentaDark} 12px, ${PALETTE.burgundy} 30px, ${PALETTE.crimson} 44px, ${PALETTE.burgundy} 56px, ${PALETTE.magentaDark} 72px, ${PALETTE.ink} 84px)`,
                 borderLeft: `8px solid ${PALETTE.gold}`,
-                boxShadow: '-16px 0 40px rgba(16,10,20,0.65)',
+                boxShadow: '-24px 0 60px rgba(16,10,20,0.8), inset 10px 0 24px rgba(255,178,90,0.25)',
               }}
             />
           </>
@@ -68,9 +68,9 @@ const CurtainPresentation: React.FC<TransitionPresentationComponentProps<Record<
               top: 0,
               bottom: 0,
               width: `${openPct.toFixed(2)}%`,
-              background: `repeating-linear-gradient(90deg, ${PALETTE.magentaDark} 0px, ${PALETTE.burgundy} 28px, ${PALETTE.maroon} 48px, ${PALETTE.magentaDark} 64px)`,
+              background: `linear-gradient(180deg, rgba(255,178,90,0.22) 0%, transparent 30%, rgba(16,10,20,0.55) 100%), repeating-linear-gradient(90deg, ${PALETTE.ink} 0px, ${PALETTE.magentaDark} 12px, ${PALETTE.burgundy} 30px, ${PALETTE.crimson} 44px, ${PALETTE.burgundy} 56px, ${PALETTE.magentaDark} 72px, ${PALETTE.ink} 84px)`,
               borderRight: `8px solid ${PALETTE.gold}`,
-              boxShadow: '16px 0 40px rgba(16,10,20,0.65)',
+              boxShadow: '24px 0 60px rgba(16,10,20,0.8), inset -10px 0 24px rgba(255,178,90,0.25)',
             }}
           />
           <div
@@ -80,9 +80,9 @@ const CurtainPresentation: React.FC<TransitionPresentationComponentProps<Record<
               top: 0,
               bottom: 0,
               width: `${openPct.toFixed(2)}%`,
-              background: `repeating-linear-gradient(90deg, ${PALETTE.magentaDark} 0px, ${PALETTE.burgundy} 28px, ${PALETTE.maroon} 48px, ${PALETTE.magentaDark} 64px)`,
+              background: `linear-gradient(180deg, rgba(255,178,90,0.22) 0%, transparent 30%, rgba(16,10,20,0.55) 100%), repeating-linear-gradient(90deg, ${PALETTE.ink} 0px, ${PALETTE.magentaDark} 12px, ${PALETTE.burgundy} 30px, ${PALETTE.crimson} 44px, ${PALETTE.burgundy} 56px, ${PALETTE.magentaDark} 72px, ${PALETTE.ink} 84px)`,
               borderLeft: `8px solid ${PALETTE.gold}`,
-              boxShadow: '-16px 0 40px rgba(16,10,20,0.65)',
+              boxShadow: '-24px 0 60px rgba(16,10,20,0.8), inset 10px 0 24px rgba(255,178,90,0.25)',
             }}
           />
         </>

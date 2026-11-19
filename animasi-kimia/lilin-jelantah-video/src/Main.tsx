@@ -1,5 +1,5 @@
 import React from 'react';
-import {TransitionSeries, linearTiming, springTiming} from '@remotion/transitions';
+import {TransitionSeries, linearTiming} from '@remotion/transitions';
 import {Easing} from 'remotion';
 import {GlobalBgm} from './audio/Bgm';
 import {sceneDurationFrames} from './data/timeline';
@@ -14,7 +14,7 @@ import {S06_DataBukti} from './scenes/S06_DataBukti';
 import {S07_Referensi} from './scenes/S07_Referensi';
 import {S08_Kontribusi} from './scenes/S08_Kontribusi';
 import {S09_Penutup} from './scenes/S09_Penutup';
-import {curtain, iris, lightFlash, pixelDissolve, slide} from './transitions';
+import {curtain, irisGlow, lightFlash, pixelDissolve, whipPan} from './transitions';
 
 ensurePixelFonts();
 
@@ -22,10 +22,6 @@ export const Main: React.FC = () => {
   const smooth24 = linearTiming({
     durationInFrames: 24,
     easing: Easing.inOut(Easing.cubic),
-  });
-  const spring24 = springTiming({
-    config: {damping: 200},
-    durationInFrames: 24,
   });
 
   return (
@@ -40,7 +36,7 @@ export const Main: React.FC = () => {
           <S01B_WorldReveal />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition
-          presentation={iris({width: 1920, height: 1080})}
+          presentation={irisGlow({cx: 24, cy: 36, color: '#4FD1C5'})}
           timing={smooth24}
         />
 
@@ -56,8 +52,8 @@ export const Main: React.FC = () => {
           <S03_Konsep />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition
-          presentation={slide({direction: 'from-right'})}
-          timing={spring24}
+          presentation={whipPan({direction: 'left'})}
+          timing={smooth24}
         />
 
         <TransitionSeries.Sequence name="S04 Penerapan & Analisis" durationInFrames={sceneDurationFrames('S04')}>
@@ -80,8 +76,8 @@ export const Main: React.FC = () => {
           <S06_DataBukti />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition
-          presentation={slide({direction: 'from-right'})}
-          timing={spring24}
+          presentation={whipPan({direction: 'left', page: true})}
+          timing={smooth24}
         />
 
         <TransitionSeries.Sequence name="S07 Referensi" durationInFrames={sceneDurationFrames('S07')}>

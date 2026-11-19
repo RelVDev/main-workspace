@@ -4,6 +4,7 @@ import type {CharId} from '../data/script';
 import {CHARACTERS} from './registry';
 import {useMouth, type MouthShape} from './useMouth';
 import {Emote, type EmoteType} from './Emote';
+import {useSceneLight} from '../engine/SceneLight';
 
 export type Pose = 'idle' | 'talk' | 'wave' | 'point' | 'think' | 'cheer' | 'walk' | 'sit' | 'hold';
 export type Expr = 'neutral' | 'happy' | 'surprised' | 'worried' | 'determined' | 'sad';
@@ -46,6 +47,7 @@ export const Character: React.FC<CharacterProps> = ({
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const meta = CHARACTERS[id];
+  const light = useSceneLight();
 
   // Smooth continuous breathing & speaking bounce (no harsh 4px staircase steps)
   const phase = random(`breath-${id}`) * Math.PI * 2;
@@ -67,6 +69,18 @@ export const Character: React.FC<CharacterProps> = ({
   const walkBob = pose === 'walk' ? -Math.abs(Math.sin(frame * 0.55)) * 1.4 : 0;
 
   const bodyOffsetY = idleBob + talkBob + cheerHop + walkBob - jumpY;
+  // Squash & stretch: stretch while airborne, breathe subtly on idle
+  const stretch = jumpY > 0.5 ? Math.min(0.08, jumpY * 0.006) : 0;
+  const breathe = Math.sin(frame / 13 + phase) * 0.008;
+  const sy = 1 + stretch + breathe;
+  const sx = 1 - stretch * 0.6 - breathe * 0.5;
+
+  // Cast shadow projected away from the scene key light
+  const dxL = x - light.keyX;
+  const dyL = Math.max(20, y - light.keyY);
+  const skew = Math.max(-58, Math.min(58, Math.atan2(dxL, dyL) * (180 / Math.PI) * 1.1));
+  const castLen = Math.max(0.22, Math.min(0.62, 0.32 + Math.abs(dxL) / 900));
+  const castOp = light.shadowStrength * Math.max(0.25, 1 - jumpY * 0.05) * (dim > 0 ? 0.8 : 1);
 
   // Resolve eyes sprite
   let eyesName: string = expr === 'neutral' ? 'open' : expr;
@@ -150,13 +164,31 @@ export const Character: React.FC<CharacterProps> = ({
         }}
       />
 
+      {/* Projected cast shadow (silhouette flattened onto the floor, skewed away from the key) */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          transformOrigin: '50% 93.75%',
+          transform: `translate3d(${(flip ? 0 : 0).toFixed(2)}px, 0, 0) skewX(${(-skew).toFixed(2)}deg) scaleY(${(-castLen).toFixed(3)}) scaleX(${flip ? -1 : 1})`,
+          filter: 'brightness(0) blur(0.35px)',
+          opacity: castOp * 0.62,
+        }}
+      >
+        <Img src={staticFile(`${base}/hair_back.png`)} style={layerStyle} />
+        <Img src={staticFile(`${base}/legs_${legsName}.png`)} style={layerStyle} />
+        <Img src={staticFile(`${base}/body.png`)} style={layerStyle} />
+        <Img src={staticFile(`${base}/head.png`)} style={layerStyle} />
+        <Img src={staticFile(`${base}/hair_front.png`)} style={layerStyle} />
+      </div>
+
       {/* Character sprite stack */}
       <div
         style={{
           position: 'absolute',
           inset: 0,
-          transform: `translate3d(0, ${bodyOffsetY.toFixed(2)}px, 0) scaleX(${flip ? -1 : 1})`,
-          transformOrigin: 'center center',
+          transform: `translate3d(0, ${bodyOffsetY.toFixed(2)}px, 0) scale(${((flip ? -1 : 1) * sx).toFixed(4)}, ${sy.toFixed(4)})`,
+          transformOrigin: '50% 93.75%',
           filter: dimFilter,
         }}
       >
@@ -175,8 +207,19 @@ export const Character: React.FC<CharacterProps> = ({
         <Img src={staticFile(`${base}/accessory.png`)} style={layerStyle} />
         <Img
           src={staticFile(`${base}/rim.png`)}
-          style={{...layerStyle, opacity: dim > 0 ? 0.25 : 0.94}}
+          style={{...layerStyle, opacity: dim > 0 ? 0.15 : 0.4}}
         />
+        {light.rimFilterId ? (
+          <Img
+            src={staticFile(`${base}/rim.png`)}
+            style={{
+              ...layerStyle,
+              filter: `url(#${light.rimFilterId})`,
+              opacity: (dim > 0 ? 0.12 : 0.45) * light.rimStrength,
+              mixBlendMode: 'screen',
+            }}
+          />
+        ) : null}
         <Img src={staticFile(`${base}/arm_r_${armR}.png`)} style={layerStyle} />
       </div>
 

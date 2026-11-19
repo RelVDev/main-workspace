@@ -37,14 +37,14 @@ export const Callout: React.FC<{
         left: x,
         top: y,
         opacity: op,
-        backgroundColor: 'rgba(27, 16, 32, 0.92)',
+        background: 'linear-gradient(180deg, rgba(48,26,58,0.94) 0%, rgba(27,16,32,0.94) 100%)',
         color: PALETTE.cream,
         fontFamily: FONT_BODY,
         fontSize: 24,
         fontWeight: 700,
         padding: '8px 16px',
         border: `4px solid ${accent}`,
-        boxShadow: `4px 4px 0 ${PALETTE.ink}`,
+        boxShadow: `4px 4px 0 ${PALETTE.ink}, 0 0 24px ${accent}33, inset 0 3px 0 rgba(255,243,220,0.1)`,
         whiteSpace: 'nowrap',
       }}
     >

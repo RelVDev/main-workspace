@@ -38,7 +38,7 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
     extrapolateRight: 'clamp',
     easing: Easing.inOut(Easing.cubic),
   });
-  const slideY = interpolate(frame, [startFrame, startFrame + 8], [12, 0], {
+  const slideY = interpolate(frame, [startFrame, startFrame + 10], [18, 0], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
     easing: Easing.out(Easing.cubic),
@@ -61,14 +61,25 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
       </div>
       <div
         style={{
-          backgroundColor: 'rgba(27, 16, 32, 0.93)',
+          position: 'relative',
+          background: 'linear-gradient(180deg, rgba(48,26,58,0.95) 0%, rgba(27,16,32,0.95) 55%, rgba(20,12,26,0.96) 100%)',
           border: `5px solid ${PALETTE.cream}`,
           outline: `4px solid ${PALETTE.ink}`,
-          boxShadow: `0 10px 0 rgba(16,10,20,0.68)`,
+          boxShadow: `0 10px 0 rgba(16,10,20,0.68), 0 0 48px ${speakerColor}2E, inset 0 4px 0 rgba(255,243,220,0.10), inset 0 -6px 0 rgba(16,10,20,0.45)`,
           padding: '22px 32px 20px 32px',
           minHeight: 98,
         }}
       >
+        {/* speaker accent stripe + pixel corner studs */}
+        <div style={{position: 'absolute', left: 0, right: 0, top: 0, height: 4, background: `linear-gradient(90deg, ${speakerColor} 0%, ${speakerColor}00 70%)`, opacity: 0.85}} />
+        {[
+          {left: 6, top: 6},
+          {right: 6, top: 6},
+          {left: 6, bottom: 6},
+          {right: 6, bottom: 6},
+        ].map((pos, i) => (
+          <div key={i} style={{position: 'absolute', width: 6, height: 6, backgroundColor: i < 2 ? speakerColor : PALETTE.plumMid, ...pos}} />
+        ))}
         <p
           style={{
             margin: 0,

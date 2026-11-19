@@ -1,5 +1,5 @@
 import React from 'react';
-import {Easing, Img, interpolate, Sequence, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
+import {Easing, interpolate, Sequence, useCurrentFrame, useVideoConfig} from 'remotion';
 import {DubLayer} from '../audio/DubLayer';
 import {SfxLayer} from '../audio/SfxLayer';
 import {Character, JeliMascot} from '../characters/Character';
@@ -7,18 +7,25 @@ import {S06_SFX} from '../data/cues/S06.cues';
 import {META} from '../data/meta';
 import {OBSERVATION_CRITERIA} from '../data/observations';
 import {PALETTE} from '../data/palette';
-import {FloorGlow, PointLight, Sparkle} from '../engine/Lighting';
+import {LensFlare} from '../engine/Atmosphere';
+import {FloorGlow, Sparkle} from '../engine/Lighting';
+import type {MapLight} from '../engine/SceneLight';
+import {VoxelModel, oilDrumModel} from '../engine/Voxel';
 import {SceneShell} from '../engine/SceneShell';
 import {EvidenceFrame} from '../footage/EvidenceFrame';
-import {smoothKeyframes} from '../lib/easing';
+import {clamp01, smoothKeyframes} from '../lib/easing';
 import {FONT_BODY, FONT_TITLE} from '../lib/fonts';
 import {lineEnd, lineStartSec} from '../lib/seconds';
 import {Counter} from '../ui/Counter';
 import {SceneBanner} from '../ui/SceneBanner';
 import {SceneSubtitles} from '../ui/Subtitles';
 import {Tag} from '../ui/Tag';
-import {HangingLamp, ObservatoryDecor} from './shared/RoomDecor';
-import {StageFloor} from './shared/StageElements';
+import {HangingLamp} from './shared/RoomDecor';
+import {DataConsole, DeckRailing, IndonesiaHologram, LibraryDoorway, ObservatoryDome, S06Foreground} from './shared/S06Set';
+
+const FEET_Y = 204;
+/** Keep the characters' feet at a fixed screen height (above the subtitle box) whatever the zoom. */
+const camYFor = (zoom: number, screenY = 206) => FEET_Y - (screenY - 135) / (zoom * 1.06);
 
 export const S06_DataBukti: React.FC = () => {
   const frame = useCurrentFrame();
@@ -50,22 +57,70 @@ export const S06_DataBukti: React.FC = () => {
   const showSplitBalance = t >= tL6 && t < tL7;
   const showTakeaway = t >= tL7;
 
-  // Smooth cinematic camera drift & zoom across Observatory beats
+  // ── Camera choreography (anchored to dub lines) ─────────────────────
+  // L01 wide observatory → slow push toward the counter
+  // L02 tilt-up the drum stack · L03 static w/ DoF on the 140-dot grid
+  // L04 pan across the innovation diagram · L05 dolly along the evidence wall
+  // L06 balanced static · L07 zoom-out montage · L08 push in for the high-five
+  // L09 pan right to the library doorway (exits into the page-slide)
   const camZoom = smoothKeyframes(t, [
     [0, 1.0],
-    [tL2, 1.14],
-    [tL3, 1.06],
-    [tL4, 1.12],
-    [tL5, 1.05],
-    [tL6, 1.1],
-    [tL8, 1.24],
-    [tL9, 1.06],
+    [tL1 + 1.0, 1.02],
+    [tL2 - 0.6, 1.24],
+    [tL2 + 0.6, 1.38],
+    [tL3 - 0.5, 1.34],
+    [tL3 + 0.6, 1.08],
+    [tL4 - 0.4, 1.12],
+    [tL4 + 0.6, 1.28],
+    [tL5 - 0.4, 1.3],
+    [tL5 + 0.8, 1.2],
+    [tL6 - 0.6, 1.24],
+    [tL6 + 0.6, 1.08],
+    [tL7 - 0.2, 1.1],
+    [tL7 + 0.4, 1.34],
+    [tL8 - 0.5, 1.0],
+    [tL8 + 1.2, 1.12],
+    [tL8 + 2.0, 1.55],
+    [tL8 + 6.0, 1.45],
+    [tL9 - 0.3, 1.3],
+    [tL9 + 3.0, 1.32],
   ]);
   const camX = smoothKeyframes(t, [
     [0, 240],
-    [tL2 + 1.5, 258],
-    [tL3 + 2.0, 232],
-    [tL6, 240],
+    [tL2 - 0.6, 250],
+    [tL2 + 0.6, 372],
+    [tL3 - 0.5, 380],
+    [tL3 + 0.6, 244],
+    [tL4 - 0.4, 236],
+    [tL4 + 0.6, 150],
+    [tL5 - 0.4, 330],
+    [tL5 + 0.8, 320],
+    [tL6 - 0.6, 176],
+    [tL6 + 0.6, 240],
+    [tL7 - 0.2, 240],
+    [tL7 + 0.4, 236],
+    [tL8 - 0.5, 240],
+    [tL8 + 2.0, 240],
+    [tL9 - 0.3, 260],
+    [tL9 + 3.0, 400],
+  ]);
+  // tilt-up on the drums during L02 (from the floor up to the top drum)
+  const tiltUp = smoothKeyframes(t, [
+    [tL2 + 0.2, 0],
+    [tL2 + 3.2, 1],
+    [tL3 - 0.5, 1],
+    [tL3 + 0.6, 0],
+  ]);
+  const camY = camYFor(camZoom) - tiltUp * 16;
+  const focus = smoothKeyframes(t, [
+    [0, 0.5],
+    [tL2, 0.5],
+    [tL2 + 1, 0.9],
+    [tL3 + 0.6, 1],
+    [tL4 - 0.4, 1],
+    [tL4 + 0.6, 0.6],
+    [tL8, 0.6],
+    [tL8 + 1.6, 1],
   ]);
 
   // Playful interactive character positions:
@@ -109,12 +164,12 @@ export const S06_DataBukti: React.FC = () => {
         easing: Easing.inOut(Easing.cubic),
       })
     : showNational && t >= tL2
-      ? 386
+      ? 370
       : 240;
   const jeliY = showPipeline
     ? 86 + Math.sin(frame * 0.25) * 3
     : showNational && t >= tL2
-      ? 142
+      ? 158
       : 186;
 
   // 140 household dot grid (90 orange = 64.3%)
@@ -399,60 +454,124 @@ export const S06_DataBukti: React.FC = () => {
     </>
   );
 
+  // ── Lighting ─────────────────────────────────────────────────────────
+  const holoGlow = 0.75 + 0.25 * Math.sin(frame / 22);
+  const drumOn = t >= tL2 && t < tL4 ? clamp01((t - tL2) / 0.6) : 0;
+  const dotHeat = showSurvey140 ? dotsLit / 90 : 0;
+  const doorOpen = smoothKeyframes(t, [
+    [tL9 - 0.2, 0.25],
+    [tL9 + 2.0, 1],
+  ]);
+  const mapLights: MapLight[] = [
+    {x: 240, y: 96, r: 120, sx: 1.5, color: PALETTE.teal, intensity: 0.75 * holoGlow, banded: false},
+    {x: 240, y: 120, r: 48, color: PALETTE.cyan, intensity: 0.8 * holoGlow},
+    {x: 46, y: 160, r: 46, color: PALETTE.teal, intensity: 0.7, flicker: 0.08, seed: 'c1'},
+    {x: 418, y: 160, r: 46, color: PALETTE.teal, intensity: 0.6, flicker: 0.08, seed: 'c2'},
+    {x: farelX, y: 178, r: 66, sx: 1.1, color: PALETTE.goldPale, intensity: farelSpeaking ? 1 : 0.7},
+    {x: sofiX, y: 178, r: 66, sx: 1.1, color: PALETTE.goldPale, intensity: sofiSpeaking ? 1 : 0.7},
+    // cool overhead fill so the deck reads
+    {x: 240, y: 200, r: 170, sx: 1.9, color: PALETTE.cyan, intensity: 0.35, banded: false},
+    {x: 380, y: 170, r: 62, color: PALETTE.amber, intensity: 0.65 * drumOn, flicker: 0.05, seed: 'drum'},
+    {x: 240, y: 230, r: 150, sx: 2.2, color: PALETTE.amber, intensity: 0.25 + 0.45 * dotHeat, banded: false},
+    {x: 462, y: 170, r: 70, color: PALETTE.gold, intensity: 0.3 + 0.7 * doorOpen, flicker: 0.05, seed: 'door'},
+    ...(highFiveSpark ? [{x: 240, y: 150, r: 80, color: PALETTE.goldPale, intensity: 0.9}] : []),
+  ];
+
   return (
     <SceneShell
       grade="observatory"
       camX={camX}
-      camY={135}
+      camY={camY}
       zoom={camZoom}
-      farBlur={3.6}
-      midBlur={1.4}
-      farBg={<ObservatoryDecor />}
-      floor={<StageFloor y={204} topColor={PALETTE.navy} bottomColor={PALETTE.void} />}
-      lights={
+      focus={focus}
+      farBlur={2.6}
+      midBlur={1}
+      intro="pull"
+      outro="right"
+      handheld={1}
+      farBg={<ObservatoryDome />}
+      midBg={
         <>
-          <HangingLamp x={160} cordLen={18} bulbColor={PALETTE.teal} coneHeight={165} opacity={0.18} />
-          <HangingLamp x={320} cordLen={18} bulbColor={PALETTE.goldPale} coneHeight={165} opacity={0.18} />
-          <FloorGlow x={240} y={208} rx={120} ry={14} color={PALETTE.teal} opacity={0.32} />
-          <PointLight x={240} y={96} radius={165} color={PALETTE.teal} intensity={0.48} />
+          <IndonesiaHologram x={240} y={104} glow={holoGlow} />
+          <DeckRailing y={150} />
         </>
       }
-      dust={{count: 38, color: PALETTE.cyan, seed: 's06-dust'}}
+      floor3d={{y: 204, pattern: 'lab', tile: 24, gloss: 0.35, glossColor: PALETTE.teal, seed: 's06'}}
+      lightMap={{ambient: '#0A1A34', darkness: 0.44, lights: mapLights}}
+      keyLight={{keyX: 240, keyY: 90, rimColor: PALETTE.cyan, rimStrength: 0.85, shadowStrength: 0.55}}
+      rays={{color: PALETTE.cyan, opacity: 0.1, x: 240, y: -10, spread: 50, length: 260}}
+      bloom={{intensity: 0.3}}
+      fog={{y: 176, height: 50, color: PALETTE.teal, opacity: 0.08}}
+      lights={
+        <>
+          <HangingLamp x={120} cordLen={14} bulbColor={PALETTE.teal} coneHeight={150} opacity={0.12} />
+          <HangingLamp x={360} cordLen={14} bulbColor={PALETTE.goldPale} coneHeight={150} opacity={0.12} />
+          <FloorGlow x={240} y={208} rx={90} ry={11} color={PALETTE.teal} opacity={0.22} />
+          {drumOn > 0 ? <FloorGlow x={384} y={206} rx={40} ry={8} color={PALETTE.amber} opacity={0.3 * drumOn} /> : null}
+          <LensFlare x={240} y={120} color={PALETTE.cyan} intensity={0.35 * holoGlow} width={130} seed="holo" />
+          {highFiveSpark ? <LensFlare x={240} y={142} color={PALETTE.goldPale} intensity={0.8} width={200} seed="hf" /> : null}
+        </>
+      }
+      dust={{count: 40, color: PALETTE.cyan, seed: 's06-dust', opacity: 0.5}}
+      nearBokeh={{count: 6, color: PALETTE.teal, opacity: 0.22}}
+      foreground={<S06Foreground />}
+      foregroundBlur={3}
       hud={hud}
     >
-      {/* Playful Dropping & Stacking Oil Barrels during L01-L03 */}
+      <DataConsole x={24} y={204} seed="left" />
+      <DataConsole x={396} y={204} flip seed="right2" accent={PALETTE.cyan} />
+      <LibraryDoorway x={438} y={204} open={doorOpen} />
+
+      {/* L02-L03: voxel oil drums drop, bounce and stack — slowly turning (illustration) */}
       {t >= tL2 && t < tL4 ? (
         <>
           {[0, 1, 2].map((b) => {
-            const dropY = interpolate(t, [tL2 + b * 0.65, tL2 + 0.55 + b * 0.65], [70, 174 - (b === 2 ? 27 : 0)], {
+            const landY = b === 2 ? 186 : 206;
+            const dropY = interpolate(t, [tL2 + b * 0.8, tL2 + 0.7 + b * 0.8], [40, landY], {
               extrapolateLeft: 'clamp',
               extrapolateRight: 'clamp',
               easing: Easing.out(Easing.bounce),
             });
-            const bx = b === 2 ? 388 : 374 + b * 24;
+            if (t < tL2 + b * 0.8) return null;
+            const bx = b === 2 ? 370 : 358 + b * 24;
             return (
-              <Img
+              <VoxelModel
                 key={b}
-                src={staticFile('sprites/props/drum_oil.png')}
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  top: 0,
-                  transform: `translate3d(${bx}px, ${dropY.toFixed(2)}px, 0)`,
-                  width: 24,
-                  height: 32,
-                  imageRendering: 'pixelated',
-                }}
+                voxels={DRUM}
+                x={bx}
+                y={dropY}
+                angle={frame * 0.02 + b * 1.3}
+                unit={1}
+                box={22}
+                tilt={0.45}
+                z={18 + b}
               />
             );
           })}
+          <div
+            style={{
+              position: 'absolute',
+              left: 344,
+              top: 210,
+              padding: '1px 3px',
+              backgroundColor: PALETTE.ink,
+              color: PALETTE.goldPale,
+              fontFamily: 'monospace',
+              fontSize: 5,
+              fontStyle: 'italic',
+              opacity: drumOn,
+              zIndex: 25,
+            }}
+          >
+            *ilustrasi
+          </div>
         </>
       ) : null}
 
       <Character
         id="farel"
         x={farelX}
-        y={204}
+        y={FEET_Y}
         flip={t >= tL9}
         pose={isFarelWalk ? 'walk' : farelSpeaking ? 'point' : showTakeaway ? 'cheer' : 'idle'}
         expr={highFiveSpark ? 'happy' : 'determined'}
@@ -465,13 +584,18 @@ export const S06_DataBukti: React.FC = () => {
       <Character
         id="sofi"
         x={sofiX}
-        y={204}
+        y={FEET_Y}
         flip={t < tL9}
         pose={isSofiBouncePlay ? 'cheer' : sofiSpeaking ? 'point' : showTakeaway ? 'cheer' : 'idle'}
         expr="happy"
         lineId={sofiSpeaking ? activeLineId : undefined}
         dim={farelSpeaking ? 0.35 : 0}
         jumpY={isSofiBouncePlay ? Math.abs(Math.sin(frame * 0.3)) * 8 : highFiveJump}
+        emote={
+          t >= tL7 + 0.8 && t < tL7 + 2.0
+            ? {type: 'sparkle', startFrame: Math.round((tL7 + 0.8) * fps), durationFrames: 30}
+            : undefined
+        }
         z={20}
       />
 
@@ -480,9 +604,12 @@ export const S06_DataBukti: React.FC = () => {
       ) : null}
 
       {highFiveSpark ? <Sparkle x={240} y={142} size="lg" color={PALETTE.gold} /> : null}
+      {showSurvey140 ? <Sparkle x={sofiX} y={150} size="sm" color={PALETTE.amber} phase={8} /> : null}
 
       <DubLayer sceneId="S06" />
       <SfxLayer cues={S06_SFX} />
     </SceneShell>
   );
 };
+
+const DRUM = oilDrumModel(PALETTE.amber, PALETTE.woodDark);

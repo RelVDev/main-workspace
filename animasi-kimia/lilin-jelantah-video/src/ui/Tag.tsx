@@ -33,6 +33,8 @@ export const Tag: React.FC<{
     easing: Easing.out(Easing.back(1.6)),
   });
   const shakeX = local < 8 ? (local % 2 === 0 ? -3 : 3) : 0;
+  // flash of glow on impact, settling to a soft halo
+  const glow = interpolate(local, [0, 4, 24], [1, 1, 0.25], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
 
   return (
     <div
@@ -47,7 +49,7 @@ export const Tag: React.FC<{
         fontSize: 20,
         padding: '12px 20px',
         border: `4px solid ${PALETTE.ink}`,
-        boxShadow: `6px 6px 0 ${PALETTE.ink}`,
+        boxShadow: `6px 6px 0 ${PALETTE.ink}, 0 0 ${Math.round(14 + 26 * glow)}px ${cfg.bg}${Math.round(40 + 120 * glow).toString(16).padStart(2, '0')}, inset 0 -4px 0 rgba(16,10,20,0.25), inset 0 4px 0 rgba(255,255,255,0.35)`,
         transform: `translateX(${shakeX}px) scale(${scale.toFixed(3)})`,
         transformOrigin: 'center center',
         letterSpacing: 1,
